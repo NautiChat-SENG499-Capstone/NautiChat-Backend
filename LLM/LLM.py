@@ -15,13 +15,74 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+from onc import ONC
 
 def get_documents(question):
   compression_documents = compression_retriever.invoke(question)
   compression_contents = [doc.page_content for doc in compression_documents]
   df = pd.DataFrame({'contents': compression_contents})
   return df
+"""
+{
+  "cvTerm": {
+    "device": [
+      {
+        "uri": "http://vocab.nerc.ac.uk/collection/L22/current/TOOL1250/",
+        "vocabulary": "SeaVoX Device Catalogue"
+      }
+    ]
+  },
+  "dataRating": [
+    {
+      "dateFrom": "2014-09-22T18:30:00.000Z",
+      "dateTo": null,
+      "samplePeriod": 5.0,
+      "sampleSize": 1
+    }
+  ],
+  "deviceCategoryCode": "ICEPROFILER",
+  "deviceCode": "ASLSWIP53019",
+  "deviceId": 23369,
+  "deviceLink": "https://data.oceannetworks.ca/DeviceListing?DeviceId=23369",
+  "deviceName": "ASL Shallow Water Ice Profiler 53019",
+  "hasDeviceData": true
+}"""
 
+async def get_device_list():
+    """Get a list of devices available at Cambridge Bay
+        Returns a list of dictionaries turned into a string.
+        Each Item in the list includes:
+        - deviceName (str): Name of the device
+        - deviceCode (str): Code of the device
+        - deviceId (int): ID of the device
+        - deviceLink (str): Link to the device
+        - deviceCategoryCode (str): Category code of the device
+        - hasDeviceData (bool): Whether the device has data
+        - dataRating (list): List of data ratings for the device
+        - cvTerm (dict): Controlled vocabulary term for the device
+        example: '[{"deviceName": "ASL Shallow Water Ice Profiler 53019", "deviceCode": "ASLSWIP53019", "deviceId": 23369, "deviceLink": "https://data.oceannetworks.ca/DeviceListing?DeviceId=23369", "deviceCategoryCode": "ICEPROFILER", "hasDeviceData": true, "dataRating": [{"dateFrom": "2014-09-22T18:30:00.000Z", "dateTo": null, "samplePeriod": 5.0, "sampleSize": 1}], "cvTerm": {"device": [{"uri": "http://vocab.nerc.ac.uk/collection/L22/current/TOOL1250/", "vocabulary": "SeaVoX Device Catalogue"}]}}]'
+    """
+    onc = ONC(os.getenv("ONC_TOKEN"))
+    params = {
+        "locationCode": os.getenv("CAMBRIDGE_LOCATION_CODE"),
+    }
+    devices = onc.getDevices(params)
+
+    # Convert to list of dictionaries
+    list_of_dicts = [
+        {
+            "deviceName": device["deviceName"],
+            "deviceCode": device["deviceCode"]
+            "deviceId": device["deviceId"],
+            "deviceLink": device["deviceLink"],
+            "deviceCategoryCode": device["deviceCategoryCode"],
+            "hasDeviceData": device["hasDeviceData"],
+            "dataRating": device["dataRating"],
+            "cvTerm": device["cvTerm"],
+
+        } for device in devices
+    ]
+    return json.dumps(list_of_dicts)
 
 async def get_properties_at_cambridge_bay():
     """Get a list of properties of data available at Cambridge Bay
