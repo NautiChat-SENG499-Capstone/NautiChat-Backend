@@ -5,7 +5,6 @@ import json
 import os
 import pprint
 from datetime import datetime, timedelta
-import os
 from dotenv import load_dotenv
 import httpx
 from datasets import load_dataset
@@ -75,9 +74,9 @@ async def get_device_list():
         - cvTerm (dict): Controlled vocabulary term for the device
         example: '[{"deviceName": "ASL Shallow Water Ice Profiler 53019", "deviceCode": "ASLSWIP53019", "deviceId": 23369, "deviceLink": "https://data.oceannetworks.ca/DeviceListing?DeviceId=23369", "deviceCategoryCode": "ICEPROFILER", "hasDeviceData": true, "dataRating": [{"dateFrom": "2014-09-22T18:30:00.000Z", "dateTo": null, "samplePeriod": 5.0, "sampleSize": 1}], "cvTerm": {"device": [{"uri": "http://vocab.nerc.ac.uk/collection/L22/current/TOOL1250/", "vocabulary": "SeaVoX Device Catalogue"}]}}]'
     """
-    onc = ONC(os.getenv("ONC_TOKEN"))
+    onc = ONC(ONC_TOKEN)
     params = {
-        "locationCode": os.getenv("CAMBRIDGE_LOCATION_CODE"),
+        "locationCode": CAMBRIDGE_LOCATION_CODE,
     }
     devices = onc.getDevices(params)
 
@@ -85,7 +84,7 @@ async def get_device_list():
     list_of_dicts = [
         {
             "deviceName": device["deviceName"],
-            "deviceCode": device["deviceCode"]
+            "deviceCode": device["deviceCode"],
             "deviceId": device["deviceId"],
             "deviceLink": device["deviceLink"],
             "deviceCategoryCode": device["deviceCategoryCode"],
@@ -171,6 +170,27 @@ async def run_conversation(user_prompt):
     ]
     # Define the available tools (i.e. functions) for our model to use
     tools = [
+{
+        "type": "function",
+        "function": {
+            "name": "get_device_list",
+            "description": "Get a list of devices/instruments/sensors available at Cambridge Bay\
+                Returns a list of dictionaries turned into a string.\
+                Each Item in the list includes:\
+                - deviceName (str): Name of the device\
+                - deviceCode (str): Code of the device\
+                - deviceId (int): ID of the device\
+                - deviceLink (str): Link to the device\
+                - deviceCategoryCode (str): Category code of the device\
+                - hasDeviceData (bool): Whether the device has data\
+                - dataRating (list): List of data ratings for the device\
+                - cvTerm (dict): Controlled vocabulary term for the device",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+    },
     {
       'type': 'function',
       'function': {
