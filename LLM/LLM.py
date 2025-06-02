@@ -16,9 +16,22 @@ from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from onc import ONC
+from pathlib import Path
 
-def get_documents(question):
-  compression_documents = compression_retriever.invoke(question)
+env_path = Path(__file__).resolve().parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
+ONC_TOKEN = os.getenv("ONC_TOKEN")
+CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE") # change for a different location
+model = "llama-3.3-70b-versatile"
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+class LLMPrompt:
+    def __init__(self, prompt, retriever):
+        self.prompt = prompt
+        self.retriever = retriever
+
+def get_documents(user_prompt):
+  compression_documents = user_prompt.retriever.invoke(user_prompt.prompt)
   compression_contents = [doc.page_content for doc in compression_documents]
   df = pd.DataFrame({'contents': compression_contents})
   return df
@@ -117,7 +130,6 @@ async def get_daily_sea_temperature_stats_cambridge_bay(day_str: str):
     # Parse into datetime object to add 1 day (accounts for 24-hour period)
     date_to = datetime.strptime(day_str, "%Y-%m-%d") + timedelta(days=1)
     date_to_str: str = date_to.strftime("%Y-%m-%d") # Convert back to string
-    print(day_str)
 
     async with httpx.AsyncClient() as client:
         # Get the data from ONC API
@@ -151,7 +163,7 @@ async def run_conversation(user_prompt):
         },
         {
             "role": "user",
-            "content": user_prompt,
+            "content": user_prompt.prompt,
         },
         {"role": "system",
         "content": ""#Where Data retrieval from Vector DB will occur and be stored
@@ -255,15 +267,15 @@ async def main():
 
     load_dotenv()  # This loads the variables from .env
 
-    # Access the variables using os.getenv()
-    groq_api_key = os.getenv("GROQ_API_KEY")
+    # # Access the variables using os.getenv()
+    # groq_api_key = os.getenv("GROQ_API_KEY")
 
-    ONC_TOKEN = os.getenv("ONC_TOKEN")
-    CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")
+    # ONC_TOKEN = os.getenv("ONC_TOKEN")
+    # CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")
 
-    # Initialize Groq client
-    client = Groq(api_key=groq_api_key)
-    model = "llama-3.3-70b-versatile"
+    # # Initialize Groq client
+    # client = Groq(api_key=groq_api_key)
+    # model = "llama-3.3-70b-versatile"
 
     
 
@@ -292,8 +304,9 @@ async def main():
     compression_retriever = ContextualCompressionRetriever(
         base_compressor=compressor, base_retriever=retriever
     )
-    user_prompt = "can by-catch species survive after they have been released?"
-    response = await run_conversation(user_prompt)
+    user_prompt = "what is the temp at cambridge bay?"
+    prompt = LLMPrompt(user_prompt, compression_retriever)
+    response = await run_conversation(prompt)
     print(response)
 
 if __name__ == "__main__":
