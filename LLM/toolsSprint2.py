@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+
 async def get_daily_air_temperature_stats_cambridge_bay(day_str: str):
     """
     Get daily air temperature statistics for Cambridge Bay
@@ -8,7 +9,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(day_str: str):
     """
     # Parse into datetime object to add 1 day (accounts for 24-hour period)
     date_to = datetime.strptime(day_str, "%Y-%m-%d") + timedelta(days=1)
-    date_to_str = date_to.strftime("%Y-%m-%d") # Convert back to string
+    date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
 
     async with httpx.AsyncClient() as client:
         # Get data from ONC API
@@ -34,8 +35,10 @@ async def get_daily_air_temperature_stats_cambridge_bay(day_str: str):
     data = response["sensorData"][0]["data"][0]
 
     # Get min, max, and average and store in dictionary
-    return json.dumps({
-        "daily_min": round(data["minimum"], 2),
-        "daily_max": round(data["maximum"], 2),
-        "daily_avg": round(data["value"], 2),
-    })
+    return json.dumps(
+        {
+            "daily_min": round(data["minimum"], 2),
+            "daily_max": round(data["maximum"], 2),
+            "daily_avg": round(data["value"], 2),
+        }
+    )

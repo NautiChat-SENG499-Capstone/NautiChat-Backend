@@ -7,6 +7,7 @@ from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from qdrant_client.http.models import VectorParams, Distance
 import pandas as pd
+from Environment import Environment
 
 
 class JinaEmbeddings(Embeddings):
@@ -24,15 +25,15 @@ class JinaEmbeddings(Embeddings):
 
 
 class RAG:
-    def __init__(self, qdrant_url: str, collection_name: str, qdrant_api_key: str):
-        self.qdrant_client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-        self.collection_name = collection_name
+    def __init__(self, env: Environment):
+        self.qdrant_client = QdrantClient(url=env.get_qdrant_url(), api_key=env.get_qdrant_api_key())
+        self.collection_name = env.get_collection_name()
         print("Creating Jina Embeddings instance...")
         self.embedding = JinaEmbeddings()
         print("Creating Qdrant instance...")
         self.qdrant = Qdrant(
             client=self.qdrant_client,
-            collection_name=self.collection_name,
+            collection_name=env.get_collection_name(),
             embeddings=self.embedding,
             content_payload_key="text",
         )
@@ -49,7 +50,9 @@ class RAG:
         )
 
     def get_documents(self, question: str):
-        compression_documents = self.compression_retriever.invoke(question) #If no data found needs to still handle empty list.
+        compression_documents = self.compression_retriever.invoke(
+            question
+        )  # If no data found needs to still handle empty list.
         compression_contents = [doc.page_content for doc in compression_documents]
         df = pd.DataFrame({"contents": compression_contents})
         return df

@@ -9,13 +9,9 @@ from dotenv import load_dotenv
 import httpx
 from pathlib import Path
 from RAG import RAG
+from Environment import Environment
 
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
-ONC_TOKEN = os.getenv("ONC_TOKEN")
-CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")  # change for a different location
-model = "llama-3.3-70b-versatile"
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+env = Environment()
 
 async def run_conversation(user_prompt, RAG_instance: RAG):
     # Initialize the conversation with system and user messages
@@ -64,12 +60,12 @@ async def run_conversation(user_prompt, RAG_instance: RAG):
             },
         },
     ]
-    #print("Tools defined successfully.")
+    # print("Tools defined successfully.")
     vectorDBResponse = RAG_instance.get_documents(user_prompt)
     messages[2] = {"role": "system", "content": vectorDBResponse.to_string()}
     # Make the initial API call to Groq
-    response = client.chat.completions.create(
-        model=model,  # LLM to use
+    response = env.get_client().chat.completions.create(
+        model=env.get_model(),  # LLM to use
         messages=messages,  # Conversation history
         stream=False,
         tools=tools,  # Available tools (i.e. functions) for our LLM to use
@@ -79,8 +75,8 @@ async def run_conversation(user_prompt, RAG_instance: RAG):
     )
     # Extract the response and any tool call responses
     response_message = response.choices[0].message
-    #print("Response received from Groq API.")
-    #print("Response message:", response_message)
+    # print("Response received from Groq API.")
+    # print("Response message:", response_message)
     tool_calls = response_message.tool_calls
     if tool_calls:
         # Define the available tools that can be called by the LLM
@@ -92,8 +88,8 @@ async def run_conversation(user_prompt, RAG_instance: RAG):
         messages.append(response_message)
 
         # Process each tool call
-        #print("Processing tool calls...")
-        #print("Tool calls:", tool_calls)
+        # print("Processing tool calls...")
+        # print("Tool calls:", tool_calls)
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_to_call = available_functions[function_name]
@@ -109,12 +105,18 @@ async def run_conversation(user_prompt, RAG_instance: RAG):
                 }
             )
         # Make a second API call with the updated conversation
-        second_response = client.chat.completions.create(
-            model=model, messages=messages, stream=False, tools=tools, tool_choice="auto", max_completion_tokens=4096, temperature=0.5
+        second_response = env.get_client.chat.completions.create(
+            model=env.get_model,
+            messages=messages,
+            stream=False,
+            tools=tools,
+            tool_choice="auto",
+            max_completion_tokens=4096,
+            temperature=0.5,
         )  # Calls LLM again with all the data from all functions
         # Return the final response
-        #print("Second response received from Groq API.")
-        #print("Second response message:", second_response.choices)
+        # print("Second response received from Groq API.")
+        # print("Second response message:", second_response.choices)
         return second_response.choices[0].message.content
     else:
         return response_message.content
@@ -122,15 +124,7 @@ async def run_conversation(user_prompt, RAG_instance: RAG):
 
 async def main():
 
-    qdrant_url=os.getenv("QDRANT_URL")
-    collection_name=os.getenv("QDRANT_COLLECTION_NAME")
-    qdrant_api_key=os.getenv("QDRANT_API_KEY")
-
-    RAG_instance = RAG(
-        qdrant_url=qdrant_url,
-        collection_name=collection_name,
-        qdrant_api_key=qdrant_api_key
-    )
+    RAG_instance = RAG(env)
     print("RAG instance created successfully.")
     user_prompt = "what properties are available at Cambridge Bay?"
     while user_prompt not in ["", "exit"]:
