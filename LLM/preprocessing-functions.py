@@ -21,6 +21,24 @@ def process_scalar_data(json_response):
         dict: The modified JSON response with raw data replaced by
               calculated statistics (averageSensorValue, maxSensorValue,
               minSensorValue, sampleFrequency) and outputFormat set to "Number".
+        Example:
+            "sensorData": [
+                {
+                "actualSamples": 100000,
+                "data": {
+                    "sampleFrequency": "Every 0.125 seconds",
+                    "averageSensorValue": 408.9483451856747,
+                    "maxSensorValue": 409.7691688437818,
+                    "minSensorValue": 408.0457951734326
+                },
+                "outputFormat": "Number",
+                "propertyCode": "totalpressure",
+                "sensorCategoryCode": "pressure",
+                "sensorCode": "Pressure",
+                "sensorName": "Seafloor Pressure",
+                "unitOfMeasure": "decibar"
+                }
+            ]
     """
 
     # Check if sensorData exists
