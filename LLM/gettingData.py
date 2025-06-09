@@ -1,5 +1,6 @@
 from onc import ONC
 import json
+import matplotlib.pyplot as plt
 
 onc = ONC("4289f1b9-e1cb-4cf8-b5fb-20d88dcf7eec")
 
@@ -26,15 +27,16 @@ async def get_properties_at_cambridge_bay():
         ]
         return json.dumps(list_of_dicts)
 
-
+deviceInfo = []
 params = {
     "locationCode": "CBYIP",
 }
 devices = onc.getDevices(params)
 for device in devices:
-    if "description" in device:
-        print(f"Device Name: {device['deviceName']}")
-        print(f"Description: {device['description']}")
+    if "deviceCode" in device and device["deviceCategoryCode"] == "FLNTU":
+      #print(json.dumps(device, indent=2))
+      deviceInfo.append({"deviceCode": device["deviceCode"], "dataRating": device["dataRating"]})
+      #deviceInfo.append(device["deviceCode"])
 # dev1Code = devices[0]["deviceCategoryCode"]
 # print(dev1Code)
 # params = {
@@ -43,7 +45,7 @@ for device in devices:
 # dev1 = onc.getDevices(params)
 # print(json.dumps(dev1, indent=2))
 
-
+print(deviceInfo)
 """
 {
   "cvTerm": {
@@ -77,3 +79,149 @@ for device in devices:
 # }
 # catDesc = onc.getDeviceCategories(params)
 # print(json.dumps(catDesc, indent=2))
+
+
+
+# params = {
+#     "locationCode": "CBYIP",
+# }
+# devs = onc.getDevices(params)
+
+# print(json.dumps(devs, indent=2))
+
+# params = {
+#     "deviceCode": "doppler",
+# }
+# catDesc = onc.getDeviceCategories(params)
+# print(json.dumps(catDesc, indent=2))
+
+
+# params = {
+#     "deviceCategoryCode": "FLNTU",
+# }
+# catDesc = onc.getDataProducts(params)
+# print(json.dumps(catDesc, indent=2))
+
+
+# params = {
+#     "locationCode": "CBYIP",
+    
+# }
+# data = onc.getDataProducts(params)
+# print(json.dumps(data, indent=2))
+
+for device in deviceInfo:
+  for samplePeriod in device["dataRating"]:
+    params = {
+      #"locationCode": "CBYIP", #Dont need for deviceCode
+      #"deviceCategoryCode": "FLNTU",
+      "deviceCode": device["deviceCode"],
+      "dateFrom": samplePeriod["dateFrom"],
+      "dateTo": samplePeriod["dateTo"],
+  }
+    # params = {
+    #   #"locationCode": "CBYIP", #Dont need for deviceCode
+    #   #"deviceCategoryCode": "FLNTU",
+    #   "deviceCode": device,
+    #   "dateFrom": "2016-09-01T00:00:00.000Z",
+    #   "dateTo": "2016-09-01T00:01:00.000Z",
+    # }
+
+    scalarData = onc.getScalardata(params)
+    for sensorData in scalarData["sensorData"]:
+      filtered_times = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["sampleTimes"]) if l == 1]
+      filtered_values = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["values"]) if l == 1]
+      if(len(filtered_times)>0):
+
+        plt.plot(filtered_times[0:100], filtered_values[0:100])#first 100 as data is too large
+        plt.show()
+    #print(json.dumps(scalarData, indent=2))
+    #For each sensor device it returns an object containing (example below):
+    """
+    {
+  "citations": [],
+  "messages": [],
+  "next": null,
+  "parameters": {
+    "dateFrom": "2016-09-01T00:00:00.000Z",
+    "dateTo": "2016-09-01T00:01:00.000Z",
+    "deviceCode": "WETLABSFLNTU2586",
+    "fillGaps": true,
+    "getLatest": false,
+    "metaData": "Minimum",
+    "method": "getByDevice",
+    "outputFormat": "Array",
+    "qualityControl": "clean",
+    "resamplePeriod": null,
+    "resampleType": null,
+    "rowLimit": 100000,
+    "sensorBase": null,
+    "sensorsToInclude": "original",
+    "token": "4289f1b9-e1cb-4cf8-b5fb-20d88dcf7eec"
+  },
+  "queryURL": "https://data.oceannetworks.ca/api/scalardata?deviceCode=WETLABSFLNTU2586&dateFrom=2016-09-01T00%3A00%3A00.000Z&dateTo=2016-09-01T00%3A01%3A00.000Z&method=getByDevice&token=4289f1b9-e1cb-4cf8-b5fb-20d88dcf7eec",
+  "sensorData": null
+}
+{
+  "citations": [
+    {
+      "citation": "Ocean Networks Canada Society. 2016. Cambridge Bay Fluorometer Turbidity Deployed 2016-08-25. Ocean Networks Canada Society. https://doi.org/10.34943/1740d05e-725e-432f-9c22-f60ced2fa508.",
+      "doi": "10.34943/1740d05e-725e-432f-9c22-f60ced2fa508",
+      "landingPageUrl": "https://doi.org/10.34943/1740d05e-725e-432f-9c22-f60ced2fa508",
+      "queryPid": null
+    }
+  ],
+  "messages": [],
+  "next": null,
+  "parameters": {
+    "dateFrom": "2016-09-01T00:00:00.000Z",
+    "dateTo": "2016-09-01T00:01:00.000Z",
+    "deviceCode": "WETLABSFLNTUS3441",
+    "fillGaps": true,
+    "getLatest": false,
+    "metaData": "Minimum",
+    "method": "getByDevice",
+    "outputFormat": "Array",
+    "qualityControl": "clean",
+    "resamplePeriod": null,
+    "resampleType": null,
+    "rowLimit": 100000,
+    "sensorBase": null,
+    "sensorsToInclude": "original",
+    "token": "4289f1b9-e1cb-4cf8-b5fb-20d88dcf7eec"
+  },
+  "queryURL": "https://data.oceannetworks.ca/api/scalardata?deviceCode=WETLABSFLNTUS3441&dateFrom=2016-09-01T00%3A00%3A00.000Z&dateTo=2016-09-01T00%3A01%3A00.000Z&method=getByDevice&token=4289f1b9-e1cb-4cf8-b5fb-20d88dcf7eec",
+  "sensorData": [
+    {
+      "actualSamples": 60,
+      "data": {
+        "qaqcFlags": [],
+        "sampleTimes": [],
+        "values": [],
+      },
+      "outputFormat": "array",
+      "propertyCode": "chlorophyll",
+      "sensorCategoryCode": "chlorophyll",
+      "sensorCode": "chlorophyll",
+      "sensorName": "Chlorophyll",
+      "unitOfMeasure": "ug/l"
+    },
+    {
+      "actualSamples": 60,
+      "data": {
+        "qaqcFlags": [],
+        "sampleTimes": [],
+        "values": [],
+      },
+      "outputFormat": "array",
+      "propertyCode": "turbidityntu",
+      "sensorCategoryCode": "turbidity",
+      "sensorCode": "turbidity",
+      "sensorName": "Turbidity",
+      "unitOfMeasure": "NTU"
+    }
+  ]
+}
+
+    """
+  
