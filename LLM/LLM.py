@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 import httpx
 from pathlib import Path
 from RAG import RAG
+from Constants.toolDescriptions import tools
+from gettingDevicesAndData import get_devices_info, get_scalar_data_by_device
 
-env_path = Path(__file__).resolve().parent.parent / ".env"
+env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path)
 ONC_TOKEN = os.getenv("ONC_TOKEN")
 CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")  # change for a different location
@@ -34,36 +36,6 @@ async def run_conversation(user_prompt, RAG_instance: RAG):
         {"role": "system", "content": ""},  # Where Data retrieval from Vector DB will occur and be stored
     ]
     # Define the available tools (i.e. functions) for our model to use
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_properties_at_cambridge_bay",
-                "description": "Get a list of properties of data available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_daily_sea_temperature_stats_cambridge_bay",
-                "description": "Get daily sea temperature statistics for Cambridge Bay\nArgs:\n    day_str (str): Date in YYYY-MM-DD format",
-                "parameters": {
-                    "properties": {
-                        "day_str": {
-                            "type": "string",
-                            "description": "Date in YYYY-MM-DD format for when daily sea temperature is wanted for",
-                        }
-                    },
-                    "required": ["day_str"],
-                    "type": "object",
-                },
-            },
-        },
-    ]
     #print("Tools defined successfully.")
     vectorDBResponse = RAG_instance.get_documents(user_prompt)
     messages[2] = {"role": "system", "content": vectorDBResponse.to_string()}
@@ -85,8 +57,10 @@ async def run_conversation(user_prompt, RAG_instance: RAG):
     if tool_calls:
         # Define the available tools that can be called by the LLM
         available_functions = {
-            "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
-            "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
+            #"get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
+            #"get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
+            "get_scalar_data_by_device": get_scalar_data_by_device,
+            "get_devices_info": get_devices_info,
         }
         # Add the LLM's response to the conversation
         messages.append(response_message)
@@ -133,9 +107,13 @@ async def main():
     )
     print("RAG instance created successfully.")
     user_prompt = "what properties are available at Cambridge Bay?"
+    user_prompt = input("Enter your next question (or 'exit' to quit): ")
     while user_prompt not in ["", "exit"]:
-        response = await run_conversation(user_prompt, RAG_instance)
-        print(response)
+        try:
+            response = await run_conversation(user_prompt, RAG_instance)
+            print(response)
+        except Exception as e:
+            print("Error occurred:", e)
         user_prompt = input("Enter your next question (or 'exit' to quit): ")
 
 
