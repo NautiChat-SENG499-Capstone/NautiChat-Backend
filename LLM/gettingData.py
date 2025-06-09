@@ -110,16 +110,8 @@ print(deviceInfo)
 # data = onc.getDataProducts(params)
 # print(json.dumps(data, indent=2))
 
-for device in deviceInfo:
-  for samplePeriod in device["dataRating"]:
-    params = {
-      #"locationCode": "CBYIP", #Dont need for deviceCode
-      #"deviceCategoryCode": "FLNTU",
-      "deviceCode": device["deviceCode"],
-      "dateFrom": samplePeriod["dateFrom"],
-      "dateTo": samplePeriod["dateTo"],
-  }
-    # params = {
+
+# params = {
     #   #"locationCode": "CBYIP", #Dont need for deviceCode
     #   #"deviceCategoryCode": "FLNTU",
     #   "deviceCode": device,
@@ -127,15 +119,23 @@ for device in deviceInfo:
     #   "dateTo": "2016-09-01T00:01:00.000Z",
     # }
 
+for device in deviceInfo:
+  for samplePeriod in device["dataRating"]:
+    params = {
+      "deviceCode": device["deviceCode"],
+      "dateFrom": samplePeriod["dateFrom"],
+      "dateTo": samplePeriod["dateTo"],
+  }
+    
+
     scalarData = onc.getScalardata(params)
     for sensorData in scalarData["sensorData"]:
-      filtered_times = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["sampleTimes"]) if l == 1]
+      filtered_times = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["sampleTimes"]) if l == 1]#If l!=1 then it is invalid data or NaN (missing data)
       filtered_values = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["values"]) if l == 1]
-      if(len(filtered_times)>0):
-
+      if(len(filtered_times)>0): #So not making empty plots
         plt.plot(filtered_times[0:100], filtered_values[0:100])#first 100 as data is too large
         plt.show()
-    #print(json.dumps(scalarData, indent=2))
+   
     #For each sensor device it returns an object containing (example below):
     """
     {
