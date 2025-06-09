@@ -153,40 +153,42 @@ def get_scalar_data_by_device(onc, deviceInfo):
       }
       scalarData = onc.getScalardata(params)
       if("sensorData" in scalarData and scalarData["sensorData"] is not None):
-      for sensorData in scalarData["sensorData"]:
-        filtered_times = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["sampleTimes"]) if l == 1]#If l!=1 then it is invalid data or NaN (missing data)
-        filtered_values = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["values"]) if l == 1]
-        if(len(filtered_times)>0): #So not making empty plots
-          ScalarData.append({"deviceCode": device["deviceCode"], "data": {"sampleTimes": filtered_times, "values": filtered_values}})
+        for sensorData in scalarData["sensorData"]:
+          filtered_times = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["sampleTimes"]) if l == 1]#If l!=1 then it is invalid data or NaN (missing data)
+          filtered_values = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["values"]) if l == 1]
+          if(len(filtered_times)>0): #So not making empty plots\
+            plt.plot(filtered_times[0:100], filtered_values[0:100])#first 100 as data is too large
+            plt.show()
+            #ScalarData.append({"deviceCode": device["deviceCode"], "data": {"sampleTimes": filtered_times, "values": filtered_values}})
 
   return ScalarData
 
 allScalarData = get_scalar_data_by_device(onc, deviceInfo)
 
-for device in deviceInfo:
-  for samplePeriod in device["dataRating"]:
-    params = {
-      "deviceCode": device["deviceCode"],
-      "dateFrom": samplePeriod["dateFrom"],
-      "dateTo": samplePeriod["dateTo"],
-  }
+# for device in deviceInfo:
+#   for samplePeriod in device["dataRating"]:
+#     params = {
+#       "deviceCode": device["deviceCode"],
+#       "dateFrom": samplePeriod["dateFrom"],
+#       "dateTo": samplePeriod["dateTo"],
+#   }
     
-    scalarData = onc.getScalardata(params)
-    keys = scalarData.keys()
-    print(keys)
-    if("sensorData" in scalarData):
-      print("Found sensorData")
-    if("sensorData" in scalarData and scalarData["sensorData"] is not None):
-      #print(json.dumps(scalarData, indent=2))
-      for sensorData in scalarData["sensorData"]:
-        filtered_times = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["sampleTimes"]) if l == 1]#If l!=1 then it is invalid data or NaN (missing data)
-        filtered_values = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["values"]) if l == 1]
-        if(len(filtered_times)>0): #So not making empty plots
-          plt.plot(filtered_times[0:100], filtered_values[0:100])#first 100 as data is too large
-          plt.show()
+#     scalarData = onc.getScalardata(params)
+#     keys = scalarData.keys()
+#     print(keys)
+#     if("sensorData" in scalarData):
+#       print("Found sensorData")
+#     if("sensorData" in scalarData and scalarData["sensorData"] is not None):
+#       #print(json.dumps(scalarData, indent=2))
+#       for sensorData in scalarData["sensorData"]:
+#         filtered_times = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["sampleTimes"]) if l == 1]#If l!=1 then it is invalid data or NaN (missing data)
+#         filtered_values = [t for l, t in zip(sensorData["data"]["qaqcFlags"], sensorData["data"]["values"]) if l == 1]
+#         if(len(filtered_times)>0): #So not making empty plots
+#           plt.plot(filtered_times[0:100], filtered_values[0:100])#first 100 as data is too large
+#           plt.show()
    
     #For each sensor device it returns an object containing (example below):
-  """
+"""
     {
   "citations": [],
   "messages": [],
