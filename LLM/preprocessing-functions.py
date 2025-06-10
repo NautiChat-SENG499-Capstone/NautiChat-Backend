@@ -71,7 +71,7 @@ def process_scalar_data(json_response):
         
         #We need 2 or more values get sample frequency
         if len(sample_times) < 2:
-            print("Need at least two sample times to calculate an average interval.")
+            entry["data"]["sampleFrequency"] = f"Sampled once at {entry["data"]["sampleTimes"][0]}"
         else:
             # Convert all strings to datetime objects
             # Replace 'Z' with '+00:00' for proper ISO 8601 parsing as UTC
@@ -92,16 +92,14 @@ def process_scalar_data(json_response):
                 sample_frequency = f"Every {seconds / 3600:.2f} hours"
             else:
                 sample_frequency = f"Every {seconds / 86400:.2f} days"
-            del entry["data"]["sampleTimes"]
-        print(f"Sample frequency: {sample_frequency}")
-        print(f"average sensor value: {average_sensor_value}")
+            entry["data"]["sampleFrequency"] = sample_frequency
+        
+        del entry["data"]['sampleTimes']
 
         #Update new fields to dict after removing the old ones
-        entry["data"]["sampleFrequency"] = sample_frequency
         entry["data"]["averageSensorValue"] = average_sensor_value
         entry["data"]["maxSensorValue"] = max_sensor_value
         entry["data"]["minSensorValue"] = min_sensor_value
         entry["outputFormat"] = "Number"
     
     return json_response
-
