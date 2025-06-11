@@ -3,7 +3,7 @@ tools = [
         "type": "function",
         "function": {
             "name": "process_scalar_data",
-            "description": "Processes sensor data from /scalardata API endpoint. This function extracts sensor data, calculates statistical summaries (average, max, min) and determines the sampling frequency.",
+            "description": "Processes sensor data from /scalardata API endpoint. \nArgs: \n json_response: response from API call from /scalardata endpoint. \nReturns: \n JSON object:  json_response from /scalardata endpoint with average, maximum, minimum sensor values & sampling frequencies. The fields 'qaqcFlags', 'sampleTimes', and 'values' are removed.",
             "parameters": {
                 "properties": {
                     "json_response": {
