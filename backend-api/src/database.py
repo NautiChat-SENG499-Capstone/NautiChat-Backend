@@ -78,7 +78,7 @@ class DatabaseSessionManager:
 sessionmanager = DatabaseSessionManager(DATABASE_URL)
 
 # For FastAPI Endpoints (Dependency)
-async def get_db() -> AsyncIterator[AsyncSession]:
+async def get_db_session() -> AsyncIterator[AsyncSession]:
     """Get a new database session."""
     async with sessionmanager.session() as session:
         yield session
