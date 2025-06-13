@@ -221,7 +221,7 @@ def getformatFromURI(url):
     
 
 def get_uris_from_onc(location_code):
-    env_path = Path(__file__).resolve().parent.parent / ".env"
+    env_path = Path(__file__).resolve().parent / ".env"
     load_dotenv(dotenv_path=env_path)
     ONC_TOKEN = os.getenv("ONC_TOKEN")
     onc = ONC(ONC_TOKEN)
