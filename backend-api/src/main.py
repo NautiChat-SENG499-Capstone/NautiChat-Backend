@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from contextlib import asynccontextmanager
+
 from src.database import sessionmanager, Base
 
 from src.admin.router import router as admin_router
@@ -10,8 +13,18 @@ from src.llm import models  # noqa
 from src.auth import models  # noqa
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create tables on startup using async engine
+    async with sessionmanager._engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield
+    # Close connection to database
+    await sessionmanager.close()
+
 # Setup routes
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 # TO DO: add frontend url to origins
 origins = [
@@ -29,16 +42,3 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(llm_router, prefix="/llm", tags=["llm"])
 app.include_router(admin_router, prefix="/admin", tags=["admin"])
-
-
-@app.on_event("startup")
-async def on_startup():
-    '''Create tables on startup using async engine'''
-    async with sessionmanager._engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    '''Close connection to database'''
-    await sessionmanager.close()

@@ -33,7 +33,7 @@ async def register_user(
 
 
 @router.get("/me")
-def get_me(user: Annotated[User, Depends(get_current_user)]) -> UserOut:
+async def get_me(user: Annotated[User, Depends(get_current_user)]) -> UserOut:
     """Get the current user"""
     # get_current_user is called automatically because of the Depends()
     return user

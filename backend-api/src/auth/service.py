@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from src.auth import config
-from src.auth.models import UserModel
+from src.auth.models import User as UserModel
 from src.auth.schemas import CreateUserRequest, Token
 
 # Create a password context using bycrypt
