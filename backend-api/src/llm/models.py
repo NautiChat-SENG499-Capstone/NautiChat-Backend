@@ -17,7 +17,8 @@ class Conversation(Base):
     title: Mapped[str] = mapped_column(String, nullable=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
-    messages: Mapped[List["Message"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
+    # Note: lazy:selectin eager loads by default
+    messages: Mapped[List["Message"]] = relationship(back_populates="conversation", cascade="all, delete-orphan", lazy="selectin")
     user: Mapped["User"] = relationship(back_populates="conversations")
 
 
@@ -32,7 +33,8 @@ class Message(Base):
     response: Mapped[str] = mapped_column(Text)
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
-    feedback: Mapped["Feedback"] = relationship(back_populates="message", uselist=False, cascade="all, delete-orphan")
+    # Note: lazy:selectin eager loads by default
+    feedback: Mapped["Feedback"] = relationship(back_populates="message", uselist=False, cascade="all, delete-orphan", lazy="selectin")
 
 
 class Feedback(Base):
