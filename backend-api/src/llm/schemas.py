@@ -25,4 +25,13 @@ class Conversation(BaseModel):
     conversation_id: int
     user_id: int
     title: Optional[str] = None
-    messages: List[Message] = []
+    messages: Optional[List[Message]] = []
+
+
+class CreateConversationBody(BaseModel):
+    title: Optional[str] = None
+
+
+class CreateLLMQuery(BaseModel):
+    input: str
+    conversation_id: int

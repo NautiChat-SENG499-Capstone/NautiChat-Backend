@@ -4,17 +4,20 @@ from typing import Any, AsyncIterator
 
 from sqlalchemy.ext.asyncio import (
     AsyncConnection, 
-    AsyncSession, 
+    AsyncSession,
+    AsyncAttrs, 
     async_sessionmaker, 
     create_async_engine,
 )
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
+# Note: DB is async compatible
 # Load DATABASE_URL from environment variable
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Base class for all ORM models
-Base = declarative_base()
+class Base(AsyncAttrs, DeclarativeBase):
+    pass
 
 class DatabaseSessionManager:
     """

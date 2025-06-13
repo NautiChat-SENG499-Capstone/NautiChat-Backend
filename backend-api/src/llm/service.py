@@ -2,33 +2,41 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from typing import List
 
 from src.auth.schemas import UserOut
-from .schemas import Conversation, Message, Feedback
+from .schemas import Conversation, Message, Feedback, CreateLLMQuery, CreateConversationBody
 from .models import Conversation as ConversationModel, Message as MessageModel, Feedback as FeedbackModel
 
 async def create_conversation(
     current_user: UserOut,
     db: AsyncSession,
-    title: str,
+    CreateConversationBody: CreateConversationBody,
 ) -> Conversation:
-    conversation = ConversationModel(user_id=current_user.id, title=title)
+    conversation = ConversationModel(user_id=current_user.id, title=CreateConversationBody.title)
     
     # Add conversation to DB
     db.add(conversation)
     await db.commit()
     await db.refresh(conversation)
 
-    return conversation
+    # Convert to Pydantic schema manually (Avoid Lazy Loading ERROR)
+    return Conversation(
+        conversation_id=conversation.conversation_id,
+        user_id=conversation.user_id,
+        title=conversation.title,
+        messages=[]  # New conversation has no messages yet
+    )
 
 async def get_conversations(
     current_user: UserOut,
     db: AsyncSession,
 ) -> List[Conversation]:
     # Async db query
-    query = select(ConversationModel).where(ConversationModel.user_id == current_user.id).order_by(ConversationModel.conversation_id.desc())
+    stmt = select(ConversationModel).options(selectinload(ConversationModel.messages))
+    query = stmt.where(ConversationModel.user_id == current_user.id).order_by(ConversationModel.conversation_id.desc())
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -37,7 +45,8 @@ async def get_conversation(
     current_user: UserOut,
     db: AsyncSession,
 ) -> Conversation:
-    query = select(ConversationModel).where(ConversationModel.user_id == current_user.id).where(ConversationModel.conversation_id == conversation_id)
+    stmt = select(ConversationModel).options(selectinload(ConversationModel.messages))
+    query = stmt.where(ConversationModel.user_id == current_user.id).where(ConversationModel.conversation_id == conversation_id)
     result = await db.execute(query)
     conversation = result.scalar_one_or_none()
 
@@ -47,13 +56,12 @@ async def get_conversation(
     return conversation
 
 async def generate_response(
-    input: str,
-    conversation_id: int,
+    LLMQuery: CreateLLMQuery,
     current_user: UserOut,
     db: AsyncSession,
 ) -> Message:  
     # Validate whether converstation exists or if current user has access to conversation
-    result = await db.execute(select(ConversationModel).where(ConversationModel.conversation_id == conversation_id))
+    result = await db.execute(select(ConversationModel).where(ConversationModel.conversation_id == LLMQuery.conversation_id))
     conversation = result.scalar_one_or_none()
 
     if not conversation: 
@@ -61,7 +69,7 @@ async def generate_response(
             status_code=404, 
             detail="Conversation not found"
         )
-    if not conversation.user_id != current_user.id:
+    if conversation.user_id != current_user.id:
         raise HTTPException(
             status_code=403, 
             detail="Not authorized to access this conversation"
@@ -69,10 +77,10 @@ async def generate_response(
 
     # Create Message to send to LLM  
     message = MessageModel(
-        conversation_id=conversation_id, 
+        conversation_id=LLMQuery.conversation_id, 
         user_id=current_user.id, 
-        input=input, 
-        response=f"LLM Response for: {input}"
+        input=LLMQuery.input, 
+        response=f"LLM Response for: {LLMQuery.input}"
     )
 
     # Add message to DB
