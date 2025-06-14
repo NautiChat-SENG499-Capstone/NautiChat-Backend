@@ -21,10 +21,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SECRET_KEY: ci_dummy_key
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_HOURS: "24"
+      REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -104,7 +105,9 @@ jobs:
           flags: |
             --allow-unauthenticated
           env_vars: |
-            DATABASE_URL=${{ secrets.SUPABASE_DB_URL }}
+            SUPABASE_DB_URL=${{ secrets.SUPABASE_DB_URL }}
             SECRET_KEY=${{ vars.SECRET_KEY }}
             ALGORITHM=${{ vars.ALGORITHM }}
             ACCESS_TOKEN_EXPIRE_HOURS=${{ vars.ACCESS_TOKEN_EXPIRE_HOURS }}
+            REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }}
+

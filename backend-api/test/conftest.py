@@ -11,7 +11,7 @@ from src.auth import models
 from src.auth.dependencies import get_settings
 from src.auth.service import create_access_token
 from src.database import Base, get_db
-from src.main import app
+from src.main import create_app
 
 
 @pytest.fixture()
@@ -39,7 +39,7 @@ def session() -> Iterator[Session]:
 
 
 @pytest.fixture()
-def client(session) -> Iterator[TestClient]:
+def client(request, session) -> Iterator[TestClient]:
     """Return a test client which can be used to send api requests"""
 
     def override_get_db():
@@ -48,8 +48,15 @@ def client(session) -> Iterator[TestClient]:
         finally:
             session.close()
 
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
+    test_app = create_app()
+
+    # Disable middleware unless @pytest.mark.use_middleware
+    if request.node.get_closest_marker("use_middleware") is None:
+        test_app.user_middleware = []
+
+    test_app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(test_app) as test_client:
         yield test_client
 
 

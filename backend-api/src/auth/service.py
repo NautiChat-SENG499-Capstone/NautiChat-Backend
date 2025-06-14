@@ -8,7 +8,7 @@ from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from src.auth import config
+from src.settings import Settings
 from src.auth.schemas import CreateUserRequest, Token
 from src.auth import models
 
@@ -32,20 +32,16 @@ def get_user(username: str, db: Session) -> Optional[models.User]:
 def create_access_token(
     username: str,
     expires_delta: timedelta,
-    settings: config.Settings,
+    settings: Settings,
 ) -> str:
     """Create a JWT access token for the given username with an expiration time."""
     expire = datetime.now(timezone.utc) + expires_delta
     to_encode = {"sub": username, "exp": expire}
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 
-def register_user(
-    user_register: CreateUserRequest, settings: config.Settings, db: Session
-) -> Token:
+def register_user(user_register: CreateUserRequest, settings: Settings, db: Session) -> Token:
     """Register a new user"""
 
     # check that the user does not already exist
@@ -66,24 +62,18 @@ def register_user(
     db.commit()
     db.refresh(new_user)
 
-    token = create_access_token(
-        new_user.username, timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS), settings
-    )
+    token = create_access_token(new_user.username, timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS), settings)
     return Token(access_token=token, token_type="bearer")
 
 
-def get_user_by_token(
-    token: str, settings: config.Settings, db: Session
-) -> models.User:
+def get_user_by_token(token: str, settings: Settings, db: Session) -> models.User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -95,9 +85,7 @@ def get_user_by_token(
     return user
 
 
-def login_user(
-    form_data: OAuth2PasswordRequestForm, settings: config.Settings, db: Session
-) -> Token:
+def login_user(form_data: OAuth2PasswordRequestForm, settings: Settings, db: Session) -> Token:
     """Login and return a token"""
     invalid_credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

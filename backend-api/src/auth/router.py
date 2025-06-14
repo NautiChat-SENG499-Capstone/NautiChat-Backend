@@ -5,10 +5,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from src.database import get_db
+from src.settings import Settings
 
-from . import config, service, models, schemas
+from . import models, schemas, service
 from .dependencies import get_current_user, get_settings
-
 
 router = APIRouter()
 
@@ -16,7 +16,7 @@ router = APIRouter()
 @router.post("/login")
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    settings: Annotated[config.Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
     db: Annotated[Session, Depends(get_db)],
 ) -> schemas.Token:
     return service.login_user(form_data, settings, db)
@@ -25,7 +25,7 @@ def login(
 @router.post("/register", status_code=201)
 def register_user(
     user_request: schemas.CreateUserRequest,
-    settings: Annotated[config.Settings, Depends(get_settings)],
+    settings: Annotated[Settings, Depends(get_settings)],
     db: Annotated[Session, Depends(get_db)],
 ) -> schemas.Token:
     return service.register_user(user_request, settings, db)

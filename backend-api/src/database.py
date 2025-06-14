@@ -1,14 +1,13 @@
-import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import NullPool
-
-DATABASE_URL = os.getenv("DATABASE_URL")
+from src.settings import get_settings
+from redis.asyncio import Redis
 
 engine = create_engine(
-    DATABASE_URL,
+    get_settings().SUPABASE_DB_URL,
     poolclass=NullPool,
-    connect_args={"sslmode": "require"}  # Required for Supabase Postgres
+    connect_args={"sslmode": "require"},  # Required for Supabase Postgres
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -23,3 +22,13 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def init_redis():
+    return Redis(
+        host="redis-13649.crce199.us-west-2-2.ec2.redns.redis-cloud.com",
+        port=13649,
+        decode_responses=True,
+        username="default",
+        password=get_settings().REDIS_PASSWORD,
+    )
