@@ -7,7 +7,7 @@ from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from qdrant_client.http.models import VectorParams, Distance
 import pandas as pd
-from Environment import Environment
+from LLM.Environment import Environment
 
 
 class JinaEmbeddings(Embeddings):

@@ -2,14 +2,14 @@ import pandas as pd
 import asyncio
 import json
 from datetime import datetime
-from toolsSprint1 import (
+from LLM.toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
 )
-from RAG import RAG
-from Environment import Environment
-from Constants.toolDescriptions import toolDescriptions
+from LLM.RAG import RAG
+from LLM.Environment import Environment
+from LLM.Constants.toolDescriptions import toolDescriptions
 
 class LLM:
     def __init__(

@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str
     SUPABASE_DB_URL: str
 
-    model_config = SettingsConfigDict(env_file=env_file_location)
+    model_config = SettingsConfigDict(env_file=env_file_location, extra="allow")
 
 # Caches the settings instance to avoid re-parsing .env file
 @lru_cache

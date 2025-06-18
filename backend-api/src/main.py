@@ -7,27 +7,64 @@ from src.database import sessionmanager, Base, init_redis
 
 from src.auth import models  # noqa
 from src.llm import models  # noqa
+from LLM.LLM import LLM  # noqa
+from LLM.RAG import RAG
+from LLM.Environment import Environment
 
 from src.admin.router import router as admin_router
 from src.auth.router import router as auth_router
 from src.llm.router import router as llm_router
 from src.middleware import RateLimitMiddleware # Custom middleware for rate limiting
 
+#TO DO: we want a sanity check that the llm and rag are initialized correctly
+#       and that the redis client is connected before starting the app
+#       This could be done in the lifespan function, but we need to ensure that
+#       the app does not start if these checks fail.
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables on startup using async engine
-    async with sessionmanager._engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    print("STARTING LIFESPAN")
 
-    # Initialize Redis Client
-    app.state.redis_client = init_redis()
-    
+    try:
+        print("Creating tables...")
+        async with sessionmanager._engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("DB setup complete")
+    except Exception as e:
+        print("DB setup failed:", e)
+        raise
+
+    try:
+        print("Initializing Redis...")
+        app.state.redis_client = init_redis()
+        print("Redis init complete")
+    except Exception as e:
+        print("Redis init failed:", e)
+        raise
+
+    try:
+        print("Initializing LLM and RAG...")
+        env = Environment()
+        rag_instance = RAG(env)
+        app.state.llm = LLM(env=env, RAG_instance=rag_instance)
+        app.state.rag = rag_instance
+        print("LLM and RAG init complete")
+    except Exception as e:
+        print("LLM/RAG init failed:", e)
+        raise
+
     yield
-    # Close connection to database and Redis Connection
-    # TODO? Add try/except if an exception prevents cleanup
-    await sessionmanager.close()
-    await app.state.redis_client.aclose()
+
+    print("Shutting down lifespan")
+
+    try:
+        await sessionmanager.close()
+        await app.state.redis_client.aclose()
+        print("Cleanup complete")
+    except Exception as e:
+        print("Cleanup failed:", e)
+
 
 
 def create_app():
