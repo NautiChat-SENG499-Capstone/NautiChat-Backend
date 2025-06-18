@@ -7,6 +7,10 @@ from toolsSprint1 import (
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
 )
+from gettingDevicesAndData import (
+    get_devices_info,
+    get_scalar_data_by_device
+)
 from RAG import RAG
 from Environment import Environment
 from Constants.toolDescriptions import toolDescriptions
@@ -24,6 +28,8 @@ class LLM:
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
+            "get_devices_info":get_devices_info,
+            "get_scalar_data_by_device": get_scalar_data_by_device,
         }
 
     async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
