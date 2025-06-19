@@ -1,10 +1,13 @@
-from contextlib import asynccontextmanager # Used to manage async app startup/shutdown events
+import asyncio
+import logging
+from contextlib import asynccontextmanager  # Used to manage async app startup/shutdown events
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware # Enables frontend-backend communications via CORS
 
 from src.database import DatabaseSessionManager, Base, init_redis
 
+# Need to import the models in the same module that Base is defined to ensure they are registered with SQLAlchemy
 from src.auth import models  # noqa
 from src.llm import models  # noqa
 from LLM.LLM import LLM
@@ -167,5 +170,10 @@ def create_app():
 
     return app
 
+
 app = create_app()
 
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}

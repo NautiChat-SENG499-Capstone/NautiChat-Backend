@@ -44,7 +44,6 @@ def extract_structured_chunks(file_path):
         for block in blocks:
             if block["type"] == 0:  # text
                 for line in block["lines"]:
-                    #print(line)
                     line_text = " ".join(span["text"] for span in line["spans"]).strip()
                     if not line_text:
                         continue
@@ -105,7 +104,6 @@ def chunk_text_with_heading(text, heading="", max_tokens=300, overlap=50):
         nltk.data.find('tokenizers/punkt_tab')
     except LookupError:
         nltk.download('punkt_tab')
-
     sentences = sent_tokenize(text)
     chunks = []
     current = []
@@ -113,26 +111,22 @@ def chunk_text_with_heading(text, heading="", max_tokens=300, overlap=50):
 
     for sentence in sentences:
         tokens = len(sentence.split())  # word-based token approximation
-
         # If adding this sentence would exceed the token limit
         if current_len + tokens > max_tokens:
             chunk_body = " ".join(current)
             chunk_text = f"{heading}\n{chunk_body}".strip()
             chunks.append(chunk_text)
-
             # Create overlap
             current = current[-overlap:] if overlap > 0 else []
             current_len = sum(len(s.split()) for s in current)
 
         current.append(sentence)
         current_len += tokens
-
     # Final chunk
     if current:
         chunk_body = " ".join(current)
         chunk_text = f"{heading}\n{chunk_body}".strip()
         chunks.append(chunk_text)
-
     return chunks
 
 def prepare_embedding_input(file_path: str, embedding_model: JinaEmbeddings = None):
@@ -143,11 +137,9 @@ def prepare_embedding_input(file_path: str, embedding_model: JinaEmbeddings = No
     for section in sections:
         full_text = " ".join(section["paragraphs"])
         chunks = chunk_text_with_heading(full_text, section["heading"])
-
         if embedding_model is None:
             embedding_model = JinaEmbeddings()
         embeddings = embedding_model.embed_documents(chunks)
-
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             results.append({
                 "id": f"{os.path.basename(file_path)}_chunk_{i}",
@@ -191,36 +183,23 @@ def prepare_embedding_input_from_preformatted(input: list, embedding_model: Jina
 
     return results
 
-def getformatFromURI(url):
+
+def getDeviceDefnFromURI(url):
     response = requests.get(url)
     if response.status_code != 200:
         raise Exception(f"Failed to fetch data from {url}")
     
     soup = BeautifulSoup(response.text, 'html.parser')
-    h2 = soup.find('h2')
-    if h2:
-        title = h2.text.strip()
-    else:
-        title = ""
 
     definition_row = soup.find('th', string="Definition")
     if definition_row:
-        definition_text = "Definition: " + definition_row.find_next_sibling("td").text.strip()
+        definition_text = definition_row.find_next_sibling("td").text.strip()
     else:
         definition_text = ""
 
-    identifier_row = soup.find('th', string="Identifier")
-    if identifier_row:
-        identifier_text = identifier_row.find_next_sibling("td").text.strip()
-    else:
-        identifier_text = ""
+    return definition_text
 
-    if title == "" and definition_text == "":
-        return None
-    return {'heading': title, 'paragraphs': [definition_text], 'page': [], 'id': identifier_text, 'source': url}
-    
-
-def get_uris_from_onc(location_code):
+def get_device_info_from_onc_for_vdb(location_code):
     env_path = Path(__file__).resolve().parent / ".env"
     load_dotenv(dotenv_path=env_path)
     ONC_TOKEN = os.getenv("ONC_TOKEN")
@@ -231,13 +210,20 @@ def get_uris_from_onc(location_code):
         "locationCode": location_code,
     }
     devices = onc.getDevices(params)
-    uris = []
+    results = []
     for i in devices:
+        i["LocationCode"] = location_code
+        del i["deviceLink"]
         for j in i["cvTerm"]["device"]:
-            if "uri" in j:
-                uris.append(j["uri"])
-    uris = list(set(uris))  # Remove duplicates
-    return uris
+            if "uri" in j:                
+                j["description"] = getDeviceDefnFromURI(j["uri"])
+                del j["uri"]
+        results.append({'heading': i['deviceName'], 'paragraphs': [str(i)], 'page': [], 'id': i["deviceCode"], 'source': "ONC OCEANS 3.0 API"})
+    
+    return results
+
+
+
 
 def upload_to_vector_db(resultsList: list, qdrant: QdrantClientWrapper):
     points = []

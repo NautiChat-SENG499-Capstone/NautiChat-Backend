@@ -1,5 +1,4 @@
 import contextlib
-import ssl
 
 from typing import Any, AsyncIterator
 from uuid import uuid4
@@ -21,9 +20,13 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from fastapi import Request
+
+
 # Base class for all ORM models (Helps with Lazy Loading)
 class Base(AsyncAttrs, DeclarativeBase):
     pass
+
 
 class DatabaseSessionManager:
     """
@@ -41,23 +44,25 @@ class DatabaseSessionManager:
         is_postgres = url_obj.drivername.startswith("postgresql")
 
         if is_postgres:
-            # TODO: Create an SSL context for asyncpg 
+            # TODO: Create an SSL context for asyncpg
             # ssl_context = ssl.create_default_context()
             # connect_args = {"ssl": ssl_context}
 
-            # 
             connect_args = {
-                "ssl": False, 
+                "ssl": False,
                 "statement_cache_size": 0,  # Disable asyncpg prepared statement cache
                 "prepared_statement_cache_size": 0,  # Additional cache setting for async postgres
                 "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
-                }
+                "server_settings": {
+                    "statement_timeout": "3000",  # Optional: Set statement timeout
+                },
+            }
         else:
             connect_args = {}
 
         self._engine = create_async_engine(
             db_url,
-            poolclass=NullPool, # Optional: disables SQLAlchemy connection pool, relying on Supavisor (From SupaBase)
+            poolclass=NullPool,  # Optional: disables SQLAlchemy connection pool, relying on Supavisor (From SupaBase)
             connect_args=connect_args,
             **engine_kwargs,
         )
@@ -105,14 +110,6 @@ class DatabaseSessionManager:
             await session.close()
 
 
-# NOTE: DataBase (Postgres) is async compatible
-# Load SUPABASE_DB_URL from environment variable
-SUPABASE_DB_URL = get_settings().SUPABASE_DB_URL
-
-# Create global session manager instance
-sessionmanager = DatabaseSessionManager(SUPABASE_DB_URL)
-
-
 # FastAPI dependency for Endpoints
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Dependency that yields a database session"""
@@ -120,12 +117,18 @@ async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
     async with session_manager.session() as session:
         yield session
 
+
 # Creates an async Redis Client
-def init_redis():
-    return Redis(
+async def init_redis():
+    redis = await Redis(
         host="redis-13649.crce199.us-west-2-2.ec2.redns.redis-cloud.com",
         port=13649,
         decode_responses=True,
         username="default",
         password=get_settings().REDIS_PASSWORD,
+        socket_timeout=5,  # Prevents hanging forever
+        socket_connect_timeout=5,
     )
+    await redis.ping()
+
+    return redis
