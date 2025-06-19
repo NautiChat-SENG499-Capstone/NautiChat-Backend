@@ -1,4 +1,3 @@
-
 from datetime import datetime
 import logging
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
@@ -46,7 +45,7 @@ class LLM:
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
         }
 
-    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
+    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None):
         #print("Starting conversation with user prompt:", user_prompt)
         CurrentDate = datetime.now().strftime("%Y-%m-%d")
         if startingPrompt is None:
@@ -104,8 +103,13 @@ class LLM:
                 if function_name in self.available_functions:
                     function_args = json.loads(tool_call.function.arguments)
                     print(f"Calling function: {function_name} with args: {function_args}")
+                    
+                    # Add user's ONC token to function arguments
+                    if user_onc_token:
+                        function_args['user_onc_token'] = user_onc_token
+                    
                     if not function_args:
-                        function_response = await self.available_functions[function_name]()
+                        function_response = await self.available_functions[function_name](user_onc_token=user_onc_token)
                     else:
                         function_response = await self.available_functions[function_name](**function_args)
                     #print(f"Function response: {function_response}")

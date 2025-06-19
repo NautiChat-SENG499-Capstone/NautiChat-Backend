@@ -164,10 +164,14 @@ async def generate_response(
 
     # Call LLM to generate response
     try:
+        # Get user's ONC token
+        user_onc_token = current_user.onc_token if hasattr(current_user, 'onc_token') else None
+        
         response = await LLM.run_conversation(
             user_prompt=llm_query.input,
             startingPrompt=None,
-            chatHistory=[]
+            chatHistory=[],
+            user_onc_token=user_onc_token
         )
         message.response = response
     except Exception as e:

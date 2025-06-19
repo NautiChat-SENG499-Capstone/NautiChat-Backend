@@ -17,75 +17,105 @@ from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from pathlib import Path
 
-# Load API key and location code from .env
+# Load location code from .env (fallback)
 env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path)
-ONC_TOKEN = os.getenv("ONC_TOKEN")
-CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")  # Change for a different location
-onc = ONC(ONC_TOKEN)
+CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE", "CBY")  # Default to CBY
 cambridgeBayLocations = ["CBY", "CBYDS", "CBYIP", "CBYIJ", "CBYIU", "CBYSP", "CBYSS", "CBYSU", "CF240"]
 
 
-async def get_properties_at_cambridge_bay():
+async def get_properties_at_cambridge_bay(user_onc_token: str = None):
     """Get a list of properties of data available at Cambridge Bay
+    Args:
+        user_onc_token (str): User's ONC token for API access
     Returns a list of dictionaries turned into a string.
     Each Item in the list includes:
     - description (str): Description of the property. The description may have a colon in it.
     - propertyCode (str): Property Code of the property
     example: '{"Description of the property": Property Code of the property}'
     """
+    if not user_onc_token:
+        return json.dumps({"error": "ONC token is required to access this data"})
+    
     property_API = (
-        f"https://data.oceannetworks.ca/api/properties?locationCode={CAMBRIDGE_LOCATION_CODE}&token={ONC_TOKEN}"
+        f"https://data.oceannetworks.ca/api/properties?locationCode={CAMBRIDGE_LOCATION_CODE}&token={user_onc_token}"
     )
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(property_API)
-        response.raise_for_status()  # Error handling
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(property_API)
+            response.raise_for_status()  # Error handling
 
-        # Convert from JSON to Python dictionary for cleanup, return as JSON string
-        raw_data = response.json()
-        list_of_dicts = [
-            {"description": item["description"], "propertyCode": item["propertyCode"]} for item in raw_data
-        ]
-        return json.dumps(list_of_dicts)
+            # Convert from JSON to Python dictionary for cleanup, return as JSON string
+            raw_data = response.json()
+            list_of_dicts = [
+                {"description": item["description"], "propertyCode": item["propertyCode"]} for item in raw_data
+            ]
+            return json.dumps(list_of_dicts)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            return json.dumps({"error": "Invalid ONC token. Please check your token and try again."})
+        elif e.response.status_code == 403:
+            return json.dumps({"error": "Access denied. Your ONC token may not have permission for this data."})
+        else:
+            return json.dumps({"error": f"API request failed with status {e.response.status_code}"})
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch properties: {str(e)}"})
 
 
-async def get_daily_sea_temperature_stats_cambridge_bay(day_str: str):
+async def get_daily_sea_temperature_stats_cambridge_bay(day_str: str, user_onc_token: str = None):
     """
     Get daily sea temperature statistics for Cambridge Bay
     Args:
         day_str (str): Date in YYYY-MM-DD format
+        user_onc_token (str): User's ONC token for API access
     """
+    if not user_onc_token:
+        return json.dumps({"error": "ONC token is required to access this data"})
+    
     # Parse into datetime object to add 1 day (accounts for 24-hour period)
     date_to = datetime.strptime(day_str, "%Y-%m-%d") + timedelta(days=1)
     date_to_str: str = date_to.strftime("%Y-%m-%d")  # Convert back to string
 
-    async with httpx.AsyncClient() as client:
-        # Get the data from ONC API
-        temp_api = f"https://data.oceannetworks.ca/api/scalardata/location?locationCode={CAMBRIDGE_LOCATION_CODE}&deviceCategoryCode=CTD&propertyCode=seawatertemperature&dateFrom={day_str}&dateTo={date_to_str}&rowLimit=80000&outputFormat=Object&resamplePeriod=86400&token={ONC_TOKEN}"
-        response = await client.get(temp_api)
-        response.raise_for_status()  # Error handling
-        response = response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            # Get the data from ONC API
+            temp_api = f"https://data.oceannetworks.ca/api/scalardata/location?locationCode={CAMBRIDGE_LOCATION_CODE}&deviceCategoryCode=CTD&propertyCode=seawatertemperature&dateFrom={day_str}&dateTo={date_to_str}&rowLimit=80000&outputFormat=Object&resamplePeriod=86400&token={user_onc_token}"
+            response = await client.get(temp_api)
+            response.raise_for_status()  # Error handling
+            response = response.json()
 
-    if response["sensorData"] is None:
-        return ""
-        return json.dumps({"result": "No data available for the given date."})
+        if response["sensorData"] is None:
+            return json.dumps({"result": "No data available for the given date."})
 
-    data = response["sensorData"][0]["data"][0]
+        data = response["sensorData"][0]["data"][0]
 
-    # Get min, max, and average and store in dictionary
-    return json.dumps(
-        {
-            "daily_min": round(data["minimum"], 2),
-            "daily_max": round(data["maximum"], 2),
-            "daily_avg": round(data["value"], 2),
-        }
-    )
+        # Get min, max, and average and store in dictionary
+        return json.dumps(
+            {
+                "daily_min": round(data["minimum"], 2),
+                "daily_max": round(data["maximum"], 2),
+                "daily_avg": round(data["value"], 2),
+            }
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            return json.dumps({"error": "Invalid ONC token. Please check your token and try again."})
+        elif e.response.status_code == 403:
+            return json.dumps({"error": "Access denied. Your ONC token may not have permission for this data."})
+        else:
+            return json.dumps({"error": f"API request failed with status {e.response.status_code}"})
+    except Exception as e:
+        return json.dumps({"error": f"Failed to fetch temperature data: {str(e)}"})
 
 
-async def get_deployed_devices_over_time_interval(dateFrom: str, dateTo: str):
+async def get_deployed_devices_over_time_interval(dateFrom: str, dateTo: str, user_onc_token: str = None):
     """
     Get the devices at cambridge bay deployed over the specified time interval including sublocations
+    Args:
+        dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')
+        dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')
+        user_onc_token (str): User's ONC token for API access
     Returns:
         JSON string: List of deployed devices and their metadata Each item includes:
             - begin (str): deployment start time
@@ -94,11 +124,13 @@ async def get_deployed_devices_over_time_interval(dateFrom: str, dateTo: str):
             - deviceCategoryCode (str)
             - locationCode (str)
             - citation (dict): citation metadata (includes description, doi, etc)
-    Args:
-        dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')
-        dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')
     """
+    if not user_onc_token:
+        return json.dumps({"error": "ONC token is required to access this data"})
+    
     deployedDevices = []
+    onc = ONC(user_onc_token)
+    
     for locationCode in cambridgeBayLocations:
         params = {
             "locationCode": locationCode,
@@ -108,11 +140,16 @@ async def get_deployed_devices_over_time_interval(dateFrom: str, dateTo: str):
         try:
             response = onc.getDeployments(params)
         except Exception as e:
-            if e.response.status_code == 404:
+            if hasattr(e, 'response') and e.response.status_code == 404:
                 # print(f"Warning: No deployments found for locationCode {locationCode}")
                 continue
+            elif hasattr(e, 'response') and e.response.status_code == 401:
+                return json.dumps({"error": "Invalid ONC token. Please check your token and try again."})
+            elif hasattr(e, 'response') and e.response.status_code == 403:
+                return json.dumps({"error": "Access denied. Your ONC token may not have permission for this data."})
             else:
-                raise  # re-raise if different error
+                return json.dumps({"error": f"Failed to fetch deployment data: {str(e)}"})
+        
         for deployment in response:
             if deployment is None:
                 continue

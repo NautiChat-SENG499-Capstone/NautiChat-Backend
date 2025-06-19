@@ -4,6 +4,7 @@ import ssl
 from typing import Any, AsyncIterator
 from uuid import uuid4
 from sqlalchemy.pool import NullPool
+from fastapi import Request
 
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.engine.url import make_url
@@ -48,6 +49,7 @@ class DatabaseSessionManager:
             connect_args = {
                 "ssl": False, 
                 "statement_cache_size": 0,  # Disable asyncpg prepared statement cache
+                "prepared_statement_cache_size": 0,  # Additional cache setting for async postgres
                 "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
                 }
         else:
@@ -112,9 +114,10 @@ sessionmanager = DatabaseSessionManager(SUPABASE_DB_URL)
 
 
 # FastAPI dependency for Endpoints
-async def get_db_session() -> AsyncIterator[AsyncSession]:
+async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Dependency that yields a database session"""
-    async with sessionmanager.session() as session:
+    session_manager = request.app.state.session_manager
+    async with session_manager.session() as session:
         yield session
 
 # Creates an async Redis Client

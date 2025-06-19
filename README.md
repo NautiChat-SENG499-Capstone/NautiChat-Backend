@@ -1,17 +1,17 @@
-# NautiChat-Backend
+# NautiChat Backend
 
-To run venv run:
-venv/Scripts/activate
+## Setup
 
-Once in venv run:
-pip install -r requirements.txt
-pip freeze > requirements.txt
+1. Make sure you have env file at `backend-api/.env`
+2. Run the application
 
+## Running
 
-To run NautiChat backend locally:
+```bash
+docker compose up --build
+```
 
-1. Navigate to the root of the repository (NautiChat-Backend)
-2. Run command "docker compose up"
-3. Backend should now be running at localhost:8080
+## Access
 
-Currently hosted on Google Cloud
+- API Docs: `http://localhost:8000/docs`
+- Health Check: `http://localhost:8000/health`

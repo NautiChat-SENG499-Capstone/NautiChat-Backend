@@ -4,6 +4,7 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware # Base class for custom middleware
 from redis.asyncio import Redis # Async Redis Client
+import asyncio
 
 #TODO: There should be try/except for catching Redis Errors (If Redis is unavailable)
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -44,4 +45,5 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
 
         response = await call_next(request)
-        return response
+        async with asyncio.timeout(10):  # Optional timeout for the request processing
+            return response
