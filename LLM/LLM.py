@@ -7,6 +7,7 @@ from toolsSprint1 import (
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
 )
+from codes import generate_download_codes
 from RAG import RAG
 from Environment import Environment
 from Constants.toolDescriptions import toolDescriptions
@@ -24,6 +25,7 @@ class LLM:
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
+            "generate_download_codes": generate_download_codes,
         }
 
     async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
@@ -59,7 +61,8 @@ class LLM:
             "role": "system",
             "content": vector_content
             }) 
-        
+        print("VECTOR DB STUFF:")
+        print(vectorDBResponse)
         response = self.client.chat.completions.create(
             model=self.model,  # LLM to use
             messages=messages,  # Conversation history

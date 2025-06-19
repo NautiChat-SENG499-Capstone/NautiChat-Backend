@@ -90,4 +90,25 @@ toolDescriptions = [
             },
         },
     },
+        {
+        "type": "function",
+        "function": {
+            "name": "generate_download_codes",
+            "description": "Returns a parameters object that includes the deviceCategory and locationCode so that the proper data can be downloaded. The parameters object is defined as follows: params = {\"locationCode\": {locationCode},\"deviceCategoryCode\": {deviceCategory},\"dataProductCode\": \"TSSP\",\"extension\": \"csv\",\"dateFrom\": {todayDate},\"dateTo\": {todayDate},\"dpo_qualityControl\": \"1\",\"dpo_resample\": \"none\",}",
+            "parameters": {
+                "properties": {
+                    "deviceCategory": {
+                        "type": "string",
+                        "description": "The device category code for which scalar data is requested.",
+                    },
+                    "locationCode": {
+                        "type": "string",
+                        "description": "The location code for which the data is requested.",
+                    },
+                },
+                "required": ["deviceCategory", "locationCode"],
+                "type": "object",
+            },
+        },
+    },
 ]
