@@ -1,4 +1,4 @@
-from langchain_community.vectorstores import Qdrant
+from langchain_qdrant import Qdrant  
 from qdrant_client import QdrantClient
 from langchain.embeddings.base import Embeddings
 from sentence_transformers import SentenceTransformer
@@ -31,35 +31,38 @@ class QdrantClientWrapper:
 
 
 class RAG:
-    def __init__(self, env: Environment):
+    def __init__(
+        self,
+        env: Environment,
+        *,
+        embedder: Embeddings | None = None,
+        cross_encoder: HuggingFaceCrossEncoder | None = None,
+        qdrant_client: QdrantClient | None = None,
+    ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
-        self.qdrant_client = self.qdrant_client_wrapper.qdrant_client
+        self.qdrant_client = qdrant_client or self.qdrant_client_wrapper.qdrant_client
         self.collection_name = self.qdrant_client_wrapper.collection_name
-        print("Creating Jina Embeddings instance...")
-        self.embedding = JinaEmbeddings()
-        print("Creating Qdrant instance...")
+
+        self.embedding = embedder or JinaEmbeddings()
+
         self.qdrant = Qdrant(
             client=self.qdrant_client,
-            collection_name=env.get_collection_name(),
+            collection_name=self.collection_name,
             embeddings=self.embedding,
             content_payload_key="text",
         )
-        # Qdrant Retriever
-        print("Creating Qdrant retriever...")
+
         self.retriever = self.qdrant.as_retriever(search_kwargs={"k": 3})
-        # Reranker (from RerankerNoGroq notebook)
-        print("Creating CrossEncoder model...")
-        self.model = HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base")
-        self.compressor = CrossEncoderReranker(model=self.model, top_n=3)
-        print("Creating ContextualCompressionRetriever...")
+        self.cross_encoder = cross_encoder or HuggingFaceCrossEncoder(
+            model_name="BAAI/bge-reranker-base"
+        )
+        self.compressor = CrossEncoderReranker(model=self.cross_encoder, top_n=3)
+
         self.compression_retriever = ContextualCompressionRetriever(
             base_compressor=self.compressor, base_retriever=self.retriever
         )
 
-    def get_documents(self, question: str):
-        compression_documents = self.compression_retriever.invoke(
-            question
-        )  # If no data found needs to still handle empty list.
-        compression_contents = [doc.page_content for doc in compression_documents]
-        df = pd.DataFrame({"contents": compression_contents})
-        return df
+    def get_documents(self, question: str) -> pd.DataFrame:
+        docs = self.compression_retriever.invoke(question)
+        contents = [d.page_content for d in docs]
+        return pd.DataFrame({"contents": contents})

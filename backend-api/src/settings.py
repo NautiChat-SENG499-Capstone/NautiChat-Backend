@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_HOURS: int
     REDIS_PASSWORD: str
     SUPABASE_DB_URL: str
+    GROQ_API_KEY : str
+    ONC_TOKEN : str
+    CAMBRIDGE_LOCATION_CODE : str
+    QDRANT_API_KEY : str
+    QDRANT_URL : str
+    QDRANT_COLLECTION_NAME : str
+
 
     model_config = SettingsConfigDict(env_file=env_file_location, extra="allow")
 

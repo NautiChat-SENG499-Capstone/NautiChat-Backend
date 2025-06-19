@@ -1,3 +1,7 @@
+
+from datetime import datetime
+import logging
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 import pandas as pd
 import asyncio
 import json
@@ -5,21 +9,37 @@ from datetime import datetime
 from LLM.toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
-    get_deployed_devices_over_time_interval,
+    get_deployed_devices_over_time_interval
 )
-from LLM.RAG import RAG
+from LLM.RAG import RAG, JinaEmbeddings
 from LLM.Environment import Environment
 from LLM.Constants.toolDescriptions import toolDescriptions
 
+logger = logging.getLogger(__name__)
+
+
 class LLM:
-    def __init__(
-        self, env: Environment
-        , RAG_instance: RAG = None
-    ):
-        self.client = env.get_client()  # Get the Groq client from the environment
-        #self.model = env.get_model()  # Get the model to use from the environment
-        self.model = "llama-3.1-8b-instant" #use this one when model limit is reached
-        self.RAG_instance = RAG_instance if RAG_instance else RAG(env)  # Use provided RAG instance or create a new one
+    __shared: dict[str, object] | None = None         
+    # singleton cache
+
+    def __init__(self, env, *, RAG_instance=None):
+        self.client = env.get_client()
+        self.model  = "llama-3.1-8b-instant"
+
+        if LLM.__shared is None:
+            logging.info("First LLM() building shared embedder/cross-encoder")
+            LLM.__shared = {
+                "embedder": JinaEmbeddings(),
+                "cross": HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
+            }
+
+        shared = LLM.__shared
+        self.RAG_instance = RAG_instance or RAG(
+            env,
+            embedder=shared["embedder"],
+            cross_encoder=shared["cross"],
+        )
+
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,

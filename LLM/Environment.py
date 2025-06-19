@@ -1,11 +1,13 @@
 import os
 from groq import Groq
 from dotenv import load_dotenv
+from pathlib import Path
 
 
 class Environment:
     def __init__(self):
-        load_dotenv()
+        env_file_location = str(Path(__file__).resolve().parent.parent / ".env")
+        load_dotenv(env_file_location)
         self.onc_token = os.getenv("ONC_TOKEN")
         self.location_code = os.getenv("CAMBRIDGE_LOCATION_CODE")
         self.model = "llama-3.3-70b-versatile"
