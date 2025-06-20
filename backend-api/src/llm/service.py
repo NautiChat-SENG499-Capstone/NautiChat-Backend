@@ -9,30 +9,6 @@ from src.auth.schemas import UserOut
 from .schemas import Conversation, Message, Feedback, CreateLLMQuery, CreateConversationBody
 from .models import Conversation as ConversationModel, Message as MessageModel, Feedback as FeedbackModel
 
-async def _ensure_llm_initialized(request: Request):
-    """Lazily initialize LLM and RAG components if not already initialized"""
-    if request.app.state.llm is None:
-        try:
-            print("Initializing LLM and RAG components...")
-            from LLM.Environment import Environment
-            from LLM.RAG import RAG
-            from LLM.LLM import LLM
-            
-            env = Environment()
-            rag_instance = RAG(env)
-            llm_instance = LLM(env=env, RAG_instance=rag_instance)
-            
-            request.app.state.env = env
-            request.app.state.rag = rag_instance
-            request.app.state.llm = llm_instance
-            print("LLM and RAG initialization complete")
-        except Exception as e:
-            print(f"Failed to initialize LLM/RAG: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to initialize LLM service: {str(e)}"
-            )
-
 async def create_conversation(
     current_user: UserOut,
     db: AsyncSession,
@@ -87,8 +63,12 @@ async def generate_response(
     request: Request,
 ) -> Message:
     """Validate user creating new Message that will be sent to LLM"""
-    # Ensure LLM is initialized
-    await _ensure_llm_initialized(request)
+    # Ensure LLM and RAG are initialized
+    if not request.app.state.llm or not request.app.state.rag:
+        raise HTTPException(
+            status_code=500,
+            detail="LLM or RAG service is not initialized"
+        )
     
     # Validate input
     LLM = request.app.state.llm
