@@ -40,23 +40,6 @@ if not logger.handlers:
 
 logger.info("NAUTICHAT BACKEND STARTING")
 
-#being very patient with supabase 
-async def wait_for_db(engine, deadline=90):
-    start, delay = time.monotonic(), 2
-    while True:
-        try:
-            async with engine.connect() as conn:
-                await conn.execute(text("select 1"))
-            logger.info("Database ready.")
-            return
-        except (exc.DBAPIError, OSError):
-            if time.monotonic() - start > deadline:
-                raise
-            logger.warning("DB not ready; retrying in %s s …", delay)
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, 10)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up application...")
@@ -69,15 +52,6 @@ async def lifespan(app: FastAPI):
         session_manager = DatabaseSessionManager(get_settings().SUPABASE_DB_URL)
         app.state.session_manager = session_manager
         assert session_manager._engine is not None, "Session manager engine is not initialized"
-        
-        # Wait (up to 90 s) until Supabase is ready, then create tables
-        await wait_for_db(session_manager._engine)
-        async with session_manager.connect() as conn:
-            logger.info("Creating database tables...")
-            await conn.run_sync(Base.metadata.create_all)
-        
-        app.state.db_session_factory = session_manager.session
-        logger.info("Database tables created and session factory registered.")
 
         logger.info("Initializing Redis client...")
         async with asyncio.timeout(10):  # 10 second timeout for Redis
