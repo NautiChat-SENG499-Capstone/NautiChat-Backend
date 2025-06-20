@@ -2,7 +2,6 @@ import contextlib
 
 from typing import Any, AsyncIterator
 from uuid import uuid4
-from sqlalchemy.pool import NullPool
 from fastapi import Request
 
 from sqlalchemy.orm import DeclarativeBase
@@ -10,6 +9,7 @@ from sqlalchemy.engine.url import make_url
 from redis.asyncio import Redis
 
 from src.settings import get_settings
+
 
 # Building async engine & sessionmaker
 from sqlalchemy.ext.asyncio import (
@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from fastapi import Request
+
 
 
 # Base class for all ORM models (Helps with Lazy Loading)
@@ -60,12 +61,21 @@ class DatabaseSessionManager:
         else:
             connect_args = {}
 
+        # Default pool: 5 conns, no overflow, pre-ping, 30-min recycle
+        default_kwargs = dict(
+            pool_size=5,
+            max_overflow=0,         # never exceed Supabase’s 10-conn limit
+            pool_recycle=1800,
+            pool_pre_ping=True, 
+        )
+        default_kwargs.update(engine_kwargs)
+
         self._engine = create_async_engine(
             db_url,
-            poolclass=NullPool,  # Optional: disables SQLAlchemy connection pool, relying on Supavisor (From SupaBase)
             connect_args=connect_args,
-            **engine_kwargs,
+            **default_kwargs,
         )
+        
 
         self._sessionmaker = async_sessionmaker(
             bind=self._engine,

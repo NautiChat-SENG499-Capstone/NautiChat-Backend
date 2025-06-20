@@ -2,15 +2,16 @@ services:
   backend:
     build: .
     ports:
-      - "8000:8080"
+      - "8000:8080" 
     env_file:
-      - ./backend-api/.env
+      - ./backend-api/.env 
+    environment:
+      - PYTHONPATH=/app
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+    stop_grace_period: 10s   # let FastAPI shut down cleanly
+    healthcheck:  
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    environment:
-      - PYTHONPATH=/app

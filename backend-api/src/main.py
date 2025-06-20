@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager  # Used to manage async app startup/s
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware # Enables frontend-backend communications via CORS
+from sqlalchemy import text, exc
 
 from src.database import DatabaseSessionManager, Base, init_redis
 
@@ -20,6 +21,7 @@ from src.middleware import RateLimitMiddleware # Custom middleware for rate limi
 from starlette.concurrency import run_in_threadpool
 
 import logging
+import time
 import sys
 import traceback
 import asyncio
@@ -38,6 +40,22 @@ if not logger.handlers:
 
 logger.info("NAUTICHAT BACKEND STARTING")
 
+#being very patient with supabase 
+async def wait_for_db(engine, deadline=90):
+    start, delay = time.monotonic(), 2
+    while True:
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("select 1"))
+            logger.info("Database ready.")
+            return
+        except (exc.DBAPIError, OSError):
+            if time.monotonic() - start > deadline:
+                raise
+            logger.warning("DB not ready; retrying in %s s …", delay)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 10)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,11 +70,11 @@ async def lifespan(app: FastAPI):
         app.state.session_manager = session_manager
         assert session_manager._engine is not None, "Session manager engine is not initialized"
         
-        # Test database connection with timeout
-        async with asyncio.timeout(30):  # 30 second timeout for DB init
-            async with session_manager.connect() as conn:
-                logger.info("Creating database tables...")
-                await conn.run_sync(Base.metadata.create_all)
+        # Wait (up to 90 s) until Supabase is ready, then create tables
+        await wait_for_db(session_manager._engine)
+        async with session_manager.connect() as conn:
+            logger.info("Creating database tables...")
+            await conn.run_sync(Base.metadata.create_all)
         
         app.state.db_session_factory = session_manager.session
         logger.info("Database tables created and session factory registered.")
