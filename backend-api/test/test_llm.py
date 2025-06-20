@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from fastapi import status
+from src.main import app
 
 # Dummy LLM and RAG services for tests
 class DummyLLM:
@@ -10,132 +11,134 @@ class DummyLLM:
 class DummyRAG:
     pass
 
-# Stub services before any client fixture uses them
-from src.main import app
-
 @pytest.fixture(autouse=True)
 def stub_services():
     # Inject dummy services into FastAPI app state
     app.state.llm = DummyLLM()
     app.state.rag = DummyRAG()
 
-@pytest.fixture
-async def create_conversation(client: AsyncClient, user_headers):
-    """Helper to create a conversation and return its ID"""
-    async def _create(title: str = "Test Conversation") -> int:
-        resp = await client.post(
-            "/llm/conversations",
-            json={"title": title},
-            headers=user_headers
-        )
-        assert resp.status_code == status.HTTP_201_CREATED
-        return resp.json()["conversation_id"]
-    return _create
-
 @pytest.mark.asyncio
 async def test_create_conversation(client: AsyncClient, user_headers):
-    payload = {"title": "Test Conversation"}
-    resp = await client.post(
+    post = await client.post(
         "/llm/conversations",
-        json=payload,
+        json={"title": "Test Conversation"},
         headers=user_headers
     )
-    assert resp.status_code == status.HTTP_201_CREATED
-    data = resp.json()
-    assert data["title"] == payload["title"]
+    assert post.status_code == status.HTTP_201_CREATED
+    data = post.json()
+    assert data["title"] == "Test Conversation"
     assert isinstance(data["conversation_id"], int)
 
 @pytest.mark.asyncio
 async def test_get_conversations_empty(client: AsyncClient, user_headers):
-    resp = await client.get(
+    get = await client.get(
         "/llm/conversations",
         headers=user_headers
     )
-    assert resp.status_code == status.HTTP_200_OK
-    assert resp.json() == []
+    assert get.status_code == status.HTTP_200_OK
+    assert get.json() == []
 
 @pytest.mark.asyncio
-async def test_get_conversation_success(client: AsyncClient, user_headers, create_conversation):
-    conv_id = await create_conversation("Conversation 1")
-    resp = await client.get(
+async def test_get_conversation_success(client: AsyncClient, user_headers):
+    post = await client.post(
+        "/llm/conversations",
+        json={"title": "Conversation 1"},
+        headers=user_headers
+    )
+    assert post.status_code == status.HTTP_201_CREATED
+    conv_id = post.json()["conversation_id"]
+
+    get = await client.get(
         f"/llm/conversations/{conv_id}",
         headers=user_headers
     )
-    assert resp.status_code == status.HTTP_200_OK
-    data = resp.json()
+    assert get.status_code == status.HTTP_200_OK
+    data = get.json()
     assert data["conversation_id"] == conv_id
     assert data["title"] == "Conversation 1"
 
 @pytest.mark.asyncio
 async def test_get_conversation_not_found(client: AsyncClient, user_headers):
-    resp = await client.get(
+    get = await client.get(
         "/llm/conversations/9999",
         headers=user_headers
     )
-    assert resp.status_code == status.HTTP_404_NOT_FOUND
+    assert get.status_code == status.HTTP_404_NOT_FOUND
 
 @pytest.mark.asyncio
-async def test_get_conversation_unauthorized(client: AsyncClient, user_headers, create_conversation):
-    conv_id = await create_conversation("Private Conv")
-    # Register another user
-    r = await client.post(
+async def test_get_conversation_unauthorized(client: AsyncClient, user_headers):
+    post = await client.post(
+        "/llm/conversations",
+        json={"title": "Private Conv"},
+        headers=user_headers
+    )
+    conv_id = post.json()["conversation_id"]
+
+    reg = await client.post(
         "/auth/register",
         json={"username": "otheruser", "password": "pass", "onc_token": "tok"}
     )
-    token2 = r.json()["access_token"]
+    token2 = reg.json()["access_token"]
     headers2 = {"Authorization": f"Bearer {token2}"}
 
-    resp = await client.get(
+    get = await client.get(
         f"/llm/conversations/{conv_id}",
         headers=headers2
     )
-    assert resp.status_code == status.HTTP_404_NOT_FOUND
+    assert get.status_code == status.HTTP_404_NOT_FOUND
 
 @pytest.mark.asyncio
-async def test_generate_and_retrieve_message(client: AsyncClient, user_headers, create_conversation):
-    conv_id = await create_conversation("Chatting")
-    payload = {"input": "Hello ChatBot", "conversation_id": conv_id}
-    resp = await client.post(
-        "/llm/messages",
-        json=payload,
+async def test_generate_and_retrieve_message(client: AsyncClient, user_headers):
+    post_conv = await client.post(
+        "/llm/conversations",
+        json={"title": "Chatting"},
         headers=user_headers
     )
-    assert resp.status_code == status.HTTP_201_CREATED
-    msg = resp.json()
-    assert msg["input"] == payload["input"]
+    conv_id = post_conv.json()["conversation_id"]
+
+    post_msg = await client.post(
+        "/llm/messages",
+        json={"input": "Hello ChatBot", "conversation_id": conv_id},
+        headers=user_headers
+    )
+    assert post_msg.status_code == status.HTTP_201_CREATED
+    msg = post_msg.json()
+    assert msg["input"] == "Hello ChatBot"
     assert "LLM Response for" in msg["response"]
 
-    # Retrieve the same message
-    get_resp = await client.get(
+    get_msg = await client.get(
         f"/llm/messages/{msg['message_id']}",
         headers=user_headers
     )
-    assert get_resp.status_code == status.HTTP_200_OK
-    assert get_resp.json()["message_id"] == msg["message_id"]
+    assert get_msg.status_code == status.HTTP_200_OK
+    assert get_msg.json()["message_id"] == msg["message_id"]
 
 @pytest.mark.asyncio
-async def test_feedback_create_and_update(client: AsyncClient, user_headers, create_conversation):
-    conv_id = await create_conversation("Feedback Test")
-    msg = (await client.post(
+async def test_feedback_create_and_update(client: AsyncClient, user_headers):
+    post_conv = await client.post(
+        "/llm/conversations",
+        json={"title": "Feedback Test"},
+        headers=user_headers
+    )
+    conv_id = post_conv.json()["conversation_id"]
+
+    post_msg = await client.post(
         "/llm/messages",
         json={"input": "Testing feedback?", "conversation_id": conv_id},
         headers=user_headers
-    )).json()
+    )
+    msg = post_msg.json()
 
-    # Create feedback
-    fb1 = {"rating": 5, "comment": "Great response!"}
-    resp1 = await client.patch(
+    create_fb = await client.patch(
         f"/llm/messages/{msg['message_id']}/feedback",
-        json=fb1,
+        json={"rating": 5, "comment": "Great response!"},
         headers=user_headers
     )
-    assert resp1.status_code == status.HTTP_200_OK
+    assert create_fb.status_code == status.HTTP_200_OK
 
-    # Update feedback
-    fb2 = {"rating": 2, "comment": "Needs improvement."}
-    resp2 = await client.patch(
+    update_fb = await client.patch(
         f"/llm/messages/{msg['message_id']}/feedback",
-        json=fb2,
+        json={"rating": 2, "comment": "Needs improvement."},
         headers=user_headers
     )
-    assert resp2.status_code == status.HTTP_200_OK
+    assert update_fb.status_code == status.HTTP_200_OK
