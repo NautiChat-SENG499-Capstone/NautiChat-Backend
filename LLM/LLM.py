@@ -12,14 +12,12 @@ from RAG import RAG
 from Environment import Environment
 from Constants.toolDescriptions import toolDescriptions
 
+
 class LLM:
-    def __init__(
-        self, env: Environment
-        , RAG_instance: RAG = None
-    ):
+    def __init__(self, env: Environment, RAG_instance: RAG = None):
         self.client = env.get_client()  # Get the Groq client from the environment
-        #self.model = env.get_model()  # Get the model to use from the environment
-        self.model = "llama-3.1-8b-instant" #use this one when model limit is reached
+        # self.model = env.get_model()  # Get the model to use from the environment
+        self.model = "llama-3.1-8b-instant"  # use this one when model limit is reached
         self.RAG_instance = RAG_instance if RAG_instance else RAG(env)  # Use provided RAG instance or create a new one
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
@@ -29,13 +27,13 @@ class LLM:
         }
 
     async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
-        #print("Starting conversation with user prompt:", user_prompt)
+        # print("Starting conversation with user prompt:", user_prompt)
         CurrentDate = datetime.now().strftime("%Y-%m-%d")
         if startingPrompt is None:
             startingPrompt = f"You are a helpful assistant for Oceans Network Canada that can use tools. \
                 The current day is: {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required. Dont summarize data unles asked to."
 
-        #print(user_prompt)
+        # print(user_prompt)
         messages = chatHistory + [
             {
                 "role": "system",
@@ -44,7 +42,7 @@ class LLM:
             {
                 "role": "user",
                 "content": user_prompt,
-            }
+            },
         ]
 
         print("Calling vectorDB")
@@ -57,12 +55,10 @@ class LLM:
                 vector_content = vectorDBResponse.to_string(index=False)
         else:
             vector_content = str(vectorDBResponse)
-        messages.append({
-            "role": "system",
-            "content": vector_content
-            }) 
-        print("VECTOR DB STUFF:")
-        print(vectorDBResponse)
+        messages.append({"role": "system", "content": vector_content})
+
+        # print("VECTOR DB STUFF:")
+        # print(messages)
         response = self.client.chat.completions.create(
             model=self.model,  # LLM to use
             messages=messages,  # Conversation history
@@ -72,13 +68,18 @@ class LLM:
             max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
             temperature=0.25,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
         )
-        #print("resp:", response)
+        # print("MEOW MEOW MEOW")
+        # print(messages)
+
+        # give me the device category code for the dive computer for CBYIP for data download
+        print(response)
         response_message = response.choices[0].message
-        
+
         tool_calls = response_message.tool_calls
-        
+
         if tool_calls:
-            #print("Tool calls detected, processing...")
+            # print("Tool calls detected, processing...")
+            print(tool_calls)
             for tool_call in tool_calls:
                 # print(tool_call)
                 # print()
@@ -91,28 +92,36 @@ class LLM:
                         function_response = await self.available_functions[function_name]()
                     else:
                         function_response = await self.available_functions[function_name](**function_args)
-                    #print(f"Function response: {function_response}")
-                    messages.append(
-                        {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",  # Indicates this message is from tool use
-                            "name": function_name,
-                            "content": json.dumps(function_response),
-                        }
-                    )  # May be able to use this for getting most recent data if needed.
-            #print("Messages after tool calls:", messages)
+                    # print(f"Function response: {function_response}")
+                    if function_response:
+                        messages.append(
+                            {
+                                "tool_call_id": tool_call.id,
+                                "role": "tool",  # Indicates this message is from tool use
+                                "name": function_name,
+                                "content": json.dumps(function_response),
+                            }
+                        )  # May be able to use this for getting most recent data if needed.
+            print("SHIT")
+            # print("Messages after tool calls:", messages)
             second_response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_completion_tokens=4096,
-                temperature=0.25
+                model=self.model, messages=messages, max_completion_tokens=4096, temperature=0.25
             )  # Calls LLM again with all the data from all functions
             # Return the final response
-            #print("Second response:", second_response)
+            # #print("Second response:", second_response)
             return second_response.choices[0].message.content
         else:
+            print("no calls")
             return response_message.content
-    
+        # second_response = self.client.chat.completions.create(
+        #     model=self.model,
+        #     messages=messages,
+        #     max_completion_tokens=4096,
+        #     temperature=0.25
+        # )  # Calls LLM again with all the data from all functions
+        # # Return the final response
+        # #print("Second response:", second_response)
+        # return second_response.choices[0].message.content
 
 
 async def main():
@@ -128,7 +137,7 @@ async def main():
             response = await LLM_Instance.run_conversation(user_prompt=user_prompt, chatHistory=chatHistory)
             print(response)
             response = {"role": "system", "content": response}
-            #chatHistory.append(response)
+            # chatHistory.append(response)
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
     except Exception as e:
         print("Error occurred:", e)

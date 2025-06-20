@@ -94,7 +94,7 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "generate_download_codes",
-            "description": "Returns a parameters object that includes the deviceCategory and locationCode so that the proper data can be downloaded. The parameters object is defined as follows: params = {\"locationCode\": {locationCode},\"deviceCategoryCode\": {deviceCategory},\"dataProductCode\": \"TSSP\",\"extension\": \"csv\",\"dateFrom\": {todayDate},\"dateTo\": {todayDate},\"dpo_qualityControl\": \"1\",\"dpo_resample\": \"none\",}",
+            "description": "Get the device category code at a certain location code at Cambridge bay, so that users can download data, over a specified time period. Returns a list of parameters. Returns: id (str): The id to a dataProduct from ONC that is being downloaded. Args: dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z'), dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z'), deviceCategory (str): An ONC defined code identifying each device. locationCode (str): An ONC defined code identifying each device site.",
             "parameters": {
                 "properties": {
                     "deviceCategory": {
