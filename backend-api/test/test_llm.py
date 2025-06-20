@@ -8,7 +8,11 @@ class DummyLLM:
         return f"LLM Response for {user_prompt}"
 
 class DummyRAG:
-    pass
+    """Returns an empty result for whatever method is called."""
+    def __getattr__(self, _):
+        async def _noop(*args, **kwargs):
+            return ""
+        return _noop
 
 @pytest_asyncio.fixture(autouse=True)
 async def _stub_llm_and_rag(client: AsyncClient):
@@ -66,19 +70,23 @@ async def test_get_conversation_unauthorized(client: AsyncClient, user_headers):
     assert (await client.get(f"/llm/conversations/{conv_id}", headers=headers2)).status_code == status.HTTP_404_NOT_FOUND
 
 
-@pytest.mark.asyncio
 async def test_generate_and_retrieve_message(client: AsyncClient, user_headers):
     conv_id = (
         await client.post("/llm/conversations", json={"title": "Chat"}, headers=user_headers)
     ).json()["conversation_id"]
 
     msg = (
-        await client.post("/llm/messages", json={"input": "Hi", "conversation_id": conv_id}, headers=user_headers)
+        await client.post(
+            "/llm/messages",
+            json={"input": "Hi", "conversation_id": conv_id},
+            headers=user_headers,
+        )
     ).json()
     assert "LLM Response for" in msg["response"]
 
-    get_msg = await client.get(f"/llm/messages/{msg['message_id']}", headers=user_headers)
-    assert get_msg.status_code == status.HTTP_200_OK and get_msg.json()["message_id"] == msg["message_id"]
+    got = await client.get(f"/llm/messages/{msg['message_id']}", headers=user_headers)
+    assert got.status_code == status.HTTP_200_OK
+    assert got.json()["message_id"] == msg["message_id"]
 
 
 @pytest.mark.asyncio
