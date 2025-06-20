@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from fastapi import status
 
@@ -9,17 +10,14 @@ class DummyLLM:
 class DummyRAG:
     pass
 
-@pytest.fixture(autouse=True)
+pytest_asyncio.fixture(autouse=True)
 async def _stub_llm_and_rag(client: AsyncClient):
-    asgi_app = getattr(client, "app", None)
-    if asgi_app is None:  # Fallback for transports without the attribute
-        transport = getattr(client, "_transport", None)
-        asgi_app = getattr(transport, "app", None) or getattr(transport, "_app", None)
-    assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
+    app = getattr(client, "app", None) or getattr(client._transport, "app", None)
+    assert app is not None, "Could not locate ASGI app on AsyncClient"
 
-    asgi_app.state.llm = DummyLLM()
-    asgi_app.state.rag = DummyRAG()
-    yield  # no teardown necessary
+    app.state.llm = DummyLLM()
+    app.state.rag = DummyRAG()
+    yield  
 
 @pytest.mark.asyncio
 async def test_create_conversation(client: AsyncClient, user_headers):
