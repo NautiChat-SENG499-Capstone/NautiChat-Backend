@@ -4,12 +4,20 @@ from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+
 class DummyLLM:
     async def run_conversation(self, user_prompt, startingPrompt, chatHistory, user_onc_token=None):
         return f"LLM Response for {user_prompt}"
 
 class DummyRAG:
     pass
+
+from src.main import app as _app
+
+@pytest.fixture(autouse=True)
+def stub_services():
+    _app.state.llm = DummyLLM()
+    _app.state.rag = DummyRAG()
 
 @pytest.fixture(autouse=True)
 def stub_services(client):
