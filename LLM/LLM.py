@@ -50,11 +50,12 @@ class LLM:
         }
 
     async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None):
-        #print("Starting conversation with user prompt:", user_prompt)
-        CurrentDate = datetime.now().strftime("%Y-%m-%d")
-        if startingPrompt is None:
-            startingPrompt = f"You are a helpful assistant for Oceans Network Canada that can use tools. \
-                The current day is: {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required. Dont summarize data unles asked to."
+        try:
+            #print("Starting conversation with user prompt:", user_prompt)
+            CurrentDate = datetime.now().strftime("%Y-%m-%d")
+            if startingPrompt is None:
+                startingPrompt = f"You are a helpful assistant for Oceans Network Canada that can use tools. \
+                    The current day is: {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required. Dont summarize data unles asked to."
 
             #print(user_prompt)
             messages = chatHistory + [
