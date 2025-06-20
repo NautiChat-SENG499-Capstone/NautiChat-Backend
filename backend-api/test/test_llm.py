@@ -4,6 +4,20 @@ from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+class DummyLLM:
+    async def run_conversation(self, user_prompt, startingPrompt, chatHistory, user_onc_token=None):
+        return f"LLM Response for {user_prompt}"
+
+class DummyRAG:
+    pass
+
+@pytest.fixture(autouse=True)
+def stub_services(client):
+    # Inject dummy services into app state
+    client.app.state.llm = DummyLLM()
+    client.app.state.rag = DummyRAG()
+
+
 @pytest.mark.asyncio
 async def test_create_converstation(client: AsyncClient, user_headers):
     # Payload for creating a conversation
@@ -51,53 +65,50 @@ async def test_get_single_conversation_unauthorized(client: AsyncClient, user_he
     assert response.status_code == 404
 
 @pytest.mark.asyncio
-async def test_generate_response(client: AsyncClient, user_headers):
-    # Create conversation
-    response = await client.post("/llm/conversations", json={"title": "Chatting"}, headers=user_headers)
-    conv_id = response.json()["conversation_id"]
-
-    # Send message
+async def test_generate_and_retrieve_message(client: AsyncClient, user_headers, create_conversation):
+    conv_id = await create_conversation("Chatting")
     payload = {"input": "Hello ChatBot", "conversation_id": conv_id}
-    response = await client.post("/llm/messages", json=payload, headers=user_headers)
-    assert response.status_code == 201
-    data = response.json()
-    assert data["input"] == "Hello ChatBot"
-    assert "LLM Response for" in data["response"]
+    resp = await client.post(
+        "/llm/messages",
+        json=payload,
+        headers=user_headers
+    )
+    assert resp.status_code == status.HTTP_201_CREATED
+    msg = resp.json()
+    assert msg["input"] == payload["input"]
+    assert "LLM Response for" in msg["response"]
+
+    # Retrieve the same message
+    get_resp = await client.get(
+        f"/llm/messages/{msg['message_id']}",
+        headers=user_headers
+    )
+    assert get_resp.status_code == status.HTTP_200_OK
+    assert get_resp.json()["message_id"] == msg["message_id"]
 
 @pytest.mark.asyncio
-async def test_get_message(client: AsyncClient, user_headers):
-    # Create a Conversation + message
-    conversation = await client.post("/llm/conversations", json={"title": "Get Message"}, headers=user_headers)
-    msg = await client.post(
+async def test_feedback_create_and_update(client: AsyncClient, user_headers, create_conversation):
+    conv_id = await create_conversation("Feedback Test")
+    msg = (await client.post(
         "/llm/messages",
-        json={"input": "What is the weather?", "conversation_id": conversation.json()["conversation_id"]},
-        headers=user_headers,
+        json={"input": "Test?", "conversation_id": conv_id},
+        headers=user_headers
+    )).json()
+
+    # Create feedback
+    fb1 = {"rating": 5, "comment": "Great response!"}
+    resp1 = await client.patch(
+        f"/llm/messages/{msg['message_id']}/feedback",
+        json=fb1,
+        headers=user_headers
     )
-
-    # Get message
-    response = await client.get(f"/llm/messages/{msg.json()['message_id']}", headers=user_headers)
-    assert response.status_code == 200
-    assert response.json()["message_id"] == msg.json()["message_id"]
-
-@pytest.mark.asyncio
-async def test_feedback_create_and_update(client: AsyncClient, user_headers):
-    # Create conversation + message
-    conversation = await client.post("/llm/conversations", json={"title": "Feedback Test"}, headers=user_headers)
-    msg = await client.post(
-        "/llm/messages",
-        json={
-            "input": "What is the temperature of Cambridge Bay?",
-            "conversation_id": conversation.json()["conversation_id"],
-        },
-        headers=user_headers,
-    )
-
-    # Submit feedback
-    fb = {"rating": 5, "comment": "Great response!"}
-    response = await client.patch(f"/llm/messages/{msg.json()['message_id']}/feedback", json=fb, headers=user_headers)
-    assert response.status_code == 200
+    assert resp1.status_code == status.HTTP_200_OK
 
     # Update feedback
-    updated_fb = {"rating": 1, "comment": "Actually not helpful."}
-    response = await client.patch(f"/llm/messages/{msg.json()['message_id']}/feedback", json=updated_fb, headers=user_headers)
-    assert response.status_code == 200
+    fb2 = {"rating": 1, "comment": "Actually not helpful."}
+    resp2 = await client.patch(
+        f"/llm/messages/{msg['message_id']}/feedback",
+        json=fb2,
+        headers=user_headers
+    )
+    assert resp2.status_code == status.HTTP_200_OK
