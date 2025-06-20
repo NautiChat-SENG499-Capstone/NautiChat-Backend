@@ -30,6 +30,39 @@ toolDescriptions = [
     {
         "type": "function",
         "function": {
+            "name": "get_active_instruments_at_cambridge_bay",
+            "description": (
+                "Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n \"activeInstrumentCount\": int,\n \"details\": [ ... ]\n }\n Note: This function does not take any parameters"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            },
+        },
+    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "get_time_range_of_available_data",
+    #         "description": (
+    #             "Returns a sorted list of deployment time ranges for instruments at Cambridge Bay for a given device category.\n Each time range includes:\n - begin (str): ISO 8601 deployment start time\n - end (str | null): ISO 8601 deployment end time (null if ongoing)\n This function helps identify periods when specific device types were deployed."
+    #         ),
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "deviceCategoryCode": {
+    #                     "type": "string",
+    #                     "description": "The device category code to filter deployments by (e.g., 'CTD', 'OXYSENSOR')."
+    #                 }
+    #             },
+    #             "required": ["deviceCategoryCode"]
+    #         }
+    #     }
+    # },
+    {
+        "type": "function",
+        "function": {
             "name": "get_daily_sea_temperature_stats_cambridge_bay",
             "description": "Get daily sea temperature statistics for Cambridge Bay\nArgs:\n    day_str (str): Date in YYYY-MM-DD format",
             "parameters": {
