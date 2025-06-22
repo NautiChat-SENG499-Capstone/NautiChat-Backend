@@ -1,20 +1,9 @@
-import pandas as pd
-import asyncio
-from groq import Groq
 import json
-import pprint
 from onc import ONC
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import httpx
-from datasets import load_dataset
-from langchain.docstore.document import Document
-from langchain_community.vectorstores import Qdrant
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain.retrievers.document_compressors import CrossEncoderReranker
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from pathlib import Path
 
 # Load location code from .env (fallback)
@@ -168,7 +157,7 @@ async def get_deployed_devices_over_time_interval(dateFrom: str, dateTo: str, us
 
     return json.dumps(deployedDevices)
 
-async def get_active_instruments_at_cambridge_bay():
+async def get_active_instruments_at_cambridge_bay(user_onc_token: str = None):
     """
     Get the number of instruments collecting data at Cambridge Bay over the specified interval.
     Uses the ONC Python client to access deployment and stream data.
@@ -180,6 +169,10 @@ async def get_active_instruments_at_cambridge_bay():
                 "details": [ ... ]
             }
     """
+    if not user_onc_token:
+        return json.dumps({"error": "ONC token is required to access this data"})
+
+    onc = ONC(user_onc_token)
     active_instruments = []
     deployed_device_count = 0
 

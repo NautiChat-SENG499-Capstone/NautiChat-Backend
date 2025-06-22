@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
             # Add timeout to prevent infinite hanging
             llm = await asyncio.wait_for(
                 run_in_threadpool(LLM, app.state.env), 
-                timeout=300  # 5 minute timeout
+                timeout=600  # 10 minute timeout
             )
             app.state.llm = llm
             logger.info("LLM instance initialized successfully.")
@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
             logger.error(f"LLM initialization failed: {e}")
             raise RuntimeError(f"LLM initialization failed: {e}")
 
-        logger.info("Step 5: Getting RAG instance...")
+        logger.info("Getting RAG instance...")
         app.state.rag = app.state.llm.RAG_instance
         logger.info("RAG instance initialized successfully.")
 
@@ -163,14 +163,3 @@ def create_app():
 
 
 app = create_app()
-
-
-@app.get("/health")
-async def health_check(request: Request):
-    # Check if Database is connected
-    if not hasattr(request.app.state, "session_manager") or request.app.state.session_manager is None:
-        raise HTTPException(status_code=503, detail="Database connection not initialized")
-    # Check if Redis is connected
-    if not hasattr(request.app.state, "redis_client") or request.app.state.redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis connection not initialized")
-    return {"status": "ok"}
