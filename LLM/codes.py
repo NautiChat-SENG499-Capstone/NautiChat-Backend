@@ -12,9 +12,11 @@ async def generate_download_codes(
     locationCode: str,
     dataProductCode: str,
     extension: str,
-    dateFrom=datetime.now(timezone.utc) - timedelta(days=1),
-    dateTo=datetime.now(timezone.utc),
+    dateFrom: str,
+    dateTo: str,
 ):
+    from LLM import set_request_id, get_request_id
+
     """
     Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, 
     so that users request to download data, over a specified time period.
@@ -44,21 +46,21 @@ async def generate_download_codes(
         "dateTo": dateTo,
         "dpo_qualityControl": "1",
         "dpo_resample": "none",
+        "dpo_dataGaps": "1",
     }
 
-    result = ""
-
     try:
-        print("CODES:")
-        print(locationCode)
-        print(deviceCategory)
-        print(dataProductCode)
-        print(extension)
-        print(dateFrom)
-        print(dateTo)
-        result = onc.requestDataProduct(params)
-        return f"Your download is being processed. The download has an ID of {result["dpRequestId"]}. Please wait. \
-            DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT WAIT. YOU DO NOT KNOW THE RESULT OF THE DOWNLOAD YET."
+        set_request_id(onc.requestDataProduct(params))
+        return {
+            "status": "queued",
+            "dpRequestId": get_request_id(),
+            "message": "Your download is being processed. "
+            "Please wait. DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT WAIT.",
+        }
     except Exception as e:
         print(f"Error occurred: {type(e).__name__}: {e}")
-        return "Data is unavailable for this sensor and time.  DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT TRY AGAIN WITH DIFFERENT PARAMETERS."
+        return {
+            "status": "error",
+            "message": "Data is unavailable for this sensor and time. "
+            "DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT TRY AGAIN WITH DIFFERENT PARAMETERS.",
+        }

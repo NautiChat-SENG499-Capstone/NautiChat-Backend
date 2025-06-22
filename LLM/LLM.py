@@ -1,3 +1,4 @@
+import sys
 import pandas as pd
 import asyncio
 import json
@@ -13,6 +14,18 @@ from codes import generate_download_codes
 from RAG import RAG
 from Environment import Environment
 from Constants.toolDescriptions import toolDescriptions
+
+sys.modules["LLM"] = sys.modules[__name__]
+dpRequestId: str = ""
+
+
+def set_request_id(value: str) -> None:
+    global dpRequestId
+    dpRequestId = value
+
+
+def get_request_id():
+    return dpRequestId
 
 
 class LLM:
@@ -31,11 +44,31 @@ class LLM:
 
     async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
         try:
+            set_request_id("")
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
             if startingPrompt is None:
-                startingPrompt = f"You are a helpful assistant for Oceans Network Canada that can use tools. \
-                The current day is: {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required. \
-                Dont summarize data unless asked to. You will never be required to generate any code ever."
+                startingPrompt = f"""
+                You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed. 
+                Today’s date is {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required.
+                Dont summarize data unless asked to.
+
+                You may use tools when required to answer user questions. Do not describe what you *will* do — only use tools if needed.
+
+                When a tool is used, DO NOT continue reasoning or take further steps based on its result.
+
+                Instead, return a final response to the user that clearly and colloquially explains the tool's result — without guessing, adding advice, or planning further steps. Stay within the limits of the message returned by the tool.
+
+                DO NOT speculate or describe what might happen next.
+
+                You are NEVER required to generate code in any language.
+
+
+                Do NOT add follow-up suggestions, guesses, or recommendations.
+
+                DO NOT guess what the tool might return.
+                DO NOT say "I will now use the tool".
+                DO NOT try to reason about data availability.
+                """
 
             messages = chatHistory + [
                 {
@@ -45,7 +78,7 @@ class LLM:
                 {
                     "role": "user",
                     "content": user_prompt,
-                }
+                },
             ]
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
@@ -57,11 +90,8 @@ class LLM:
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
-            messages.append({
-                "role": "system",
-                "content": vector_content
-                }) 
-            
+            messages.append({"role": "system", "content": vector_content})
+
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
                 messages=messages,  # Conversation history
@@ -72,11 +102,10 @@ class LLM:
                 temperature=0.25,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
             response_message = response.choices[0].message
-            # print(vector_content)
             tool_calls = response_message.tool_calls
             # print(tool_calls)
             if tool_calls:
-                #print("Tool calls detected, processing...")
+                # print("Tool calls detected, processing...")
                 for tool_call in tool_calls:
                     # print(tool_call)
                     # print()
@@ -84,12 +113,12 @@ class LLM:
 
                     if function_name in self.available_functions:
                         function_args = json.loads(tool_call.function.arguments)
-                        print(f"Calling function: {function_name} with args: {function_args}")
+                        # print(f"Calling function: {function_name} with args: {function_args}")
                         if not function_args:
                             function_response = await self.available_functions[function_name]()
                         else:
                             function_response = await self.available_functions[function_name](**function_args)
-                        #print(f"Function response: {function_response}")
+                        # print(f"Function response: {function_response}")
                         messages.append(
                             {
                                 "tool_call_id": tool_call.id,
@@ -98,21 +127,33 @@ class LLM:
                                 "content": json.dumps(function_response),
                             }
                         )  # May be able to use this for getting most recent data if needed.
-                #print("Messages after tool calls:", messages)
+                # print("Messages after tool calls:", messages)
                 second_response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_completion_tokens=4096,
-                    temperature=0.25
+                    model=self.model, messages=messages, max_completion_tokens=4096, temperature=0.25
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
-                #print("Second response:", second_response)
+                # print("Second response:", second_response)
+                respone = second_response.choices[0].message.content
                 return second_response.choices[0].message.content
+                # if(dpRequestId):
+                    # return {
+                    #     "status": 201,
+                    #     "response": response,
+                    #     "dpRequestId": dpRequestId,
+                    # }
+                # else:
+                    # return {
+                    #     "status": 200,
+                    #     "response": response,
+                    # }
             else:
                 return response_message.content
         except:
             return "Sorry, your request failed. Please try again."
-    
+            # return {
+            #     "status": 400,
+            #     "response": "Sorry, your request failed. Please try again.",
+            # }
 
 
 async def main():
@@ -129,6 +170,7 @@ async def main():
             print(response)
             response = {"role": "system", "content": response}
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
+
     except Exception as e:
         print("Error occurred:", e)
 

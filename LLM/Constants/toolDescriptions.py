@@ -32,13 +32,9 @@ toolDescriptions = [
         "function": {
             "name": "get_active_instruments_at_cambridge_bay",
             "description": (
-                "Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n \"activeInstrumentCount\": int,\n \"details\": [ ... ]\n }\n Note: This function does not take any parameters"
+                'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n Note: This function does not take any parameters'
             ),
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            },
+            "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
     # {
@@ -123,7 +119,7 @@ toolDescriptions = [
             },
         },
     },
-        {
+    {
         "type": "function",
         "function": {
             "name": "generate_download_codes",
@@ -138,9 +134,34 @@ toolDescriptions = [
                         "type": "string",
                         "description": "The location code for which the data is requested.",
                     },
+                    "dataProductCode": {
+                        "type": "string",
+                        "description": "The type of data product requested.",
+                    },
+                    "extension": {
+                        "type": "string",
+                        "description": "The format in which the data product will be delivered.",
+                    },
+                    "dateFrom": {
+                        "type": "string",
+                        "description": "The starting date of the data request.",
+                    },
+                    "dateTo": {
+                        "type": "string",
+                        "description": "The end date of the data request.",
+                    },
                 },
-                "required": ["deviceCategory", "locationCode"],
+                "required": ["deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"],
                 "type": "object",
+            },
+            "returns": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string", "enum": ["queued", "error"]},
+                    "dpRequestId": {"type": "string"},
+                    "message": {"type": "string"},
+                },
+                "required": ["status", "message"],
             },
         },
     },
