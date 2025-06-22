@@ -1,28 +1,32 @@
 import contextlib
-import ssl
-
+import logging
 from typing import Any, AsyncIterator
 from uuid import uuid4
-from sqlalchemy.pool import NullPool
 
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.engine.url import make_url
+from fastapi import Request
 from redis.asyncio import Redis
+from sqlalchemy.engine.url import make_url
+from sqlalchemy.pool import AsyncAdaptedQueuePool
+from sqlalchemy.orm import DeclarativeBase
 
-from src.settings import get_settings
+from .settings import get_settings
 
 # Building async engine & sessionmaker
 from sqlalchemy.ext.asyncio import (
+    AsyncAttrs,
     AsyncConnection,
     AsyncSession,
-    AsyncAttrs,
     async_sessionmaker,
     create_async_engine,
 )
 
+logger = logging.getLogger("uvicorn.error")
+
+
 # Base class for all ORM models (Helps with Lazy Loading)
 class Base(AsyncAttrs, DeclarativeBase):
     pass
+
 
 class DatabaseSessionManager:
     """
@@ -40,26 +44,33 @@ class DatabaseSessionManager:
         is_postgres = url_obj.drivername.startswith("postgresql")
 
         if is_postgres:
-            # TODO: Create an SSL context for asyncpg 
+            # TODO: Create an SSL context for asyncpg
             # ssl_context = ssl.create_default_context()
             # connect_args = {"ssl": ssl_context}
 
-            # 
             connect_args = {
-                "ssl": False, 
-                "statement_cache_size": 0,  # Disable asyncpg prepared statement cache
+                "ssl": False,
+                "statement_cache_size": 0, #Disable asyncpg prepared statement cache
+                "prepared_statement_cache_size": 0,
                 "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
-                }
+                "timeout": 5,  # seconds
+                "server_settings": {
+                    "statement_timeout": "3000",  # Optional: Set statement timeout
+                },
+            }
         else:
             connect_args = {}
 
+        logger.info("Creating async engine")
         self._engine = create_async_engine(
             db_url,
-            poolclass=NullPool, # Optional: disables SQLAlchemy connection pool, relying on Supavisor (From SupaBase)
+            poolclass=AsyncAdaptedQueuePool,
+            pool_size=5,
+            max_overflow=10,
             connect_args=connect_args,
             **engine_kwargs,
         )
-
+        logger.info("Creating async sessionmaker")
         self._sessionmaker = async_sessionmaker(
             bind=self._engine,
             expire_on_commit=False,
@@ -102,27 +113,24 @@ class DatabaseSessionManager:
         finally:
             await session.close()
 
-
-# NOTE: DataBase (Postgres) is async compatible
-# Load SUPABASE_DB_URL from environment variable
-SUPABASE_DB_URL = get_settings().SUPABASE_DB_URL
-
-# Create global session manager instance
-sessionmanager = DatabaseSessionManager(SUPABASE_DB_URL)
-
-
 # FastAPI dependency for Endpoints
-async def get_db_session() -> AsyncIterator[AsyncSession]:
+async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Dependency that yields a database session"""
-    async with sessionmanager.session() as session:
+    async with request.app.state.session_manager.session() as session:
         yield session
 
+
 # Creates an async Redis Client
-def init_redis():
-    return Redis(
+async def init_redis():
+    redis = await Redis(
         host="redis-13649.crce199.us-west-2-2.ec2.redns.redis-cloud.com",
         port=13649,
         decode_responses=True,
         username="default",
         password=get_settings().REDIS_PASSWORD,
+        socket_timeout=5,  # Prevents hanging forever
+        socket_connect_timeout=5,
     )
+    await redis.ping()
+
+    return redis

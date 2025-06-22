@@ -130,3 +130,68 @@ async def get_deployed_devices_over_time_interval(dateFrom: str, dateTo: str):
         return json.dumps({"result": "No data available for the given date."})
 
     return json.dumps(deployedDevices)
+
+async def get_active_instruments_at_cambridge_bay():
+    """
+    Get the number of instruments collecting data at Cambridge Bay over the specified interval.
+    Uses the ONC Python client to access deployment and stream data.
+
+    Returns:
+        JSON string: Dictionary with count and optional metadata.
+            {
+                "activeInstrumentCount": int,
+                "details": [ ... ]
+            }
+    """
+    active_instruments = []
+    deployed_device_count = 0
+
+    for locationCode in cambridgeBayLocations:
+        params = {
+            "locationCode": locationCode,
+        }
+        try:
+            deployments = onc.getDeployments(params)
+        except Exception:
+            continue # Skip any failure silently
+
+        if not deployments:
+            continue
+
+        for device in deployments:
+            if device.get("end") is not None:
+                continue  # deployment is not ongoing
+            deployed_device_count = deployed_device_count + 1
+            active_instruments.append(device)
+    result = {
+        "activeInstrumentCount": deployed_device_count,
+        "details": active_instruments,
+    }
+    return json.dumps(result)
+
+# async def get_time_range_of_available_data(deviceCategoryCode: str):
+#     """
+#     Get all deployment time ranges (begin and end times) at Cambridge Bay for a specific device category.
+#     Returns:
+#         JSON string: Sorted list of (begin, end) tuples as ISO strings.
+#     """
+#     time_ranges = []
+
+#     for locationCode in cambridgeBayLocations:
+#         params = {
+#             "locationCode": locationCode,
+#             "deviceCategoryCode": deviceCategoryCode,
+#         }
+#         try:
+#             deployments = onc.getDeployments(params)
+#         except Exception:
+#             continue  # Skip any errors silently
+
+#         for device in deployments:
+#             begin = device.get("begin")
+#             end = device.get("end")
+#             if begin:
+#                 time_ranges.append((begin, end))
+
+#     time_ranges.sort(key=lambda x: datetime.fromisoformat(x[0].replace("Z", "+00:00")))
+#     return json.dumps(time_ranges)

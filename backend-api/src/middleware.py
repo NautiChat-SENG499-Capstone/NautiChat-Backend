@@ -1,16 +1,18 @@
+import asyncio
 from typing import Optional
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware # Base class for custom middleware
-from redis.asyncio import Redis # Async Redis Client
+from redis.asyncio import Redis  # Async Redis Client
+from starlette.middleware.base import BaseHTTPMiddleware  # Base class for custom middleware
 
-#TODO: There should be try/except for catching Redis Errors (If Redis is unavailable)
+
+# TODO: There should be try/except for catching Redis Errors (If Redis is unavailable)
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, window_sec: int = 30, max_requests: int = 10):
         super().__init__(app)
-        self.window_sec = window_sec # Time window in seconds
-        self.max_requests = max_requests # Max allowed requests in time window
+        self.window_sec = window_sec  # Time window in seconds
+        self.max_requests = max_requests  # Max allowed requests in time window
 
     async def permit_request(self, redis: Redis, key: str):
         if await redis.setnx(key, self.max_requests):
@@ -24,7 +26,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 await redis.decr(key)
                 return True
 
-        return False # Rate limit got exceeded
+        return False  # Rate limit got exceeded
 
     async def dispatch(self, request: Request, call_next):
         if not request.client:
@@ -42,6 +44,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS, content={"detail": f"Rate limit exceeded.{retry_info}"}
             )
-
-        response = await call_next(request)
+        async with asyncio.timeout(10):  # Optional timeout for the request processing
+            response = await call_next(request)
         return response
