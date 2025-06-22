@@ -6,15 +6,18 @@ env = Environment()
 
 onc = ONC(env.get_onc_token())
 
+
 async def generate_download_codes(
     deviceCategory: str,
-    locationCode="CBYIP",
+    locationCode: str,
+    dataProductCode: str,
+    extension: str,
     dateFrom=datetime.now(timezone.utc) - timedelta(days=1),
     dateTo=datetime.now(timezone.utc),
 ):
     """
-    Get the device categoryCode at a certain locationCode at Cambridge bay, so that users request to download data, over
-    a specified time period.
+    Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, 
+    so that users request to download data, over a specified time period.
     Returns a result of a data download request.
     This function simply queues a download from ONC, and gives no additional information to the LLM.
     If this function is called, the LLM will either tell the user that their download is queued, or that their download request
@@ -24,17 +27,19 @@ async def generate_download_codes(
         result (str): The result of the download request. It will either signify that the download was successful,
                       or that the download was unsuccessful, and you should inform the user of this result.
     Args:
-        dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')
-        dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')
         deviceCategory (str): An ONC defined code identifying each device.
         locationCode (str): An ONC defined code identifying each device site.
+        dataProductCode (str): AN ONC defined code identifying the data type being delivered.
+        extension (str): The format of the dataProduct to be delivered.
+        dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')
+        dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')
     """
 
     params = {
         "locationCode": locationCode,
         "deviceCategoryCode": deviceCategory,
-        "dataProductCode": "LF",
-        "extension": "txt",
+        "dataProductCode": dataProductCode,
+        "extension": extension,
         "dateFrom": dateFrom,
         "dateTo": dateTo,
         "dpo_qualityControl": "1",
@@ -44,12 +49,16 @@ async def generate_download_codes(
     result = ""
 
     try:
+        print("CODES:")
+        print(locationCode)
+        print(deviceCategory)
+        print(dataProductCode)
+        print(extension)
+        print(dateFrom)
+        print(dateTo)
         result = onc.requestDataProduct(params)
         return f"Your download is being processed. The download has an ID of {result["dpRequestId"]}. Please wait. \
             DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT WAIT. YOU DO NOT KNOW THE RESULT OF THE DOWNLOAD YET."
     except Exception as e:
         print(f"Error occurred: {type(e).__name__}: {e}")
         return "Data is unavailable for this sensor and time.  DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT TRY AGAIN WITH DIFFERENT PARAMETERS."
-
-
-    
