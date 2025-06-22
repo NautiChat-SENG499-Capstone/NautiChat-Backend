@@ -2,26 +2,25 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager  # Used to manage async app startup/shutdown events
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware # Enables frontend-backend communications via CORS
-from sqlalchemy import text, exc
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware  # Enables frontend-backend communications via CORS
 
-from src.database import DatabaseSessionManager, Base, init_redis
+from sqlalchemy import text
 
 # Need to import the models in the same module that Base is defined to ensure they are registered with SQLAlchemy
 from src.auth import models  # noqa
 from src.llm import models  # noqa
-from LLM.LLM import LLM
-from LLM.Environment import Environment  # Importing Environment to initialize LLM
 
 from src.admin.router import router as admin_router
 from src.auth.router import router as auth_router
 from src.llm.router import router as llm_router
-from src.middleware import RateLimitMiddleware # Custom middleware for rate limiting
+from src.database import DatabaseSessionManager, init_redis
+from src.middleware import RateLimitMiddleware  # Custom middleware for rate limiting
+from src.settings import get_settings  # Settings management for environment variables
+from LLM.LLM import LLM
+from LLM.Environment import Environment  # Importing Environment to initialize LLM
 from starlette.concurrency import run_in_threadpool
-
 import logging
-import time
 import sys
 import traceback
 import asyncio

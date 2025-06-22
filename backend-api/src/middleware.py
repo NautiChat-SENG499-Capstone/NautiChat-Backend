@@ -16,18 +16,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.max_requests = max_requests  # Max allowed requests in time window
 
     async def permit_request(self, redis: Redis, key: str):
-        if await redis.setnx(key, self.max_requests):
-            await redis.expire(key, self.window_sec)
-        cache_val: Optional[bytes] = await redis.get(key)
+        # Try to set the key if it doesn't exist, with expiry and initial value (max_requests - 1)
+        was_set = await redis.set(key, self.max_requests - 1, ex=self.window_sec, nx=True)
+        if was_set:
+            # First request in the window
+            return True
 
-        # Fetch current number of requests remaining
+        # Key exists, ensure expiry is set
+        ttl = await redis.ttl(key)
+        if ttl is None or ttl < 0:
+            await redis.expire(key, self.window_sec)
+
+        # Decrement and check
+        cache_val = await redis.get(key)
         if cache_val is not None:
             requests_remaining = int(cache_val)
             if requests_remaining > 0:
                 await redis.decr(key)
                 return True
 
-        return False  # Rate limit got exceeded
+        return False  # Rate limit exceeded
 
     async def dispatch(self, request: Request, call_next):
         if not request.client:
@@ -41,6 +49,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # If Rate limit got exceeded
         if not await self.permit_request(redis, key):
             time_to_wait = await redis.ttl(key)
+            if time_to_wait is None or time_to_wait < 0:
+                time_to_wait = self.window_sec
             retry_info = f" Retry after {int(time_to_wait)}" if time_to_wait is not None else ""
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS, content={"detail": f"Rate limit exceeded.{retry_info}"}
