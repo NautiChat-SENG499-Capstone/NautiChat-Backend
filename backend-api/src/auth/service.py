@@ -112,7 +112,6 @@ async def login_user(
     form_data: OAuth2PasswordRequestForm, settings: Settings, db: AsyncSession
 ) -> Token:
     """Authenticate user credentials and return a JWT token"""
-
     # Check if user exists and that password is correct
     matched_user = await get_user(form_data.username, db)
     if not matched_user or not verify_password(

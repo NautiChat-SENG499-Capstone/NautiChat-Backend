@@ -7,6 +7,7 @@ ENV HF_HOME=/opt/hf-cache \
 
 WORKDIR /app
 
+<<<<<<< HEAD
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -19,6 +20,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+=======
+>>>>>>> origin/main
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --default-timeout=1000 -r requirements.txt
@@ -39,6 +42,7 @@ RUN --mount=type=cache,target=${HF_HOME} \
 COPY ./backend-api ./backend-api
 COPY ./LLM         ./LLM
 
+<<<<<<< HEAD
 ENV PYTHONPATH=/app
 EXPOSE 8080
 
@@ -48,3 +52,6 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 
 CMD ["uvicorn", "src.main:app", "--app-dir", "backend-api", "--host", "0.0.0.0", "--port", "8080", "--log-level", "debug"]
 
+=======
+CMD ["uvicorn", "src.main:app", "--app-dir", "backend-api", "--host", "0.0.0.0", "--port", "8080"]
+>>>>>>> origin/main

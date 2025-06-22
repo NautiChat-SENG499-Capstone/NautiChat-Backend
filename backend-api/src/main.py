@@ -44,17 +44,17 @@ logger.info("NAUTICHAT BACKEND STARTING")
 async def lifespan(app: FastAPI):
     logger.info("Starting up application...")
 
+    # Connect to Supabase Postgres as async engine
     try:
-        logger.info("Initializing database session manager...")
-        from src.settings import get_settings
-        
-        # Create session manager in lifespan instead of globally
-        session_manager = DatabaseSessionManager(get_settings().SUPABASE_DB_URL)
-        app.state.session_manager = session_manager
-        assert session_manager._engine is not None, "Session manager engine is not initialized"
-
-        logger.info("Initializing Redis client...")
-        async with asyncio.timeout(10):  # 10 second timeout for Redis
+        async with asyncio.timeout(20):
+            # Setup up database session manager
+            logger.info("Initializing Session Manager...")
+            session_manager = DatabaseSessionManager(get_settings().SUPABASE_DB_URL)
+            app.state.session_manager = session_manager 
+            logger.info("Database session manager initialized")
+        async with asyncio.timeout(20):
+            # Initialize Redis client
+            logger.info("Initializing Redis client...")
             app.state.redis_client = await init_redis()
         logger.info("Redis client initialized successfully.")
 
@@ -167,5 +167,11 @@ app = create_app()
 
 
 @app.get("/health")
-async def health_check():
+async def health_check(request: Request):
+    # Check if Database is connected
+    if not hasattr(request.app.state, "session_manager") or request.app.state.session_manager is None:
+        raise HTTPException(status_code=503, detail="Database connection not initialized")
+    # Check if Redis is connected
+    if not hasattr(request.app.state, "redis_client") or request.app.state.redis_client is None:
+        raise HTTPException(status_code=503, detail="Redis connection not initialized")
     return {"status": "ok"}
