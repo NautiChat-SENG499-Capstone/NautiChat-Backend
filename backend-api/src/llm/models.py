@@ -46,23 +46,6 @@ class Message(Base):
     # NOTE: lazy:selectin eager loads by default
     feedback: Mapped["Feedback"] = relationship(back_populates="message", uselist=False, cascade="all, delete-orphan", lazy="selectin")
 
-    @validates('input')
-    def validate_input(self, key, value: str) -> str:
-        trimmed = value.strip()
-        if not trimmed:
-            raise ValueError("Message input cannot be empty or whitespace")
-        if len(trimmed) < 5:
-            raise ValueError("Input must be at least 5 characters long")
-        if len(trimmed) > 1000:
-            raise ValueError("Input exceeds maximum length of 1000 characters")
-        return trimmed
-
-    @validates('response')
-    def validate_response(self, key, value: str) -> str:
-        if value is None:
-            raise ValueError("LLM response cannot be None")
-        return value
-
 
 class Feedback(Base):
     """Feedback Table in SQL DB"""
