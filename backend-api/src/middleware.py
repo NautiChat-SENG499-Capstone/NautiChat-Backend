@@ -16,16 +16,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.max_requests = max_requests  # Max allowed requests in time window
 
     async def permit_request(self, redis: Redis, key: str):
-        # Try to set the key if it doesn't exist, with expiry and initial value (max_requests - 1)
-        was_set = await redis.set(key, self.max_requests - 1, ex=self.window_sec, nx=True)
-        if was_set:
-            # First request in the window
-            return True
-
-        # Key exists, ensure expiry is set
-        ttl = await redis.ttl(key)
-        if ttl is None or ttl < 0:
-            await redis.expire(key, self.window_sec)
+        # If the ip does not exist in the cache, add it with the value of max_requests
+        # and set the expiration time to window_sec
+        await redis.set(key, self.max_requests, ex=self.window_sec, nx=True)
+        cache_val: Optional[bytes] = await redis.get(key)
 
         # Decrement and check
         cache_val = await redis.get(key)
