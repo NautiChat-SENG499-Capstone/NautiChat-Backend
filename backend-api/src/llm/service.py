@@ -64,75 +64,9 @@ async def generate_response(
 ) -> Message:
     """Validate user creating new Message that will be sent to LLM"""
     # Ensure LLM and RAG are initialized
-    if not request.app.state.llm or not request.app.state.rag:
-        raise HTTPException(
-            status_code=500,
-            detail="LLM or RAG service is not initialized"
-        )
-    
-    # Validate input
-    LLM = request.app.state.llm
-    if not LLM:
-        raise HTTPException(
-            status_code=500,
-            detail="LLM service is not available"
-        )
-    RAG = request.app.state.rag
-    if not RAG:
-        raise HTTPException(
-            status_code=500,
-            detail="RAG service is not available"
-        )
-    if not llm_query.input or len(llm_query.input.strip()) == 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Input cannot be empty"
-        )
-    if not llm_query.conversation_id:
-        raise HTTPException(
-            status_code=400, 
-            detail="Conversation ID is required"
-        )
-    if len(llm_query.input) > 1000:
-        raise HTTPException(
-            status_code=400, 
-            detail="Input exceeds maximum length of 1000 characters"
-        )
-    if not isinstance(llm_query.conversation_id, int):
-        raise HTTPException(
-            status_code=400, 
-            detail="Conversation ID must be an integer"
-        )
-    if llm_query.conversation_id <= 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Conversation ID must be a positive integer"
-        )
-    if not isinstance(llm_query.input, str):
-        raise HTTPException(
-            status_code=400, 
-            detail="Input must be a string"
-        )
-    if len(llm_query.input) < 5:
-        raise HTTPException(
-            status_code=400, 
-            detail="Input must be at least 5 characters long"
-        )
-    
-    # Validate whether converstation exists or if current user has access to conversation
-    result = await db.execute(select(ConversationModel).where(ConversationModel.conversation_id == llm_query.conversation_id))
-    conversation = result.scalar_one_or_none()
-
-    if not conversation: 
-        raise HTTPException(
-            status_code=404, 
-            detail="Conversation not found"
-        )
-    if conversation.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403, 
-            detail="Not authorized to access this conversation"
-        )
+    state = request.app.state
+    if not state.llm or not state.rag:
+        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
 
     # Create Message to send to LLM  
     message = MessageModel(
@@ -144,14 +78,11 @@ async def generate_response(
 
     # Call LLM to generate response
     try:
-        # Get user's ONC token
-        user_onc_token = current_user.onc_token if hasattr(current_user, 'onc_token') else None
-        
-        response = await LLM.run_conversation(
+        response = await state.llm.run_conversation(
             user_prompt=llm_query.input,
             startingPrompt=None,
             chatHistory=[],
-            user_onc_token=user_onc_token
+            user_onc_token=current_user.onc_token
         )
         message.response = response
     except Exception as e:
@@ -159,9 +90,9 @@ async def generate_response(
             status_code=500,
             detail=f"Error generating response from LLM: {str(e)}"
         )
-
+    
     # Add message to DB
-    db.add(message)
+    db.add(message) 
     await db.commit()
     await db.refresh(message)
     return message

@@ -3,9 +3,8 @@ from typing import Optional
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware # Base class for custom middleware
-from redis.asyncio import Redis # Async Redis Client
-import asyncio
+from redis.asyncio import Redis  # Async Redis Client
+from starlette.middleware.base import BaseHTTPMiddleware  # Base class for custom middleware
 
 
 # TODO: There should be try/except for catching Redis Errors (If Redis is unavailable)
@@ -16,26 +15,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.max_requests = max_requests  # Max allowed requests in time window
 
     async def permit_request(self, redis: Redis, key: str):
-        # Try to set the key if it doesn't exist, with expiry and initial value (max_requests - 1)
-        was_set = await redis.set(key, self.max_requests - 1, ex=self.window_sec, nx=True)
-        if was_set:
-            # First request in the window
-            return True
+        # If the ip does not exist in the cache, add it with the value of max_requests
+        # and set the expiration time to window_sec
+        await redis.set(key, self.max_requests, ex=self.window_sec, nx=True)
+        cache_val: Optional[bytes] = await redis.get(key)
 
-        # Key exists, ensure expiry is set
-        ttl = await redis.ttl(key)
-        if ttl is None or ttl < 0:
-            await redis.expire(key, self.window_sec)
-
-        # Decrement and check
-        cache_val = await redis.get(key)
+        # Fetch current number of requests remaining
         if cache_val is not None:
             requests_remaining = int(cache_val)
             if requests_remaining > 0:
                 await redis.decr(key)
                 return True
 
-        return False  # Rate limit exceeded
+        return False  # Rate limit got exceeded
 
     async def dispatch(self, request: Request, call_next):
         if not request.client:
@@ -49,13 +41,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # If Rate limit got exceeded
         if not await self.permit_request(redis, key):
             time_to_wait = await redis.ttl(key)
-            if time_to_wait is None or time_to_wait < 0:
-                time_to_wait = self.window_sec
             retry_info = f" Retry after {int(time_to_wait)}" if time_to_wait is not None else ""
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS, content={"detail": f"Rate limit exceeded.{retry_info}"}
             )
-
-        response = await call_next(request)
         async with asyncio.timeout(10):  # Optional timeout for the request processing
-            return response
+            response = await call_next(request)
+        return response

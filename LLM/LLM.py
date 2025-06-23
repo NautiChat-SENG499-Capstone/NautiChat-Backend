@@ -5,6 +5,7 @@ import pandas as pd
 import asyncio
 import json
 from datetime import datetime
+from typing import Optional
 from LLM.toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
@@ -49,8 +50,9 @@ class LLM:
             # "get_time_range_of_available_data": get_time_range_of_available_data
         }
 
-    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None):
+    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: Optional[list[dict]] = None, user_onc_token: str = None):
         try:
+            chatHistory = chatHistory or []
             #print("Starting conversation with user prompt:", user_prompt)
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
             if startingPrompt is None:
@@ -106,12 +108,13 @@ class LLM:
                     function_name = tool_call.function.name
 
                     if function_name in self.available_functions:
-                        function_args = json.loads(tool_call.function.arguments)
+                        try:
+                            function_args = json.loads(tool_call.function.arguments)
+                        except json.JSONDecodeError:
+                            function_args = {}
                         print(f"Calling function: {function_name} with args: {function_args}")
-                        if not function_args:
-                            function_response = await self.available_functions[function_name]()
-                        else:
-                            function_response = await self.available_functions[function_name](**function_args)
+                        function_response = await self.call_tool(self.available_functions[function_name], function_args or {}, user_onc_token=user_onc_token)
+
                         #print(f"Function response: {function_response}")
                         messages.append(
                             {
@@ -133,8 +136,16 @@ class LLM:
                 return second_response.choices[0].message.content
             else:
                 return response_message.content
-        except:
+        except Exception as e:
+            logger.error(f"LLM failed: {e}", exc_info=True)
             return "Sorry, your request failed. Please try again."
+        
+    async def call_tool(fn, args, user_onc_token):
+        try:
+            return await fn(**args, user_onc_token=user_onc_token)
+        except TypeError:
+            # fallback if fn doesn't accept user_onc_token
+            return await fn(**args)
     
 
 
