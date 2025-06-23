@@ -42,6 +42,7 @@ async def test_get_conversations_empty(client: AsyncClient, user_headers):
     assert resp.status_code == status.HTTP_200_OK and resp.json() == []
 
 
+
 @pytest.mark.asyncio
 async def test_get_conversation_success(client: AsyncClient, user_headers):
     conv_id = (
@@ -51,9 +52,11 @@ async def test_get_conversation_success(client: AsyncClient, user_headers):
     assert resp.status_code == status.HTTP_200_OK and resp.json()["conversation_id"] == conv_id
 
 
+
 @pytest.mark.asyncio
 async def test_get_conversation_not_found(client: AsyncClient, user_headers):
     assert (await client.get("/llm/conversations/9999", headers=user_headers)).status_code == status.HTTP_404_NOT_FOUND
+
 
 
 @pytest.mark.asyncio
@@ -89,6 +92,7 @@ async def test_get_conversation_unauthorized(client: AsyncClient, user_headers):
     assert got.json()["message_id"] == msg["message_id"]"""
 
 
+
 @pytest.mark.asyncio
 async def test_feedback_create_and_update(client: AsyncClient, user_headers):
     conv_id = (
@@ -104,7 +108,6 @@ async def test_feedback_create_and_update(client: AsyncClient, user_headers):
             f"/llm/messages/{msg_id}/feedback", json={"rating": 5}, headers=user_headers
         )
     ).status_code == status.HTTP_200_OK
-
     assert (
         await client.patch(
             f"/llm/messages/{msg_id}/feedback", json={"rating": 2}, headers=user_headers

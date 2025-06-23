@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager  # Used to manage async app startup/s
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware  # Enables frontend-backend communications via CORS
 
-from sqlalchemy import text
 
 # Need to import the models in the same module that Base is defined to ensure they are registered with SQLAlchemy
 from src.auth import models  # noqa
@@ -49,7 +48,7 @@ async def lifespan(app: FastAPI):
             # Setup up database session manager
             logger.info("Initializing Session Manager...")
             session_manager = DatabaseSessionManager(get_settings().SUPABASE_DB_URL)
-            app.state.session_manager = session_manager 
+            app.state.session_manager = session_manager
             logger.info("Database session manager initialized")
         async with asyncio.timeout(20):
             # Initialize Redis client
@@ -117,8 +116,7 @@ def create_app():
         lifespan=lifespan
     )
 
-    # TODO: add frontend url to origins
-    origins = ["http://localhost:3000"]
+    origins = ["http://localhost:3000", "https://nautichat.vercel.app"]
 
     # Add CORS and Rate Limit Middleware
     app.add_middleware(
