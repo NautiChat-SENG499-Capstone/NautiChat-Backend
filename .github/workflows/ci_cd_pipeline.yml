@@ -25,14 +25,7 @@ jobs:
       SECRET_KEY: ci_dummy_key
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_HOURS: "24"
-      REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }}
-      GROQ_API_KEY:            dummy-groq-key
-      ONC_TOKEN:               dummy-onc-token
-      CAMBRIDGE_LOCATION_CODE: TESTCODE
-      QDRANT_API_KEY:          dummy-qdrant-key
-      QDRANT_URL:              aurl
-      QDRANT_COLLECTION_NAME:  test_collection
-      
+      REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }} 
 
     steps:
       - uses: actions/checkout@v4

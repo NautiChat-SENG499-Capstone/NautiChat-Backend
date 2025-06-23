@@ -140,7 +140,7 @@ class LLM:
             logger.error(f"LLM failed: {e}", exc_info=True)
             return "Sorry, your request failed. Please try again."
         
-    async def call_tool(fn, args, user_onc_token):
+    async def call_tool(self, fn, args, user_onc_token):
         try:
             return await fn(**args, user_onc_token=user_onc_token)
         except TypeError:

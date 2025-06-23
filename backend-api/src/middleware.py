@@ -1,5 +1,7 @@
 import asyncio
 from typing import Optional
+import anyio
+
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
@@ -46,6 +48,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS, content={"detail": f"Rate limit exceeded.{retry_info}"}
             )
-        async with asyncio.timeout(10):  # Optional timeout for the request processing
-            response = await call_next(request)
+        try:
+            with anyio.move_on_after(30) as scope:
+                response = await call_next(request)
+                if scope.cancel_called:
+                    raise TimeoutError("Request exceeded 30s")
+        except TimeoutError:
+            return JSONResponse(
+                status_code=504, 
+                content={"detail": "Request timed out"},
+            )
         return response
