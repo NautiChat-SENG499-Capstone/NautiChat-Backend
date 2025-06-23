@@ -18,6 +18,13 @@ class DummyLLM:
         async def _noop(*args, **kwargs):
             return ""
         return _noop
+    
+class DummyRAG:
+    """Returns an empty result for whatever method is called."""
+    def __getattr__(self, _):
+        async def _noop(*args, **kwargs):
+            return ""
+        return _noop
 
 @pytest_asyncio.fixture(autouse=True)
 async def _stub_llm_and_rag(client: AsyncClient):
@@ -116,9 +123,10 @@ async def test_feedback_create_and_update(client: AsyncClient, user_headers):
     assert (
         await client.patch(
             f"/llm/messages/{msg_id}/feedback", json={"rating": 2}, headers=user_headers
+
         )
     ).status_code == status.HTTP_200_OK
-
+    
 async def test_get_context_no_messages(async_session: AsyncSession, _user_headers):
     # When no messages in db, should return empty list
 

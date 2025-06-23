@@ -30,7 +30,7 @@ class Message(Base):
     """Message Table in SQL DB"""
     __tablename__ = "messages"
     __table_args__ = (
-        CheckConstraint("LENGTH(input) >= 5 AND LENGTH(input) <= 1000", name="ck_message_input_length"),
+        CheckConstraint("LENGTH(input) >= 1 AND LENGTH(input) <= 1000", name="ck_message_input_length"),
     )
 
     message_id: Mapped[int] = mapped_column(primary_key=True, index=True)
