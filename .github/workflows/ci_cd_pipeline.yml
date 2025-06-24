@@ -20,12 +20,14 @@ jobs:
     test:
         runs-on: ubuntu-latest
 
-        env:
-            SUPABASE_DB_URL: "${{ secrets.SUPABASE_DB_URL }}"
-            SECRET_KEY: ci_dummy_key
-            ALGORITHM: HS256
-            ACCESS_TOKEN_EXPIRE_HOURS: "24"
-            REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+    env:
+      SUPABASE_DB_URL: "${{ secrets.SUPABASE_DB_URL }}"
+      SECRET_KEY: ci_dummy_key
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_HOURS: "24"
+      REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }} 
+      ONC_TOKEN: ${{ secrets.ONC_TOKEN }}
 
         steps:
             - uses: actions/checkout@v4
