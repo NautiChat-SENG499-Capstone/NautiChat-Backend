@@ -6,15 +6,14 @@ import pandas as pd
 import asyncio
 import json
 from datetime import datetime
-from typing import Optional
-from .toolsSprint1 import (
+from LLM.toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
 )
-from .toolsSprint2 import (
+from LLM.toolsSprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_oxygen_data_24h,
     get_ship_noise_acoustic_for_date,
