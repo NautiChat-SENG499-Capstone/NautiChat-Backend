@@ -62,16 +62,8 @@ async def lifespan(app: FastAPI):
 
         logger.info("Initializing LLM (this may take a while)...")
         try:
-            # Add timeout to prevent infinite hanging
-            llm = await asyncio.wait_for(
-                run_in_threadpool(LLM, app.state.env), 
-                timeout=600  # 10 minute timeout
-            )
-            app.state.llm = llm
+            app.state.llm = LLM(app.state.env)
             logger.info("LLM instance initialized successfully.")
-        except asyncio.TimeoutError:
-            logger.error("LLM initialization timed out after 10 minutes")
-            raise RuntimeError("LLM initialization timed out")
         except Exception as e:
             logger.error(f"LLM initialization failed: {e}")
             raise RuntimeError(f"LLM initialization failed: {e}")
