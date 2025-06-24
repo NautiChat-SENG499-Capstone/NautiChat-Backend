@@ -64,9 +64,6 @@ async def lifespan(app: FastAPI):
         try:
             app.state.llm = LLM(app.state.env)
             logger.info("LLM instance initialized successfully.")
-        except asyncio.TimeoutError:
-            logger.error("LLM initialization timed out after 10 minutes")
-            raise RuntimeError("LLM initialization timed out")
         except Exception as e:
             logger.error(f"LLM initialization failed: {e}")
             raise RuntimeError(f"LLM initialization failed: {e}")
