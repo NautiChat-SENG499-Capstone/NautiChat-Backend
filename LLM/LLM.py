@@ -26,7 +26,7 @@ class LLM:
 
     def __init__(self, env, *, RAG_instance=None):
         self.client = env.get_client()
-        self.model  = "llama-3.1-8b-instant"
+        self.model  = env.get_model()
 
         if LLM.__shared is None:
             logging.info("First LLM() building shared embedder/cross-encoder")
