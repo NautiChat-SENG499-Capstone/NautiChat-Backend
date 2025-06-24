@@ -42,7 +42,6 @@ class RAG:
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
         self.qdrant_client = qdrant_client or self.qdrant_client_wrapper.qdrant_client
         self.collection_name = self.qdrant_client_wrapper.collection_name
-
         self.embedding = embedder or JinaEmbeddings()
 
         self.qdrant = Qdrant(
