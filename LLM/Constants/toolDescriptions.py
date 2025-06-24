@@ -1,21 +1,21 @@
 toolDescriptions = [
-    {
-        "type": "function",
-        "function": {
-            "name": "vectorDB",
-            "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_prompt": {
-                        "type": "string",
-                        "description": "The user's query to retrieve relevant documents.",
-                    }
-                },
-                "required": ["user_prompt"],
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "vectorDB",
+    #         "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "user_prompt": {
+    #                     "type": "string",
+    #                     "description": "The user's query to retrieve relevant documents.",
+    #                 }
+    #             },
+    #             "required": ["user_prompt"],
+    #         },
+    #     },
+    # },
     {
         "type": "function",
         "function": {
@@ -127,16 +127,16 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_daily_air_temperature_stats_cambridge_bay",
-            "description": "Get daily air temperature statistics (min, max, average, sample count) for Cambridge Bay on a given date.",
+            "description": "Get daily air temperature statistics (date, min, max, average, sample count) for Cambridge Bay on a given date. Temperature should be expressed in degrees Celsius. If no data exists for that time range then tell the user that no data exists for that time range.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "day_str": {
+                    "date_from_str": {
                         "type": "string",
-                        "description": "Date in YYYY-MM-DD format"
+                        "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-23\")."
                     },
                 },
-                "required": ["day_str"]
+                "required": ["date_from_str"]
             },
         },
     },
@@ -144,16 +144,16 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_oxygen_data_24h",
-            "description": "Retrieve 24 hours of dissolved oxygen measurements (in mL/L) for Cambridge Bay at 10-minute intervals, returned as a pandas DataFrame string.",
+            "description": "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals. The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of '2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user that no data exists for that time range. ",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "day_str": {
+                    "date_from_str": {
                     "type": "string",
-                    "description": "Date in YYYY-MM-DD format"
+                    "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
                     },
                 },
-                "required": ["day_str"]
+                "required": []
             },
         },
     },
@@ -165,12 +165,12 @@ toolDescriptions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "day_str": {
+                    "date_from_str": {
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve ship-noise data."
                     },
                 },
-                "required": ["day_str"]
+                "required": ["date_from_str"]
             },
         },
     },
@@ -178,16 +178,20 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_wind_speed_at_timestamp",
-            "description": "Get wind speed (m/s) at Cambridge Bay for a specific timestamp, returning the exact or nearest sample.",
+            "description": "Get wind speed (m/s) at Cambridge Bay for a given day and Hour of that day, returning the exact or nearest sample. Wind speed is expressed in meters per second (m/s). If no data exists for that time range then tell the user that no data exists for that time range.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "timestamp_str": {
+                    "date_from_str": {
                         "type": "string",
-                        "description": "ISO-format timestamp, e.g. '2024-06-23T14:30:00Z'"
+                        "description": "Date to get wind speed in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
+                    },
+                    "hourInterval": {
+                        "type": "integer",
+                        "description": "Hour of the day wanted for windspeed, default is 12 (noon)"
                     },
                 },
-                "required": ["timestamp_str"]
+                "required": ["date_from_str"]
             },
         },  
     },
@@ -195,20 +199,20 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_ice_thickness",
-            "description": "Get the average daily sea-ice thickness between the given start_date and end_date (inclusive) for Cambridge Bay. Returns a float representing the mean ice thickness (in meters) across all days in the range, or NaN if no data is found.",
+            "description": "Get the average daily sea-ice thickness the days provided (inclusive) for Cambridge Bay. Returns the average ice thickness representing the mean ice thickness (in meters) for the days given (inclusive), or -1 if no data is found. If you get the -1 value returned tell the user that no data exists for that time range.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "start_date": {
+                    "date_from_str": {
                         "type": "string",
                         "description": "Start date in YYYY-MM-DD format (e.g. \"2024-02-01\")."
                     },
-                    "end_date": {
+                    "date_to_str": {
                         "type": "string",
-                        "description": "End date in YYYY-MM-DD format (e.g. \"2024-02-28\")."
+                        "description": "End date in YYYY-MM-DD format (e.g. \"2024-02-01\")."
                     },
                 },
-                "required": ["start_date", "end_date"]
+                "required": ["date_from_str", "date_to_str"]
             },
         },
     },

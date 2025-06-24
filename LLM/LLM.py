@@ -35,6 +35,11 @@ class LLM:
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
             "get_active_instruments_at_cambridge_bay": get_active_instruments_at_cambridge_bay,
             # "get_time_range_of_available_data": get_time_range_of_available_data
+            "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
+            "get_oxygen_data_24h": get_oxygen_data_24h,
+            "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
+            "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
+            "get_ice_thickness": get_ice_thickness,
         }
 
     async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
