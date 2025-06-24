@@ -1,6 +1,6 @@
 import os
-from RAG import JinaEmbeddings
-from RAG import QdrantClientWrapper
+from LLM.RAG import JinaEmbeddings
+from LLM.RAG import QdrantClientWrapper
 from uuid import uuid4
 from qdrant_client.models import PointStruct
 from onc import ONC
