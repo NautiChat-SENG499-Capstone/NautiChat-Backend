@@ -1,8 +1,12 @@
+from datetime import datetime
+import logging
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 import sys
 import pandas as pd
 import asyncio
 import json
 from datetime import datetime
+from typing import Optional
 from toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
@@ -10,10 +14,12 @@ from toolsSprint1 import (
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
 )
-from codes import generate_download_codes
-from RAG import RAG
-from Environment import Environment
-from Constants.toolDescriptions import toolDescriptions
+from LLM.codes import generate_download_codes
+from LLM.RAG import RAG, JinaEmbeddings
+from LLM.Environment import Environment
+from LLM.Constants.toolDescriptions import toolDescriptions
+
+logger = logging.getLogger(__name__)
 
 sys.modules["LLM"] = sys.modules[__name__]
 dpRequestId: str = ""
@@ -29,11 +35,26 @@ def get_request_id():
 
 
 class LLM:
-    def __init__(self, env: Environment, RAG_instance: RAG = None):
-        self.client = env.get_client()  # Get the Groq client from the environment
-        # self.model = env.get_model()  # Get the model to use from the environment
-        self.model = "llama-3.1-8b-instant"  # use this one when model limit is reached
-        self.RAG_instance = RAG_instance if RAG_instance else RAG(env)  # Use provided RAG instance or create a new one
+    __shared: dict[str, object] | None = None         
+    # singleton cache
+
+    def __init__(self, env, *, RAG_instance=None):
+        self.client = env.get_client()
+        self.model  = env.get_model()
+
+        if LLM.__shared is None:
+            logging.info("First LLM() building shared embedder/cross-encoder")
+            LLM.__shared = {
+                "embedder": JinaEmbeddings(),
+                "cross": HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
+            }
+
+        shared = LLM.__shared
+        self.RAG_instance = RAG_instance or RAG(
+            env,
+            embedder=shared["embedder"],
+            cross_encoder=shared["cross"],
+        )
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
@@ -112,13 +133,12 @@ class LLM:
                     function_name = tool_call.function.name
 
                     if function_name in self.available_functions:
-                        function_args = json.loads(tool_call.function.arguments)
-                        # print(f"Calling function: {function_name} with args: {function_args}")
-                        if not function_args:
-                            function_response = await self.available_functions[function_name]()
-                        else:
-                            function_response = await self.available_functions[function_name](**function_args)
-                        # print(f"Function response: {function_response}")
+                        try:
+                            function_args = json.loads(tool_call.function.arguments)
+                        except json.JSONDecodeError:
+                            function_args = {}
+                        print(f"Calling function: {function_name} with args: {function_args}")
+                        function_response = await self.call_tool(self.available_functions[function_name], function_args or {}, user_onc_token=user_onc_token)
                         messages.append(
                             {
                                 "tool_call_id": tool_call.id,
@@ -148,12 +168,21 @@ class LLM:
                     # }
             else:
                 return response_message.content
-        except:
+        except Exception as e:
+            logger.error(f"LLM failed: {e}", exc_info=True)
             return "Sorry, your request failed. Please try again."
             # return {
             #     "status": 400,
             #     "response": "Sorry, your request failed. Please try again.",
             # }
+        
+    async def call_tool(self, fn, args, user_onc_token):
+        try:
+            return await fn(**args, user_onc_token=user_onc_token)
+        except TypeError:
+            # fallback if fn doesn't accept user_onc_token
+            return await fn(**args)
+
 
 
 async def main():

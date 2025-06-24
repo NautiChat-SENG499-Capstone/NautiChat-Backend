@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,7 +37,10 @@ async def register_user(
 
 
 @router.get("/me")
-async def get_me(user: Annotated[User, Depends(get_current_user)]) -> UserOut:
+async def get_me(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserOut:
     """Get the current user"""
     # Uses get_current_user() dependency to grab user
     return user

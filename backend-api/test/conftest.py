@@ -23,6 +23,11 @@ from src.auth.service import create_access_token
 from src.main import create_app
 
 
+@pytest.fixture
+def _user_headers(user_headers):
+    """Alias the existing user_headers fixture for tests expecting _user_headers"""
+    return user_headers
+
 @pytest_asyncio.fixture(scope="session")
 def event_loop():
     """Tests share same asyncio loop"""

@@ -25,7 +25,7 @@ jobs:
       SECRET_KEY: ci_dummy_key
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_HOURS: "24"
-      REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }}
+      REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }} 
 
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +40,7 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pytest
+          pip install pytest-asyncio
 
       - name: Run pytest
         run: python -m pytest -q
@@ -122,6 +123,7 @@ jobs:
           flags: |
             --allow-unauthenticated
           env_vars: |
+            ENV=production
             SUPABASE_DB_URL: "${{ secrets.SUPABASE_DB_URL }}"
             SECRET_KEY=${{ vars.SECRET_KEY }}
             ALGORITHM=${{ vars.ALGORITHM }}

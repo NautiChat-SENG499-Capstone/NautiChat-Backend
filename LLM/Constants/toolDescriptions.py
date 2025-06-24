@@ -1,21 +1,21 @@
 toolDescriptions = [
-    {
-        "type": "function",
-        "function": {
-            "name": "vectorDB",
-            "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_prompt": {
-                        "type": "string",
-                        "description": "The user's query to retrieve relevant documents.",
-                    }
-                },
-                "required": ["user_prompt"],
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "vectorDB",
+    #         "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "user_prompt": {
+    #                     "type": "string",
+    #                     "description": "The user's query to retrieve relevant documents.",
+    #                 }
+    #             },
+    #             "required": ["user_prompt"],
+    #         },
+    #     },
+    # },
     {
         "type": "function",
         "function": {
