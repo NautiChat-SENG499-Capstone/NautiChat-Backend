@@ -129,4 +129,10 @@ jobs:
             ALGORITHM=${{ vars.ALGORITHM }}
             ACCESS_TOKEN_EXPIRE_HOURS=${{ vars.ACCESS_TOKEN_EXPIRE_HOURS }}
             REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            QDRANT_URL=${{ secrets.QDRANT_URL }}
+            QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
+            QDRANT_COLLECTION_NAME=${{ secrets.QDRANT_COLLECTION_NAME }}
+            CAMBRIDGE_LOCATION_CODE=${{ secrets.CAMBRIDGE_LOCATION_CODE }}
+            ONC_TOKEN=${{ secrets.ONC_TOKEN }}
 
