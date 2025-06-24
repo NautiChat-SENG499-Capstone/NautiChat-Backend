@@ -127,13 +127,13 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_daily_air_temperature_stats_cambridge_bay",
-            "description": "Get daily air temperature statistics (minimum, maximum, and average) for Cambridge Bay on a given date, returned as a JSON string.",
+            "description": "Get daily air temperature statistics (min, max, average, sample count) for Cambridge Bay on a given date.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "day_str": {
-                    "type": "string",
-                    "description": "Date in YYYY-MM-DD format for which to retrieve daily air temperature statistics."
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format"
                     },
                 },
                 "required": ["day_str"]
@@ -144,13 +144,13 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_oxygen_data_24h",
-            "description": "Get 24 hours of dissolved oxygen data for Cambridge Bay on a given date, returned as a JSON string of the full time series.",
+            "description": "Retrieve 24 hours of dissolved oxygen measurements (in mL/L) for Cambridge Bay at 10-minute intervals, returned as a pandas DataFrame string.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "day_str": {
-                        "type": "string",
-                        "description": "Date in YYYY-MM-DD format for which to retrieve 24 hours of oxygen data."
+                    "type": "string",
+                    "description": "Date in YYYY-MM-DD format"
                     },
                 },
                 "required": ["day_str"]
@@ -177,19 +177,19 @@ toolDescriptions = [
     {
         "type": "function",
         "function": {
-            "name": "get_wind_speed_at_time",
-            "description": "Get the wind speed at Cambridge Bay at a specific timestamp, returned as a JSON string containing the timestamp and windSpeed value (or a no-data message).",
+            "name": "get_wind_speed_at_timestamp",
+            "description": "Get wind speed (m/s) at Cambridge Bay for a specific timestamp, returning the exact or nearest sample.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "day_str": {
+                    "timestamp_str": {
                         "type": "string",
-                        "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve the wind speed."
+                        "description": "ISO-format timestamp, e.g. '2024-06-23T14:30:00Z'"
                     },
                 },
-                "required": ["day_str"]
+                "required": ["timestamp_str"]
             },
-        },
+        },  
     },
     {
         "type": "function",
