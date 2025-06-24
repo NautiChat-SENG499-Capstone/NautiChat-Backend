@@ -9,6 +9,13 @@ from toolsSprint1 import (
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
 )
+from toolsSprint2 import (
+    get_daily_air_temperature_stats_cambridge_bay,
+    get_oxygen_data_24h,
+    get_ship_noise_acoustic_for_date,
+    get_wind_speed_at_time,
+    get_ice_thickness,
+)
 from RAG import RAG
 from Environment import Environment
 from Constants.toolDescriptions import toolDescriptions
