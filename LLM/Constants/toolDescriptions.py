@@ -32,13 +32,9 @@ toolDescriptions = [
         "function": {
             "name": "get_active_instruments_at_cambridge_bay",
             "description": (
-                "Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n \"activeInstrumentCount\": int,\n \"details\": [ ... ]\n }\n Note: This function does not take any parameters"
+                'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n Note: This function does not take any parameters'
             ),
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            },
+            "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
     # {
@@ -98,32 +94,78 @@ toolDescriptions = [
             },
         },
     },
+#     {
+#         "type": "function",
+#         "function": {
+#             "name": "get_scalar_data_by_device",
+#             "description": "gets the scalar data for a device at cambridge bay over a specified time interval, given the device code and time range",
+#             "parameters": {
+#                 "properties": {
+#                     "deviceCode": {
+#                         "type": "string",
+#                         "description": "The device code for which scalar data is requested.",
+#                     },
+#                     "dateFrom": {
+#                         "type": "string",
+#                         "description": "ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')",
+#                     },
+#                     "dateTo": {
+#                         "type": "string",
+#                         "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+#                     },
+#                 },
+#                 "required": ["deviceCode", "dateFrom", "dateTo"],
+#                 "type": "object",
+#             },
+#         },
+#     },
     {
         "type": "function",
         "function": {
-            "name": "get_scalar_data_by_device",
-            "description": "gets the scalar data for a device at cambridge bay over a specified time interval, given the device code and time range",
+            "name": "generate_download_codes",
+            "description": "Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, so that users request to download data, over a specified time period. Returns a result of a data download request. This function simply queues a download from ONC, and gives no additional information to the LLM. If this function is called, the LLM will either tell the user that their download is queued, or that their download request was unsuccessful. If the request is successful, the download is not necessarily successful, so do not tell the user if the download is successful or not. Returns: result (str): The result of the download request. It will either signify that the download was successful, or that the download was unsuccessful, and you should inform the user of this result. Args: deviceCategory (str): An ONC defined code identifying each device. locationCode (str): An ONC defined code identifying each device site. dataProductCode (str): AN ONC defined code identifying the data type being delivered. extension (str): The format of the dataProduct to be delivered. dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
             "parameters": {
                 "properties": {
-                    "deviceCode": {
+                    "deviceCategory": {
                         "type": "string",
-                        "description": "The device code for which scalar data is requested.",
+                        "description": "The device category code for which scalar data is requested.",
+                    },
+                    "locationCode": {
+                        "type": "string",
+                        "description": "The location code for which the data is requested.",
+                    },
+                    "dataProductCode": {
+                        "type": "string",
+                        "description": "The type of data product requested.",
+                    },
+                    "extension": {
+                        "type": "string",
+                        "description": "The format in which the data product will be delivered.",
                     },
                     "dateFrom": {
                         "type": "string",
-                        "description": "ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')",
+                        "description": "The starting date of the data request.",
                     },
                     "dateTo": {
                         "type": "string",
-                        "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+                        "description": "The end date of the data request.",
                     },
                 },
-                "required": ["deviceCode", "dateFrom", "dateTo"],
+                "required": ["deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"],
                 "type": "object",
+            },
+            "returns": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string", "enum": ["queued", "error"]},
+                    "dpRequestId": {"type": "string"},
+                    "message": {"type": "string"},
+                },
+                "required": ["status", "message"],
             },
         },
     },
-    {
+   {
         "type": "function",
         "function": {
             "name": "get_daily_air_temperature_stats_cambridge_bay",
@@ -217,3 +259,4 @@ toolDescriptions = [
         },
     },
 ]
+

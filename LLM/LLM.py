@@ -1,40 +1,74 @@
+from datetime import datetime
+import logging
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+import sys
 import pandas as pd
 import asyncio
 import json
 from datetime import datetime
-from toolsSprint1 import (
+from typing import Optional
+from .toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
 )
-from toolsSprint2 import (
+from .toolsSprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_oxygen_data_24h,
     get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
     get_ice_thickness,
 )
-from RAG import RAG
-from Environment import Environment
-from Constants.toolDescriptions import toolDescriptions
+from LLM.codes import generate_download_codes
+from LLM.RAG import RAG, JinaEmbeddings
+from LLM.Environment import Environment
+from LLM.Constants.toolDescriptions import toolDescriptions
+
+logger = logging.getLogger(__name__)
+
+sys.modules["LLM"] = sys.modules[__name__]
+dpRequestId: str = ""
+
+
+def set_request_id(value: str) -> None:
+    global dpRequestId
+    dpRequestId = value
+
+
+def get_request_id():
+    return dpRequestId
+
 
 class LLM:
-    def __init__(
-        self, env: Environment
-        , RAG_instance: RAG = None
-    ):
-        self.client = env.get_client()  # Get the Groq client from the environment
-        #self.model = env.get_model()  # Get the model to use from the environment
-        self.model = "llama-3.1-8b-instant" #use this one when model limit is reached
-        self.RAG_instance = RAG_instance if RAG_instance else RAG(env)  # Use provided RAG instance or create a new one
+    __shared: dict[str, object] | None = None         
+    # singleton cache
+
+    def __init__(self, env, *, RAG_instance=None):
+        self.env = env
+        self.client = env.get_client()
+        self.model  = env.get_model()
+
+        if LLM.__shared is None:
+            logging.info("First LLM() building shared embedder/cross-encoder")
+            LLM.__shared = {
+                "embedder": JinaEmbeddings(),
+                "cross": HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
+            }
+
+        shared = LLM.__shared
+        self.RAG_instance = RAG_instance or RAG(
+            env,
+            embedder=shared["embedder"],
+            cross_encoder=shared["cross"],
+        )
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
             "get_active_instruments_at_cambridge_bay": get_active_instruments_at_cambridge_bay,
-            # "get_time_range_of_available_data": get_time_range_of_available_data
+            "generate_download_codes": generate_download_codes,
             "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
             "get_oxygen_data_24h": get_oxygen_data_24h,
             "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
@@ -44,7 +78,7 @@ class LLM:
 
     async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
         try:
-            #print("Starting conversation with user prompt:", user_prompt)
+            set_request_id("")
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
             if startingPrompt is None:
                 startingPrompt = f"""
@@ -70,7 +104,6 @@ class LLM:
                 DO NOT try to reason about data availability.
                 """
 
-            #print(user_prompt)
             messages = chatHistory + [
                 {
                     "role": "system",
@@ -79,7 +112,7 @@ class LLM:
                 {
                     "role": "user",
                     "content": user_prompt,
-                }
+                },
             ]
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
@@ -91,11 +124,8 @@ class LLM:
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
-            messages.append({
-                "role": "system",
-                "content": vector_content
-                }) 
-            
+            messages.append({"role": "system", "content": vector_content})
+
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
                 messages=messages,  # Conversation history
@@ -105,26 +135,23 @@ class LLM:
                 max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
                 temperature=0.25,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
-            #print("resp:", response)
             response_message = response.choices[0].message
-            # print(vector_content)
             tool_calls = response_message.tool_calls
             # print(tool_calls)
             if tool_calls:
-                #print("Tool calls detected, processing...")
+                # print("Tool calls detected, processing...")
                 for tool_call in tool_calls:
                     # print(tool_call)
                     # print()
                     function_name = tool_call.function.name
 
                     if function_name in self.available_functions:
-                        function_args = json.loads(tool_call.function.arguments)
-                        print(f"Calling function: {function_name} with args: {function_args}")
-                        if not function_args:
-                            function_response = await self.available_functions[function_name]()
-                        else:
-                            function_response = await self.available_functions[function_name](**function_args)
-                        #print(f"Function response: {function_response}")
+                        try:
+                            function_args = json.loads(tool_call.function.arguments)
+                        except json.JSONDecodeError:
+                            function_args = {}
+                        # print(f"Calling function: {function_name} with args: {function_args}")
+                        function_response = await self.call_tool(self.available_functions[function_name], function_args or {}, user_onc_token=self.env.get_onc_token())
                         messages.append(
                             {
                                 "tool_call_id": tool_call.id,
@@ -133,21 +160,42 @@ class LLM:
                                 "content": json.dumps(function_response),
                             }
                         )  # May be able to use this for getting most recent data if needed.
-                #print("Messages after tool calls:", messages)
+                # print("Messages after tool calls:", messages)
                 second_response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_completion_tokens=4096,
-                    temperature=0.25
+                    model=self.model, messages=messages, max_completion_tokens=4096, temperature=0.25
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
-                #print("Second response:", second_response)
+                # print("Second response:", second_response)
+                respone = second_response.choices[0].message.content
                 return second_response.choices[0].message.content
+                # if(dpRequestId):
+                    # return {
+                    #     "status": 201,
+                    #     "response": response,
+                    #     "dpRequestId": dpRequestId,
+                    # }
+                # else:
+                    # return {
+                    #     "status": 200,
+                    #     "response": response,
+                    # }
             else:
                 return response_message.content
-        except:
+        except Exception as e:
+            logger.error(f"LLM failed: {e}", exc_info=True)
             return "Sorry, your request failed. Please try again."
-    
+            # return {
+            #     "status": 400,
+            #     "response": "Sorry, your request failed. Please try again.",
+            # }
+        
+    async def call_tool(self, fn, args, user_onc_token):
+        try:
+            return await fn(**args, user_onc_token=user_onc_token)
+        except TypeError:
+            # fallback if fn doesn't accept user_onc_token
+            return await fn(**args)
+
 
 
 async def main():
@@ -163,8 +211,8 @@ async def main():
             response = await LLM_Instance.run_conversation(user_prompt=user_prompt, chatHistory=chatHistory)
             print(response)
             response = {"role": "system", "content": response}
-            #chatHistory.append(response)
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
+
     except Exception as e:
         print("Error occurred:", e)
 

@@ -1,6 +1,6 @@
 from typing import List, Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Dependencies
@@ -48,10 +48,11 @@ async def get_conversation(
 async def generate_response(
     llm_query: CreateLLMQuery,
     current_user: Annotated[UserOut, Depends(get_current_user)],
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> Message:
     """Send message to LLM which will generate a response"""
-    return await service.generate_response(llm_query, current_user, db)
+    return await service.generate_response(llm_query, current_user, db, request)
 
 
 @router.get("/messages/{message_id}", response_model=Message)

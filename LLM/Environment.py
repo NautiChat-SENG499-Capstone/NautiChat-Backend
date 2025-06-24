@@ -1,11 +1,16 @@
 import os
 from groq import Groq
 from dotenv import load_dotenv
+from pathlib import Path
 
 
 class Environment:
     def __init__(self):
-        load_dotenv()
+        # If we're in production, we assume environment variables are set
+        # If not, we load them from a .env file
+        if os.getenv("ENV") != "production":
+            env_file_location = str(Path(__file__).resolve().parent / ".env")
+            load_dotenv(env_file_location)
         self.onc_token = os.getenv("ONC_TOKEN")
         self.location_code = os.getenv("CAMBRIDGE_LOCATION_CODE")
         self.model = "llama-3.3-70b-versatile"
