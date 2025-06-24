@@ -104,10 +104,10 @@ class RAG:
         QA_search_results = self.qdrant_client.search(
             collection_name=self.QA_collection_name,
             query_vector=query_embedding,
-            limit=100, # Max hits to retrieve from Qdrant
+            limit=100, 
             with_payload=True,
             with_vectors=False,
-            query_filter=self.filters["positive_feedback"] # Apply the positive feedback filter
+            query_filter=self.filters["positive_feedback"] 
         )
 
         filtered_qa_hits = [hit for hit in QA_search_results if hit.score >= 0.4]
@@ -115,7 +115,6 @@ class RAG:
         qa_documents = [
             Document(
                 page_content=hit.payload["text"],
-                # CORRECTED: Use self.qa_collection_name directly as source_collection
                 metadata={"score": hit.score, "source_collection": self.QA_collection_name} 
             )
             for hit in filtered_qa_hits
@@ -154,6 +153,7 @@ class RAG:
             selected_docs.append(doc)
             total_tokens += approx_tokens
         
+        #Printing out docs for me to debug
         for i, doc in enumerate(selected_docs):
                 print(f"--- Document {i+1} ---")
                 print(f"Page Content: {doc.page_content}")
