@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
             # Initialize Redis client
             logger.info("Initializing Redis client...")
             app.state.redis_client = await init_redis()
-        logger.info("Redis client initialized successfully.")
+            logger.info("Redis client initialized successfully.")
 
         logger.info("Creating Environment instance...")
         app.state.env = Environment()
@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
             app.state.llm = llm
             logger.info("LLM instance initialized successfully.")
         except asyncio.TimeoutError:
-            logger.error("LLM initialization timed out after 5 minutes")
+            logger.error("LLM initialization timed out after 10 minutes")
             raise RuntimeError("LLM initialization timed out")
         except Exception as e:
             logger.error(f"LLM initialization failed: {e}")

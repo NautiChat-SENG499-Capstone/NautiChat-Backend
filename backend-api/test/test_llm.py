@@ -126,7 +126,7 @@ async def test_feedback_create_and_update(client: AsyncClient, user_headers):
 
         )
     ).status_code == status.HTTP_200_OK
-    
+
 async def test_get_context_no_messages(async_session: AsyncSession, _user_headers):
     # When no messages in db, should return empty list
 
@@ -179,10 +179,6 @@ async def test_get_context(async_session: AsyncSession, _user_headers):
     assert len(context_2) == 4
     assert isinstance(context_2[0]["role"], str)
     # most recent message should be returned first
-    assert context_2[0]["role"] == "user"
-    assert context_2[0]["content"] == message_15.input
-    assert context_2[1]["role"] == "system"
-    assert context_2[1]["content"] == message_15.response
     assert context_2[0]["role"] == "user"
     assert context_2[0]["content"] == message_15.input
     assert context_2[1]["role"] == "system"

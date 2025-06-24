@@ -21,9 +21,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # and set the expiration time to window_sec
         await redis.set(key, self.max_requests, ex=self.window_sec, nx=True)
         cache_val: Optional[bytes] = await redis.get(key)
-
-        # Decrement and check
-        cache_val = await redis.get(key)
+        
         if cache_val is not None:
             requests_remaining = int(cache_val)
             if requests_remaining > 0:
