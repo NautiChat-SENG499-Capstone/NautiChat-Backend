@@ -1,6 +1,6 @@
 from onc import ONC
 from datetime import datetime, timedelta, timezone
-from Environment import Environment
+from .Environment import Environment
 
 env = Environment()
 
