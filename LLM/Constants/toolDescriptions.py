@@ -1,21 +1,21 @@
 toolDescriptions = [
-    {
-        "type": "function",
-        "function": {
-            "name": "vectorDB",
-            "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_prompt": {
-                        "type": "string",
-                        "description": "The user's query to retrieve relevant documents.",
-                    }
-                },
-                "required": ["user_prompt"],
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "vectorDB",
+    #         "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "user_prompt": {
+    #                     "type": "string",
+    #                     "description": "The user's query to retrieve relevant documents.",
+    #                 }
+    #             },
+    #             "required": ["user_prompt"],
+    #         },
+    #     },
+    # },
     {
         "type": "function",
         "function": {
@@ -32,13 +32,9 @@ toolDescriptions = [
         "function": {
             "name": "get_active_instruments_at_cambridge_bay",
             "description": (
-                "Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n \"activeInstrumentCount\": int,\n \"details\": [ ... ]\n }\n Note: This function does not take any parameters"
+                'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n Note: This function does not take any parameters'
             ),
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            },
+            "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
     # {
@@ -120,6 +116,52 @@ toolDescriptions = [
                 },
                 "required": ["deviceCode", "dateFrom", "dateTo"],
                 "type": "object",
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_download_codes",
+            "description": "Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, so that users request to download data, over a specified time period. Returns a result of a data download request. This function simply queues a download from ONC, and gives no additional information to the LLM. If this function is called, the LLM will either tell the user that their download is queued, or that their download request was unsuccessful. If the request is successful, the download is not necessarily successful, so do not tell the user if the download is successful or not. Returns: result (str): The result of the download request. It will either signify that the download was successful, or that the download was unsuccessful, and you should inform the user of this result. Args: deviceCategory (str): An ONC defined code identifying each device. locationCode (str): An ONC defined code identifying each device site. dataProductCode (str): AN ONC defined code identifying the data type being delivered. extension (str): The format of the dataProduct to be delivered. dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+            "parameters": {
+                "properties": {
+                    "deviceCategory": {
+                        "type": "string",
+                        "description": "The device category code for which scalar data is requested.",
+                    },
+                    "locationCode": {
+                        "type": "string",
+                        "description": "The location code for which the data is requested.",
+                    },
+                    "dataProductCode": {
+                        "type": "string",
+                        "description": "The type of data product requested.",
+                    },
+                    "extension": {
+                        "type": "string",
+                        "description": "The format in which the data product will be delivered.",
+                    },
+                    "dateFrom": {
+                        "type": "string",
+                        "description": "The starting date of the data request.",
+                    },
+                    "dateTo": {
+                        "type": "string",
+                        "description": "The end date of the data request.",
+                    },
+                },
+                "required": ["deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"],
+                "type": "object",
+            },
+            "returns": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string", "enum": ["queued", "error"]},
+                    "dpRequestId": {"type": "string"},
+                    "message": {"type": "string"},
+                },
+                "required": ["status", "message"],
             },
         },
     },

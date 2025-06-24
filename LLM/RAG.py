@@ -1,4 +1,4 @@
-from langchain_qdrant import Qdrant  
+from langchain_community.vectorstores import Qdrant
 from qdrant_client import QdrantClient
 from langchain.embeddings.base import Embeddings
 from sentence_transformers import SentenceTransformer
@@ -42,7 +42,6 @@ class RAG:
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
         self.qdrant_client = qdrant_client or self.qdrant_client_wrapper.qdrant_client
         self.collection_name = self.qdrant_client_wrapper.collection_name
-
         self.embedding = embedder or JinaEmbeddings()
 
         self.qdrant = Qdrant(
