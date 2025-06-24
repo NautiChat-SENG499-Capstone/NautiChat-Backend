@@ -1,4 +1,4 @@
-from langchain_community.vectorstores import Qdrant
+from langchain_qdrant import Qdrant  
 from qdrant_client import QdrantClient
 from langchain.embeddings.base import Embeddings
 from sentence_transformers import SentenceTransformer
@@ -7,7 +7,7 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_core.documents import Document
 from qdrant_client.http.models import VectorParams, Distance
 import pandas as pd
-from Environment import Environment
+from LLM.Environment import Environment
 
 
 class JinaEmbeddings(Embeddings):
@@ -31,16 +31,23 @@ class QdrantClientWrapper:
 
 
 class RAG:
-    def __init__(self, env: Environment):
+    def __init__(
+        self,
+        env: Environment,
+        *,
+        embedder: Embeddings | None = None,
+        cross_encoder: HuggingFaceCrossEncoder | None = None,
+        qdrant_client: QdrantClient | None = None,
+    ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
-        self.qdrant_client = self.qdrant_client_wrapper.qdrant_client
+        self.qdrant_client = qdrant_client or self.qdrant_client_wrapper.qdrant_client
         self.collection_name = self.qdrant_client_wrapper.collection_name
-        print("Creating Jina Embeddings instance...")
-        self.embedding = JinaEmbeddings()
-        print("Creating Qdrant instance...")
+
+        self.embedding = embedder or JinaEmbeddings()
+
         self.qdrant = Qdrant(
             client=self.qdrant_client,
-            collection_name=env.get_collection_name(),
+            collection_name=self.collection_name,
             embeddings=self.embedding,
             content_payload_key="text",
         )

@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -8,6 +8,9 @@ from sqlalchemy.orm import selectinload
 from src.auth.schemas import UserOut
 from .schemas import Conversation, Message, Feedback, CreateLLMQuery, CreateConversationBody
 from .models import Conversation as ConversationModel, Message as MessageModel, Feedback as FeedbackModel
+from .utils import get_context
+
+MAX_CONTEXT_WORDS=200
 
 async def create_conversation(
     current_user: UserOut,
@@ -22,7 +25,7 @@ async def create_conversation(
     await db.commit()
     await db.refresh(conversation)
 
-    # Convert to Pydantic schema manually (Avoid Lazy Loading ERROR)
+    # Convert to Pydantic schema manually
     return Conversation(
         conversation_id=conversation.conversation_id,
         user_id=conversation.user_id,
@@ -60,35 +63,61 @@ async def generate_response(
     llm_query: CreateLLMQuery,
     current_user: UserOut,
     db: AsyncSession,
-) -> Message: 
+    request: Request,
+) -> Message:
     """Validate user creating new Message that will be sent to LLM"""
-    #TODO: Integrate LLM
-
-    # Validate whether converstation exists or if current user has access to conversation
-    result = await db.execute(select(ConversationModel).where(ConversationModel.conversation_id == llm_query.conversation_id))
-    conversation = result.scalar_one_or_none()
-
-    if not conversation: 
-        raise HTTPException(
-            status_code=404, 
-            detail="Conversation not found"
+    # Ensure LLM and RAG are initialized
+    state = request.app.state
+    if not state.llm or not state.rag:
+        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
+    
+    # Verify conversation exists
+    exists = await db.scalar(
+        select(ConversationModel.conversation_id)
+        .where(
+            ConversationModel.user_id == current_user.id,
+            ConversationModel.conversation_id == llm_query.conversation_id,
         )
-    if conversation.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403, 
-            detail="Not authorized to access this conversation"
+        .limit(1)
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Fetch up to MAX_CONTEXT_WORDS of prior messages for context
+    try:
+        chat_history = await get_context(
+            conversation_id=llm_query.conversation_id,
+            max_words=MAX_CONTEXT_WORDS,
+            db=db
         )
+    except AssertionError:
+        raise HTTPException(status_code=404, detail="Invalid conversation id")
 
     # Create Message to send to LLM  
     message = MessageModel(
         conversation_id=llm_query.conversation_id, 
         user_id=current_user.id, 
         input=llm_query.input, 
-        response=f"LLM Response for: {llm_query.input}"
+        response=f""
     )
 
+    # Call LLM to generate response
+    try:
+        response = await state.llm.run_conversation(
+            user_prompt=llm_query.input,
+            startingPrompt=None,
+            chatHistory=chat_history,
+            user_onc_token=current_user.onc_token
+        )
+        message.response = response
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating response from LLM: {str(e)}"
+        )
+    
     # Add message to DB
-    db.add(message)
+    db.add(message) 
     await db.commit()
     await db.refresh(message)
     return message

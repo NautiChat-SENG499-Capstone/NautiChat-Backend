@@ -8,13 +8,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 env_file_location = str(Path(__file__).resolve().parent.parent / ".env")
 
 class Settings(BaseSettings):
-    SECRET_KEY: str
-    ALGORITHM: str
-    ACCESS_TOKEN_EXPIRE_HOURS: int
-    REDIS_PASSWORD: str
-    SUPABASE_DB_URL: str
-
-    model_config = SettingsConfigDict(env_file=env_file_location)
+    SECRET_KEY: str = 'default_secret_key'
+    ALGORITHM: str = 'HS256'  
+    ACCESS_TOKEN_EXPIRE_HOURS: int = 24  
+    REDIS_PASSWORD: str = 'default_redis_password'
+    SUPABASE_DB_URL: str = 'default_supabase_db_url'
+    GROQ_API_KEY : str = 'default_groq_api_key'
+    ONC_TOKEN : str = 'default_onc_token'
+    CAMBRIDGE_LOCATION_CODE : str = 'default_cambridge_location_code'
+    QDRANT_API_KEY : str = 'default_qdrant_api_key'
+    QDRANT_URL : str = 'default_qdrant_url'
+    QDRANT_COLLECTION_NAME : str = 'default_qdrant_collection_name'
+    
+    model_config = SettingsConfigDict(env_file=env_file_location, extra="allow")
 
 # Caches the settings instance to avoid re-parsing .env file
 @lru_cache

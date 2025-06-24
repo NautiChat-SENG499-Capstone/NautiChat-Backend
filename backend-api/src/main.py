@@ -16,13 +16,31 @@ from src.llm.router import router as llm_router
 from src.database import DatabaseSessionManager, init_redis
 from src.middleware import RateLimitMiddleware  # Custom middleware for rate limiting
 from src.settings import get_settings  # Settings management for environment variables
+from LLM.LLM import LLM
+from LLM.Environment import Environment  # Importing Environment to initialize LLM
+from starlette.concurrency import run_in_threadpool
+import logging
+import sys
+import traceback
+import asyncio
 
+# Configure logging to work with uvicorn
+logger = logging.getLogger("nautichat")
+logger.setLevel(logging.DEBUG)
 
-logger = logging.getLogger("uvicorn.error")
+# Create console handler if it doesn't exist
+if not logger.handlers:
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s - %(message)s")
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
+logger.info("NAUTICHAT BACKEND STARTING")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Starting up application...")
 
     # Connect to Supabase Postgres as async engine
     try:
@@ -36,25 +54,71 @@ async def lifespan(app: FastAPI):
             # Initialize Redis client
             logger.info("Initializing Redis client...")
             app.state.redis_client = await init_redis()
-            logger.info("Redis client initialized")
-        yield
-    finally:
-        # Close connection to database and Redis Connection
-        if hasattr(app.state, "redis_client"):
-            logger.info("Closing Redis client...")
-            await app.state.redis_client.aclose()
-        if hasattr(app.state, "session_manager"):
-            logger.info("Closing database session manager...")
-            await app.state.session_manager.close()
+            logger.info("Redis client initialized successfully.")
 
+        logger.info("Creating Environment instance...")
+        app.state.env = Environment()
+        logger.info("Environment instance created successfully.")
+
+        logger.info("Initializing LLM (this may take a while)...")
+        try:
+            # Add timeout to prevent infinite hanging
+            llm = await asyncio.wait_for(
+                run_in_threadpool(LLM, app.state.env), 
+                timeout=600  # 10 minute timeout
+            )
+            app.state.llm = llm
+            logger.info("LLM instance initialized successfully.")
+        except asyncio.TimeoutError:
+            logger.error("LLM initialization timed out after 10 minutes")
+            raise RuntimeError("LLM initialization timed out")
+        except Exception as e:
+            logger.error(f"LLM initialization failed: {e}")
+            raise RuntimeError(f"LLM initialization failed: {e}")
+
+        logger.info("Getting RAG instance...")
+        app.state.rag = app.state.llm.RAG_instance
+        logger.info("RAG instance initialized successfully.")
+
+    except Exception as e:
+        logger.error(f"Startup failed with error: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise RuntimeError(f"Startup failed: {e}")
+
+    logger.info("Running sanity checks...")
+    if not app.state.redis_client:
+        logger.error("Redis client initialization failed")
+        raise RuntimeError("Failed to connect to Redis.")
+    if not app.state.llm:
+        logger.error("LLM initialization failed")
+        raise RuntimeError("Failed to initialize LLM.")
+    if not app.state.rag:
+        logger.error("RAG initialization failed")
+        raise RuntimeError("Failed to initialize RAG.")
+
+    logger.info("App startup complete. All systems go!")
+    yield
+
+    # Teardown
+    logger.info("Shutting down application...")
+    if hasattr(app.state, 'session_manager'):
+        await app.state.session_manager.close()
+    if hasattr(app.state, 'redis_client'):
+        await app.state.redis_client.aclose()
+    logger.info("Resources cleaned up.")
 
 def create_app():
-    app = FastAPI(lifespan=lifespan)
+    logger.info("Creating FastAPI app...")
+    app = FastAPI(
+        title="NautiChat Backend API",
+        description="Backend API for NautiChat application",
+        version="1.0.0",
+        lifespan=lifespan
+    )
 
     origins = ["http://localhost:3000", "https://nautichat.vercel.app"]
 
     # Add CORS and Rate Limit Middleware
-    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -62,24 +126,38 @@ def create_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RateLimitMiddleware)
+    logger.info("CORS and Rate Limit Middleware added.")
+
+    # Add a root endpoint for testing
+    @app.get("/")
+    async def root():
+        logger.info("Root endpoint accessed")
+        return {
+            "message": "NautiChat Backend API is running!", 
+            "docs": "/docs",
+            "health": "/health",
+            "status": "ready"
+        }
+
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint"""
+        logger.info("Health check endpoint accessed")
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "redis": "connected",
+            "llm": "initialized"
+        }
 
     # Register Routes from modules (auth, llm, admin)
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(llm_router, prefix="/llm", tags=["llm"])
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
+    logger.info("Routers registered.")
 
     return app
 
 
 app = create_app()
-
-
-@app.get("/health")
-async def health_check(request: Request):
-    # Check if Database is connected
-    if not hasattr(request.app.state, "session_manager") or request.app.state.session_manager is None:
-        raise HTTPException(status_code=503, detail="Database connection not initialized")
-    # Check if Redis is connected
-    if not hasattr(request.app.state, "redis_client") or request.app.state.redis_client is None:
-        raise HTTPException(status_code=503, detail="Redis connection not initialized")
-    return {"status": "ok"}
