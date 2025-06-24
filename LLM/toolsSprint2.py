@@ -18,63 +18,107 @@ onc = ONC(ONC_TOKEN)
 
 
 # What was the air temperature in Cambridge Bay on this day last year?
-async def get_daily_air_temperature_stats_cambridge_bay(day_str: str):
+async def get_daily_air_temperature_stats_cambridge_bay(day_str: str) -> str:
     """
     Get daily air temperature statistics for Cambridge Bay.
     Args:
         day_str (str): Date in YYYY-MM-DD format
     Returns:
-        JSON string of the scalar data response
+        JSON string containing:
+          {
+            "date": "2024-06-23",
+            "min": 3.49,
+            "max": 6.54,
+            "average": 5.21,
+            "samples": 1440
+          }
     """
-    # Define 24 hour window
+    # Build 24-hour window
     date_from_str = day_str
-    # Parse into datetime object to add 1 day (accounts for 24-hour period)
-    date_to = datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days = 1)
-    date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
+    date_to_str = (
+        datetime.strptime(day_str, "%Y-%m-%d")
+        + timedelta(days=1)
+    ).strftime("%Y-%m-%d")
 
-    # Fetch relevant data through API request
     params = {
-        "locationCode": "CBYSS.M2",
+        "locationCode":       "CBYSS.M2",
         "deviceCategoryCode": "METSTN",
-        "propertyCode": "airtemperature",
-        "dateFrom": {date_from_str},
-        "dateTo": {date_to_str},
-        "rowLimit": 500,
-        "token": {ONC_TOKEN}
+        "propertyCode":       "airtemperature",
+        "dateFrom":           date_from_str,
+        "dateTo":             date_to_str,
+        "rowLimit":           1500,
+        "fillGaps":           True,
+        "qualityControl":     "clean",
+        "token":              ONC_TOKEN,
     }
-    data = onc.getScalardata(params)
 
-    return data
+    raw = onc.getScalardata(params)
+    sd = raw.get("sensorData", [])
+    if not sd:
+        raise RuntimeError(f"No sensorData returned for {day_str!r}")
+    block = sd[0]
+
+    # Try both places
+    values = block.get("values") or block.get("data", {}).get("values")
+    if values is None:
+        raise KeyError(f"Couldn't find 'values' in sensorData block; keys were: {list(block)}")
+
+    # Compute stats
+    stats = {
+        "date":     date_from_str,
+        "min":      round(min(values), 2),
+        "max":      round(max(values), 2),
+        "average":  round(statistics.mean(values), 2),
+        "samples":  len(values),
+    }
+    return stats
 
 
 # Can you give me an example of 24 hours of oxygen data?
-async def get_oxygen_data_24h(day_str: str):
+async def get_oxygen_data_24h(day_str: str) -> pd.DataFrame:
     """
     Get 24 hours of dissolved oxygen data for Cambridge Bay.
     Args:
         day_str (str): Date in YYYY-MM-DD format
     Returns:
-        JSON string of the scalar data response
+        pandas DataFrame with datetime + oxygen_ml_per_l columns,
+        sampled at 10 minute intervals.
     """
-    # Define 24 hour window
+    # Build 24-hour window
     date_from_str = day_str
-    # Parse into datetime object to add 1 day (accounts for 24-hour period)
-    date_to = datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days = 1)
-    date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
+    date_to_str = (
+        datetime.strptime(day_str, "%Y-%m-%d")
+        + timedelta(days=1)
+    ).strftime("%Y-%m-%d")
 
-    # Fetch relevant data through API request
     params = {
-        "locationCode": {CAMBRIDGE_LOCATION_CODE},
-        "deviceCategoryCode": "OXYSENSOR",
-        "propertyCode": "oxygen",
-        "dateFrom": {date_from_str},
-        "dateTo": {date_to_str},
-        "rowLimit": 250,
-        "token": {ONC_TOKEN}
+        "locationCode":         "CBYIP",
+        "deviceCategoryCode":   "OXYSENSOR",
+        "propertyCode":         "oxygen",
+        "dateFrom":             date_from_str,
+        "dateTo":               date_to_str,
+        "rowLimit":             1500,
+        "fillGaps":             True,
+        "qualityControl":       "clean",
+        "resamplePeriod":       600,        # In seconds, change for different interval
+        "token":                ONC_TOKEN
     }
-    data = onc.getScalardata(params)
 
-    return data
+    # Fetch raw JSON
+    raw = onc.getScalardata(params)
+
+    # Pick the first sensor (usually the “corrected” series)
+    sensor = raw["sensorData"][0]["data"]
+    times = pd.to_datetime(sensor["sampleTimes"])
+    values = sensor["values"]
+
+    # Build DataFrame
+    df = pd.DataFrame({
+        "datetime": times,
+        "oxygen_ml_per_l": values
+    })
+    
+    return df.to_string(index=False)
 
 
 # I’m interested in data on ship noise for July 31, 2024 / Get me the acoustic data for the last day in July of 2024
@@ -112,33 +156,48 @@ async def get_ship_noise_acoustic_for_date(day_str: str):
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
-async def get_wind_speed_at_time(day_str: str):
+async def get_wind_speed_at_timestamp(timestamp_str: str) -> float:
     """
-    Get the wind speed at a specific timestamp in Cambridge Bay.
+    Get wind speed at Cambridge Bay (in m/s) at the specified timestamp.
     Args:
-        day_str (str): Date in YYYY-MM-DD format
+        timestamp_str (str): ISO‐format timestamp, e.g. '2024-06-23T14:30:00Z'
     Returns:
-        JSON string of the scalar data response
+        float: windspeed at that time (in m/s), or the nearest sample.
     """
-    # Define 24 hour window
-    date_from_str = day_str
-    # Parse into datetime object to add 1 day (accounts for 24-hour period)
-    date_to = datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days = 1)
-    date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
+    # Parse into datetime and get the date
+    dt = pd.to_datetime(timestamp_str)
+    date_from_str = dt.strftime("%Y-%m-%d")
+    date_to_str = (dt + timedelta(days=1)).strftime("%Y-%m-%d")
 
     # Fetch relevant data through API request
     params = {
-        "locationCode": "CBYSS.M2",
+        "locationCode":       "CBYSS.M2",
         "deviceCategoryCode": "METSTN",
-        "propertyCode": "windspeed",
-        "dateFrom": {date_from_str},
-        "dateTo": {date_to_str},
-        "rowLimit": 200,
-        "token": {ONC_TOKEN}
+        "propertyCode":       "windspeed",
+        "dateFrom":           date_from_str,
+        "dateTo":             date_to_str,
+        "rowLimit":           1500,
+        "fillGaps":           True,
+        "qualityControl":     "clean",
+        "resamplePeriod":     60,           # In seconds, change for different interval
+        "token":              ONC_TOKEN
     }
-    data = onc.getScalardata(params)
+    raw = onc.getScalardata(params)
 
-    return data
+    # Extract data block
+    block = raw["sensorData"][0]["data"]
+    df = pd.DataFrame({
+        "timestamp":     pd.to_datetime(block["maxTimes"]),
+        "windspeed_m_s": block["max"],
+    }).set_index("timestamp")
+
+    # Return exact or nearest
+    if dt in df.index:
+        return float(df.loc[dt, "windspeed_m_s"])
+    
+    # Else find nearest index
+    idx = df.index.get_indexer([dt], method="nearest")[0]
+    return float(df.iloc[idx]["windspeed_m_s"])
     
 
 # I’m doing a school project on Arctic fish. Does the platform have any underwater
