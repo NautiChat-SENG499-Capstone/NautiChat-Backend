@@ -25,7 +25,8 @@ jobs:
       SECRET_KEY: ci_dummy_key
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_HOURS: "24"
-      REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }} 
+      REDIS_PASSWORD : ${{ secrets.REDIS_PASSWORD }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }} 
 
     steps:
       - uses: actions/checkout@v4
