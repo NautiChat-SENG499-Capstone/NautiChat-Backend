@@ -1,11 +1,10 @@
 from functools import lru_cache 
 from pathlib import Path
+import os
+
 
 # Used to validate .env variables
 from pydantic_settings import BaseSettings, SettingsConfigDict 
-
-# Construct absolute path to .env file
-env_file_location = str(Path(__file__).resolve().parent.parent / ".env")
 
 class Settings(BaseSettings):
     SECRET_KEY: str = 'default_secret_key'
@@ -20,7 +19,16 @@ class Settings(BaseSettings):
     QDRANT_URL : str = 'default_qdrant_url'
     QDRANT_COLLECTION_NAME : str = 'default_qdrant_collection_name'
     
-    model_config = SettingsConfigDict(env_file=env_file_location, extra="allow")
+    #guard for production environment
+    model_config = (
+        SettingsConfigDict(
+            env_file=str(Path(__file__).resolve().parent.parent / ".env"),
+            extra="allow",
+        )
+        if os.getenv("ENV") != "production"
+        else SettingsConfigDict(extra="allow")
+    )
+
 
 # Caches the settings instance to avoid re-parsing .env file
 @lru_cache
