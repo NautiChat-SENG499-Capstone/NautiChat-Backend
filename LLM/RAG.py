@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_core.documents import Document
-from qdrant_client.http.models import VectorParams, Distance
+from qdrant_client.http.models import VectorParams, Distance, FieldCondition, Filter, MatchValue
 import pandas as pd
 from LLM.Environment import Environment
 
@@ -28,6 +28,7 @@ class QdrantClientWrapper:
     def __init__(self, env: Environment):
         self.qdrant_client = QdrantClient(url=env.get_qdrant_url(), api_key=env.get_qdrant_api_key())
         self.collection_name = env.get_collection_name()
+        self.QA_collection_name = env.get_QA_collection_name()
 
 
 class RAG:
@@ -42,18 +43,49 @@ class RAG:
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
         self.qdrant_client = qdrant_client or self.qdrant_client_wrapper.qdrant_client
         self.collection_name = self.qdrant_client_wrapper.collection_name
+        self.QA_collection_name = self.qdrant_client_wrapper.QA_collection_name
 
         self.embedding = embedder or JinaEmbeddings()
 
-        self.qdrant = Qdrant(
+        self.qdrant_ONC = Qdrant(
             client=self.qdrant_client,
             collection_name=self.collection_name,
             embeddings=self.embedding,
             content_payload_key="text",
         )
+        self.qdrant_QA = Qdrant(
+            client=self.qdrant_client,
+            collection_name=self.QA_collection_name,
+            embeddings=self.embedding,
+            content_payload_key="text",
+        )
+
+        self.filters = {
+            "positive_feedback": Filter(
+                must=[
+                    FieldCondition(
+                        key="feedback",
+                        match=MatchValue(value="positive"),
+                    )
+                ]
+            ),
+            "no_filter": None # Add this for cases where no specific filter is needed
+        }
+
         # Qdrant Retriever
         print("Creating Qdrant retriever...")
-        self.retriever = self.qdrant.as_retriever(search_kwargs={"k": 100})
+        # self.retriever = self.qdrant.as_retriever(search_kwargs={"k": 100})
+        print(f"Creating Qdrant retriever for {self.collection_name}...")
+        self.retriever_ONC = self.qdrant_ONC.as_retriever(
+            search_kwargs={"k": 100, "filter": self.filters["no_filter"]} # Default to positive feedback
+        )
+
+        # Qdrant Retriever for the no-filter collection
+        print(f"Creating Qdrant retriever for {self.QA_collection_name}...")
+        self.retriever_QA = self.qdrant_QA.as_retriever(
+            search_kwargs={"k": 100, "filter": self.filters["positive_feedback"]} # No filter applied
+        )
+
         # Reranker (from RerankerNoGroq notebook)
         print("Creating CrossEncoder model...")
         self.model = HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base")
@@ -62,16 +94,35 @@ class RAG:
     def get_documents(self, question: str):
     
         query_embedding = self.embedding.embed_query(question)
-        search_results = self.qdrant_client.search(
+        ONC_search_results = self.qdrant_client.search(
             collection_name=self.collection_name,
             query_vector=query_embedding,
             limit=100,  # same as k in retriever
             with_payload=True,
             with_vectors=False
         )
+        QA_search_results = self.qdrant_client.search(
+            collection_name=self.QA_collection_name,
+            query_vector=query_embedding,
+            limit=100, # Max hits to retrieve from Qdrant
+            with_payload=True,
+            with_vectors=False,
+            query_filter=self.filters["positive_feedback"] # Apply the positive feedback filter
+        )
+
+        filtered_qa_hits = [hit for hit in QA_search_results if hit.score >= 0.4]
+
+        qa_documents = [
+            Document(
+                page_content=hit.payload["text"],
+                # CORRECTED: Use self.qa_collection_name directly as source_collection
+                metadata={"score": hit.score, "source_collection": self.QA_collection_name} 
+            )
+            for hit in filtered_qa_hits
+        ]
 
         # Filter results by score threshold
-        filtered_hits = [hit for hit in search_results if hit.score >= 0.4]
+        filtered_hits = [hit for hit in ONC_search_results if hit.score >= 0.4]
 
         documents = [
             Document(
@@ -81,6 +132,7 @@ class RAG:
             for hit in filtered_hits
         ]        
 
+        
         # No documents were above threshold
         if documents == []:
             return pd.DataFrame({"contents": []})
@@ -93,13 +145,23 @@ class RAG:
         total_tokens = 0
         selected_docs = []
 
-        for doc in reranked_documents:
+        combined_final_documents = qa_documents + reranked_documents
+
+        for doc in combined_final_documents:
             approx_tokens = len(doc.page_content) // 4
             if total_tokens + approx_tokens > max_tokens:
                 break
             selected_docs.append(doc)
             total_tokens += approx_tokens
+        
+        for i, doc in enumerate(selected_docs):
+                print(f"--- Document {i+1} ---")
+                print(f"Page Content: {doc.page_content}")
+                if hasattr(doc, 'metadata'):
+                    print(f"Metadata: {doc.metadata}")
+                print("-" * 20)
 
         compression_contents = [doc.page_content for doc in selected_docs]
+
         df = pd.DataFrame({"contents": compression_contents})
         return df
