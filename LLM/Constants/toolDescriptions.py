@@ -123,4 +123,93 @@ toolDescriptions = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_daily_air_temperature_stats_cambridge_bay",
+            "description": "Get daily air temperature statistics (minimum, maximum, and average) for Cambridge Bay on a given date, returned as a JSON string.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "day_str": {
+                    "type": "string",
+                    "description": "Date in YYYY-MM-DD format for which to retrieve daily air temperature statistics."
+                    },
+                },
+                "required": ["day_str"]
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_oxygen_data_24h",
+            "description": "Get 24 hours of dissolved oxygen data for Cambridge Bay on a given date, returned as a JSON string of the full time series.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "day_str": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format for which to retrieve 24 hours of oxygen data."
+                    },
+                },
+                "required": ["day_str"]
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ship_noise_for_date",
+            "description": "Get 24 hours of ship-noise data for Cambridge Bay on a specific date, returned as a JSON string of the full time series.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "day_str": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve ship-noise data."
+                    },
+                },
+                "required": ["day_str"]
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_wind_speed_at_time",
+            "description": "Get the wind speed at Cambridge Bay at a specific timestamp, returned as a JSON string containing the timestamp and windSpeed value (or a no-data message).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "day_str": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve the wind speed."
+                    },
+                },
+                "required": ["day_str"]
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ice_thickness",
+            "description": "Get the average daily sea-ice thickness between the given start_date and end_date (inclusive) for Cambridge Bay. Returns a float representing the mean ice thickness (in meters) across all days in the range, or NaN if no data is found.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start_date": {
+                        "type": "string",
+                        "description": "Start date in YYYY-MM-DD format (e.g. \"2024-02-01\")."
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "End date in YYYY-MM-DD format (e.g. \"2024-02-28\")."
+                    },
+                },
+                "required": ["start_date", "end_date"]
+            },
+        },
+    },
 ]
