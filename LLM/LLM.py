@@ -13,7 +13,7 @@ from toolsSprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_oxygen_data_24h,
     get_ship_noise_acoustic_for_date,
-    get_wind_speed_at_time,
+    get_wind_speed_at_timestamp,
     get_ice_thickness,
 )
 from RAG import RAG
