@@ -123,6 +123,7 @@ jobs:
           flags: |
             --allow-unauthenticated
           env_vars: |
+            ENV=production
             SUPABASE_DB_URL: "${{ secrets.SUPABASE_DB_URL }}"
             SECRET_KEY=${{ vars.SECRET_KEY }}
             ALGORITHM=${{ vars.ALGORITHM }}
