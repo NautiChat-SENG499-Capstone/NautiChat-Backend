@@ -41,6 +41,7 @@ class Message(Base):
     input: Mapped[str] = mapped_column(Text)
     response: Mapped[str] = mapped_column(Text)
     download_link: Mapped[str] = mapped_column(Text, nullable=True)
+    request_id: Mapped[int] = mapped_column(Integer, nullable=True)
 
     # many-to-one: each message belongs to a conversation
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")

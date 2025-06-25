@@ -185,8 +185,5 @@ cython_debug/
 
 .vscode/launch.json
 
-package-lock.json
-package.json
-node_modules
-supabase
-.vscode
+alembic
+alembic.ini
