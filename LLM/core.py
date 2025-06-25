@@ -16,7 +16,7 @@ from LLM.toolsSprint1 import (
 from LLM.toolsSprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_oxygen_data_24h,
-    get_ship_noise_acoustic_for_date,
+    # get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
     get_ice_thickness,
 )
@@ -70,7 +70,7 @@ class LLM:
             "generate_download_codes": generate_download_codes,
             "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
             "get_oxygen_data_24h": get_oxygen_data_24h,
-            "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
+            #"get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
         }
