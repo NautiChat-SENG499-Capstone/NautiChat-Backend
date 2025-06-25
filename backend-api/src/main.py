@@ -20,8 +20,6 @@ from LLM.Environment import Environment  # Importing Environment to initialize L
 import sys
 import traceback
 
-from src.database import Base
-
 # Configure logging to work with uvicorn
 logger = logging.getLogger("nautichat")
 logger.setLevel(logging.DEBUG)
@@ -48,10 +46,6 @@ async def lifespan(app: FastAPI):
             logger.info("Initializing Session Manager...")
             session_manager = DatabaseSessionManager(get_settings().SUPABASE_DB_URL)
             app.state.session_manager = session_manager
-            async with session_manager.connect() as conn:
-                logger.info("Creating database tables...")
-                await conn.run_sync(Base.metadata.create_all)
-
             logger.info("Database session manager initialized")
         async with asyncio.timeout(20):
             # Initialize Redis client
