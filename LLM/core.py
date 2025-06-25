@@ -75,7 +75,7 @@ class LLM:
             "get_ice_thickness": get_ice_thickness,
         }
 
-    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
+    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None):
         try:
             set_request_id("")
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -101,6 +101,7 @@ class LLM:
                 DO NOT guess what the tool might return.
                 DO NOT say "I will now use the tool".
                 DO NOT try to reason about data availability.
+                Here is the user_onc_token: {user_onc_token}.
                 """
 
             messages = chatHistory + [

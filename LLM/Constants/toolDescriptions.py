@@ -23,14 +23,14 @@ toolDescriptions = [
             "description": "Get a list of properties available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    }
-                },
+                # "properties": {
+                #     "user_onc_token": {
+                #         "type": "string",
+                #         "description": "User's ONC token for API access. This is required to access the data.",
+                #     }
+                # },
             },
-            "required": ["user_onc_token"],
+            "required": [],
         },
     },
     {
@@ -41,11 +41,11 @@ toolDescriptions = [
                 'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n Note: This function does not take any parameters'
             ),
             "parameters": {"type": "object", "properties": {
-                "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    }
-            }, "required": ["user_onc_token"]},
+                # "user_onc_token": {
+                #         "type": "string",
+                #         "description": "User's ONC token for API access. This is required to access the data.",
+                #     }
+            }, "required": []},
         },
     },
     # {
@@ -78,12 +78,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format for when daily sea temperature is wanted for",
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    }
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC token for API access. This is required to access the data.",
+                    # }
                 },
-                "required": ["day_str", "user_onc_token"],
+                "required": ["day_str"],
                 "type": "object",
             },
         },
@@ -103,12 +103,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    }
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC token for API access. This is required to access the data.",
+                    # }
                 },
-                "required": ["dateFrom", "dateTo", "user_onc_token"],
+                "required": ["dateFrom", "dateTo"],
                 "type": "object",
             },
         },
@@ -169,12 +169,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "The end date of the data request.",
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    },
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC token for API access. This is required to access the data.",
+                    # },
                 },
-                "required": ["deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom", "user_onc_token"],
+                "required": ["deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"],
                 "type": "object",
             },
             "returns": {
@@ -200,12 +200,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-23\")."
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    }
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC token for API access. This is required to access the data.",
+                    # }
                 },
-                "required": ["date_from_str", "user_onc_token"]
+                "required": ["date_from_str"] 
             },
         },
     },
@@ -217,16 +217,16 @@ toolDescriptions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    },
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC token for API access. This is required to access the data.",
+                    # },
                     "date_from_str": {
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
                     }
                 },
-                "required": ["user_onc_token"],
+                "required": [],
             },
         },
     },
@@ -263,17 +263,17 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date to get wind speed in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    },
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC token for API access. This is required to access the data.",
+                    # },
                     "hourInterval": {
                         "type": "integer",
                         "description": "Hour of the day wanted for windspeed, default is 12 (noon)"
                     },
                     
                 },
-                "required": ["date_from_str", "user_onc_token"],
+                "required": ["date_from_str"],
             },
         },  
     },
@@ -293,12 +293,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "End date in YYYY-MM-DD format (e.g. \"2024-02-01\")."
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC token for API access. This is required to access the data.",
-                    }
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC token for API access. This is required to access the data.",
+                    # }
                 },
-                "required": ["date_from_str", "date_to_str", "user_onc_token"],
+                "required": ["date_from_str", "date_to_str"],
             },
         },
     },
