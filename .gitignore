@@ -184,3 +184,6 @@ cython_debug/
 /backend-api/db/*.db
 
 .vscode/launch.json
+
+alembic
+alembic.ini

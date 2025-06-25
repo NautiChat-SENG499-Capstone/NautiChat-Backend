@@ -124,7 +124,6 @@ jobs:
           image:    ${{ env.IMAGE_NAME }}:${{ github.sha }}
           flags: |
             --allow-unauthenticated
-            --memory=4Gi
           env_vars: |
             ENV=production
             SUPABASE_DB_URL: "${{ secrets.SUPABASE_DB_URL }}"
