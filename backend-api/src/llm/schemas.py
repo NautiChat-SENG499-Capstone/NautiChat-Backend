@@ -43,5 +43,5 @@ class CreateConversationBody(BaseModel):
 class CreateLLMQuery(BaseModel):
     """Payload sent when querying LLM"""
 
-    input: Annotated[str, Field(min_length=1, max_length=1000)]
+    input: str
     conversation_id: int
