@@ -151,7 +151,7 @@ class LLM:
                         except json.JSONDecodeError:
                             function_args = {}
                         # print(f"Calling function: {function_name} with args: {function_args}")
-                        function_response = await self.call_tool(self.available_functions[function_name], function_args or {}, user_onc_token=self.env.get_onc_token())
+                        function_response = await self.call_tool(self.available_functions[function_name], function_args or {}, user_onc_token=user_onc_token or self.env.get_onc_token())
                         messages.append(
                             {
                                 "tool_call_id": tool_call.id,

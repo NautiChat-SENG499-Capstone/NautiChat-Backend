@@ -16,8 +16,8 @@ class Message(BaseModel):
     message_id: int
     conversation_id: int
     user_id: int
-    input: Annotated[str, Field(min_length=1, max_length=1000)]
-    response: Annotated[str, Field(min_length=1, max_length=1000)]
+    input: Annotated[str, Field(min_length=1, max_length=100000000000)]
+    response: Annotated[str, Field(min_length=1, max_length=100000000000)]
     feedback: Optional[Feedback] = None
 
 
