@@ -14,7 +14,6 @@ from src.admin.router import router as admin_router
 from src.auth.router import router as auth_router
 from src.llm.router import router as llm_router
 from src.database import DatabaseSessionManager, init_redis
-from src.middleware import RateLimitMiddleware  # Custom middleware for rate limiting
 from src.settings import get_settings  # Settings management for environment variables
 from LLM.core import LLM
 from LLM.Environment import Environment  # Importing Environment to initialize LLM
@@ -117,8 +116,7 @@ def create_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RateLimitMiddleware)
-    logger.info("CORS and Rate Limit Middleware added.")
+    logger.info("CORS middleware added.")
 
     # Add a root endpoint for testing
     @app.get("/")

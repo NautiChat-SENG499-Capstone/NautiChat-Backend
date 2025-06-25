@@ -8,6 +8,14 @@ ENV HF_HOME=/opt/hf-cache \
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    libomp-dev \
+    python3-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
 

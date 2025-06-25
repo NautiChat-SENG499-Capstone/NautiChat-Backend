@@ -1,4 +1,3 @@
-import asyncio
 from typing import Optional
 import anyio
 
@@ -11,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware  # Base class for custo
 
 # TODO: There should be try/except for catching Redis Errors (If Redis is unavailable)
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, window_sec: int = 30, max_requests: int = 10):
+    def __init__(self, app, window_sec: int = 30, max_requests: int = 30):
         super().__init__(app)
         self.window_sec = window_sec  # Time window in seconds
         self.max_requests = max_requests  # Max allowed requests in time window
@@ -21,7 +20,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # and set the expiration time to window_sec
         await redis.set(key, self.max_requests, ex=self.window_sec, nx=True)
         cache_val: Optional[bytes] = await redis.get(key)
-        
+
         if cache_val is not None:
             requests_remaining = int(cache_val)
             if requests_remaining > 0:
@@ -53,7 +52,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     raise TimeoutError("Request exceeded 30s")
         except TimeoutError:
             return JSONResponse(
-                status_code=504, 
+                status_code=504,
                 content={"detail": "Request timed out"},
             )
         return response
