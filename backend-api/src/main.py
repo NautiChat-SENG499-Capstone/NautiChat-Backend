@@ -2,7 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager  # Used to manage async app startup/shutdown events
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware  # Enables frontend-backend communications via CORS
 
 
@@ -16,13 +16,10 @@ from src.llm.router import router as llm_router
 from src.database import DatabaseSessionManager, init_redis
 from src.middleware import RateLimitMiddleware  # Custom middleware for rate limiting
 from src.settings import get_settings  # Settings management for environment variables
-from LLM.LLM import LLM
+from LLM.core import LLM
 from LLM.Environment import Environment  # Importing Environment to initialize LLM
-from starlette.concurrency import run_in_threadpool
-import logging
 import sys
 import traceback
-import asyncio
 
 # Configure logging to work with uvicorn
 logger = logging.getLogger("nautichat")
@@ -37,6 +34,7 @@ if not logger.handlers:
     logger.addHandler(console_handler)
 
 logger.info("NAUTICHAT BACKEND STARTING")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -62,16 +60,8 @@ async def lifespan(app: FastAPI):
 
         logger.info("Initializing LLM (this may take a while)...")
         try:
-            # Add timeout to prevent infinite hanging
-            llm = await asyncio.wait_for(
-                run_in_threadpool(LLM, app.state.env), 
-                timeout=600  # 10 minute timeout
-            )
-            app.state.llm = llm
+            app.state.llm = LLM(app.state.env)
             logger.info("LLM instance initialized successfully.")
-        except asyncio.TimeoutError:
-            logger.error("LLM initialization timed out after 10 minutes")
-            raise RuntimeError("LLM initialization timed out")
         except Exception as e:
             logger.error(f"LLM initialization failed: {e}")
             raise RuntimeError(f"LLM initialization failed: {e}")
@@ -101,11 +91,12 @@ async def lifespan(app: FastAPI):
 
     # Teardown
     logger.info("Shutting down application...")
-    if hasattr(app.state, 'session_manager'):
+    if hasattr(app.state, "session_manager"):
         await app.state.session_manager.close()
-    if hasattr(app.state, 'redis_client'):
+    if hasattr(app.state, "redis_client"):
         await app.state.redis_client.aclose()
     logger.info("Resources cleaned up.")
+
 
 def create_app():
     logger.info("Creating FastAPI app...")
@@ -113,7 +104,7 @@ def create_app():
         title="NautiChat Backend API",
         description="Backend API for NautiChat application",
         version="1.0.0",
-        lifespan=lifespan
+        lifespan=lifespan,
     )
 
     origins = ["http://localhost:3000", "https://nautichat.vercel.app"]
@@ -133,23 +124,13 @@ def create_app():
     @app.get("/")
     async def root():
         logger.info("Root endpoint accessed")
-        return {
-            "message": "NautiChat Backend API is running!", 
-            "docs": "/docs",
-            "health": "/health",
-            "status": "ready"
-        }
+        return {"message": "NautiChat Backend API is running!", "docs": "/docs", "health": "/health", "status": "ready"}
 
     @app.get("/health")
     async def health_check():
         """Health check endpoint"""
         logger.info("Health check endpoint accessed")
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "redis": "connected",
-            "llm": "initialized"
-        }
+        return {"status": "healthy", "database": "connected", "redis": "connected", "llm": "initialized"}
 
     # Register Routes from modules (auth, llm, admin)
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
