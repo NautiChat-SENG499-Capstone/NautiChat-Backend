@@ -45,7 +45,6 @@ class LLM:
         self.env = env
         self.client = env.get_client()
         self.model = env.get_model()
-        self.model = "llama-3.1-8b-instant"
 
         if LLM.__shared is None:
             logging.info("First LLM() building shared embedder/cross-encoder")
@@ -169,7 +168,11 @@ class LLM:
                         )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
                 second_response = self.client.chat.completions.create(
-                    model=self.model, messages=messages, max_completion_tokens=4096, temperature=0.25, stream=False
+                    model=self.model, 
+                    messages=messages, 
+                    max_completion_tokens=4096, 
+                    temperature=0.25, 
+                    stream=False
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
                 print("Second response:", second_response)
