@@ -75,7 +75,7 @@ class LLM:
 
     async def run_conversation(
         self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None
-    ):
+    ) -> dict:
         try:
             set_request_id("")
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -187,7 +187,7 @@ class LLM:
                     }
             else:
                 print(response_message)
-                return response_message.content
+                return {"status": 200, "response": response_message.content}
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
             return {
