@@ -4,6 +4,7 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 import sys
 import pandas as pd
 import json
+from collections import OrderedDict
 from LLM.toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
@@ -95,7 +96,7 @@ class LLM:
 
                 You are NEVER required to generate code in any language.
 
-
+                USE the last context of the conversation as the user question to be answered. The previous messages in the conversation are provided to you as context only!
                 Do NOT add follow-up suggestions, guesses, or recommendations.
 
                 DO NOT guess what the tool might return.
@@ -144,6 +145,8 @@ class LLM:
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 print("tools calls:", tool_calls)
+                tool_calls = list(OrderedDict(((call.id, call.function.name, call.function.arguments), call) for call in tool_calls).values())
+                print("Unique tool calls:", tool_calls)
                 for tool_call in tool_calls:
                     # print(tool_call)
                     # print()
