@@ -140,6 +140,7 @@ class LLM:
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
             # print(tool_calls)
+            DownloadDone = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 print("tools calls:", tool_calls)
@@ -149,6 +150,11 @@ class LLM:
                     function_name = tool_call.function.name
 
                     if function_name in self.available_functions:
+                        if function_name == "generate_download_codes":
+                            # Special case for download codes
+                            print("Generating download codes...")
+                            set_request_id("")
+                            DownloadDone = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
                         except json.JSONDecodeError:
@@ -159,6 +165,15 @@ class LLM:
                             function_args or {},
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
+                        if(DownloadDone):
+                            print("download done so returning response now")
+                            DownloadDone = False
+                            function_response = {
+                                "status": 201,
+                                "response": "Your download is being processed. ",
+                                "dpRequestId": get_request_id(),
+                            }
+                            return function_response
                         messages.append(
                             {
                                 "tool_call_id": tool_call.id,
