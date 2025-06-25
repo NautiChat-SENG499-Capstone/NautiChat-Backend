@@ -184,3 +184,9 @@ cython_debug/
 /backend-api/db/*.db
 
 .vscode/launch.json
+
+package-lock.json
+package.json
+node_modules
+supabase
+.vscode

@@ -20,6 +20,7 @@ class Message(BaseModel):
     user_id: int
     input: str
     response: str
+    download_links: Optional[List[str]] = []
     feedback: Optional[Feedback] = None
 
 
