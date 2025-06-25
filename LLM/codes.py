@@ -2,10 +2,6 @@ from onc import ONC
 from datetime import datetime, timedelta, timezone
 from Environment import Environment
 
-env = Environment()
-
-onc = ONC(env.get_onc_token())
-
 
 async def generate_download_codes(
     deviceCategory: str,
@@ -14,9 +10,11 @@ async def generate_download_codes(
     extension: str,
     dateFrom: str,
     dateTo: str,
+    user_onc_token: str,
 ):
     from LLM import set_request_id, get_request_id
-
+    env = Environment()
+    onc = ONC(user_onc_token) if user_onc_token else ONC(env.get_onc_token())
     """
     Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, 
     so that users request to download data, over a specified time period.

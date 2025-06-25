@@ -1,23 +1,23 @@
 from onc import ONC
 from datetime import datetime, timedelta
 
-import os
-from dotenv import load_dotenv
-from pathlib import Path
+# import os
+# from dotenv import load_dotenv
+# from pathlib import Path
 
-# Load API key and location code from .env
-env_path = Path(__file__).resolve().parent / ".env"
-load_dotenv(dotenv_path=env_path)
-ONC_TOKEN = os.getenv("ONC_TOKEN")
-CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")  # Change for a different location
-cambridgeBayLocations = ["CBY", "CBYDS", "CBYIP", "CBYIJ", "CBYIU", "CBYSP", "CBYSS", "CBYSU", "CF240"]
+# # Load API key and location code from .env
+# env_path = Path(__file__).resolve().parent / ".env"
+# load_dotenv(dotenv_path=env_path)
+# ONC_TOKEN = os.getenv("ONC_TOKEN")
+# CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")  # Change for a different location
+# cambridgeBayLocations = ["CBY", "CBYDS", "CBYIP", "CBYIJ", "CBYIU", "CBYSP", "CBYSS", "CBYSU", "CF240"]
 
-# Create ONC object
-onc = ONC(ONC_TOKEN)
+# # Create ONC object
+# onc = ONC(ONC_TOKEN)
 
 
 # What was the air temperature in Cambridge Bay on this day last year?
-async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str):
+async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user_onc_token: str):
     """
     Get daily air temperature statistics for Cambridge Bay.
     Args:
@@ -32,6 +32,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str):
             "samples": 1440
           }
     """
+    onc = ONC(user_onc_token)
     # Build 24-hour window
     date_to_str = (
         datetime.strptime(date_from_str, "%Y-%m-%d")
@@ -71,7 +72,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str):
 
 
 # Can you give me an example of 24 hours of oxygen data?
-async def get_oxygen_data_24h(date_from_str: str = "2024-06-24"):#Date guaranteed to have data
+async def get_oxygen_data_24h(user_onc_token: str, date_from_str: str = "2024-06-24"):#Date guaranteed to have data
     """
     Get 24 hours of dissolved oxygen data for Cambridge Bay.
     Args:
@@ -81,7 +82,7 @@ async def get_oxygen_data_24h(date_from_str: str = "2024-06-24"):#Date guarantee
         sampled at 10 minute intervals.
     """
     # Build 24-hour window
-    
+    onc = ONC(user_onc_token)
     date_to_str = (
         datetime.strptime(date_from_str, "%Y-%m-%d")
         + timedelta(days=1)
@@ -118,33 +119,34 @@ async def get_oxygen_data_24h(date_from_str: str = "2024-06-24"):#Date guarantee
 
 
 # I’m interested in data on ship noise for July 31, 2024 / Get me the acoustic data for the last day in July of 2024
-async def get_ship_noise_acoustic_for_date(day_str: str):
-    """
-    Get 24 hours of ship noise data for Cambridge Bay on a specific date.
-    Args:
-        day_str (str): Date in YYYY-MM-DD format
-    Returns:
-        JSON string of the scalar data response
-    """
-    # Define 24 hour window
-    date_from_str = day_str
-    # Parse into datetime object to add 1 day (accounts for 24-hour period)
-    date_to = datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days = 1)
-    date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
+# async def get_ship_noise_acoustic_for_date(day_str: str,  user_onc_token: str):
+#     """
+#     Get 24 hours of ship noise data for Cambridge Bay on a specific date.
+#     Args:
+#         day_str (str): Date in YYYY-MM-DD format
+#     Returns:
+#         JSON string of the scalar data response
+#     """
+#     onc = ONC(user_onc_token)
+#     # Define 24 hour window
+#     date_from_str = day_str
+#     # Parse into datetime object to add 1 day (accounts for 24-hour period)
+#     date_to = datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days = 1)
+#     date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
 
-    # Fetch relevant data through API request
-    params = {
-        "locationCode": {CAMBRIDGE_LOCATION_CODE},
-        "deviceCategoryCode": "HYDROPHONE",
-        "propertyCode": "voltage",
-        "dateFrom": {date_from_str},
-        "dateTo": {date_to_str},
-        "rowLimit": 250,
-        "token": {ONC_TOKEN}
-    }
-    data = onc.getScalardata(params)
+#     # Fetch relevant data through API request
+#     params = {
+#         "locationCode": {CAMBRIDGE_LOCATION_CODE},
+#         "deviceCategoryCode": "HYDROPHONE",
+#         "propertyCode": "voltage",
+#         "dateFrom": {date_from_str},
+#         "dateTo": {date_to_str},
+#         "rowLimit": 250,
+#         "token": {ONC_TOKEN}
+#     }
+#     data = onc.getScalardata(params)
 
-    return data
+#     return data
 
 
 # Can I see the noise data for July 31, 2024 as a spectogram?
@@ -152,7 +154,7 @@ async def get_ship_noise_acoustic_for_date(day_str: str):
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
-async def get_wind_speed_at_timestamp(date_from_str: str, hourInterval: int = 12):
+async def get_wind_speed_at_timestamp(date_from_str: str,  user_onc_token: str, hourInterval: int = 12):
     """
     Get wind speed at Cambridge Bay (in m/s) at the specified timestamp.
     Args:
@@ -161,6 +163,7 @@ async def get_wind_speed_at_timestamp(date_from_str: str, hourInterval: int = 12
     Returns:
         float: windspeed at that time (in m/s), or the nearest sample.
     """
+    onc = ONC(user_onc_token)
     # Parse into datetime and get the date
     date_time_date_from_str = datetime.strptime(date_from_str, "%Y-%m-%d")
     # Parse into datetime object to add 1 day (accounts for 24-hour period)
@@ -207,7 +210,7 @@ async def get_wind_speed_at_timestamp(date_from_str: str, hourInterval: int = 12
 
 
 # How thick was the ice in February this year?
-async def get_ice_thickness(date_from_str: str, date_to_str: str):
+async def get_ice_thickness(date_from_str: str, date_to_str: str,  user_onc_token: str):
     """
     Get sea-ice thickness for a range of time in Cambridge Bay.
     Args:
@@ -215,6 +218,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str):
     Returns:
         JSON string of the scalar data response
     """
+    onc = ONC(user_onc_token)
     # Include the full end_date by adding one day (API dateTo is exclusive)
     # date_to_str = (
     #     datetime.strptime(date_from_str, "%Y-%m-%d")

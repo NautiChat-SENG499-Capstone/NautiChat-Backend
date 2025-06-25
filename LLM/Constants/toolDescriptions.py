@@ -23,8 +23,14 @@ toolDescriptions = [
             "description": "Get a list of properties available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
             "parameters": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
+                    }
+                },
             },
+            "required": ["user_onc_token"],
         },
     },
     {
@@ -34,7 +40,12 @@ toolDescriptions = [
             "description": (
                 'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n Note: This function does not take any parameters'
             ),
-            "parameters": {"type": "object", "properties": {}, "required": []},
+            "parameters": {"type": "object", "properties": {
+                "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
+                    }
+            }, "required": ["user_onc_token"]},
         },
     },
     # {
@@ -66,9 +77,13 @@ toolDescriptions = [
                     "day_str": {
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format for when daily sea temperature is wanted for",
+                    },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
                     }
                 },
-                "required": ["day_str"],
+                "required": ["day_str", "user_onc_token"],
                 "type": "object",
             },
         },
@@ -88,8 +103,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
                     },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
+                    }
                 },
-                "required": ["dateFrom", "dateTo"],
+                "required": ["dateFrom", "dateTo", "user_onc_token"],
                 "type": "object",
             },
         },
@@ -150,8 +169,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "The end date of the data request.",
                     },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
+                    },
                 },
-                "required": ["deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"],
+                "required": ["deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom", "user_onc_token"],
                 "type": "object",
             },
             "returns": {
@@ -177,8 +200,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-23\")."
                     },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
+                    }
                 },
-                "required": ["date_from_str"]
+                "required": ["date_from_str", "user_onc_token"]
             },
         },
     },
@@ -190,32 +217,40 @@ toolDescriptions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "date_from_str": {
-                    "type": "string",
-                    "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
                     },
-                },
-                "required": []
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_ship_noise_for_date",
-            "description": "Get 24 hours of ship-noise data for Cambridge Bay on a specific date, returned as a JSON string of the full time series.",
-            "parameters": {
-                "type": "object",
-                "properties": {
                     "date_from_str": {
                         "type": "string",
-                        "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve ship-noise data."
-                    },
+                        "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
+                    }
                 },
-                "required": ["date_from_str"]
+                "required": ["user_onc_token"],
             },
         },
     },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "get_ship_noise_for_date",
+    #         "description": "Get 24 hours of ship-noise data for Cambridge Bay on a specific date, returned as a JSON string of the full time series.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "date_from_str": {
+    #                     "type": "string",
+    #                     "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve ship-noise data."
+    #                 },
+    #                 "user_onc_token": {
+    #                     "type": "string",
+    #                     "description": "User's ONC token for API access. This is required to access the data.",
+    #                 }
+    #             },
+    #             "required": ["date_from_str", "user_onc_token"]
+    #         },
+    #     },
+    # },
     {
         "type": "function",
         "function": {
@@ -228,12 +263,17 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date to get wind speed in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
                     },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
+                    },
                     "hourInterval": {
                         "type": "integer",
                         "description": "Hour of the day wanted for windspeed, default is 12 (noon)"
                     },
+                    
                 },
-                "required": ["date_from_str"]
+                "required": ["date_from_str", "user_onc_token"],
             },
         },  
     },
@@ -253,8 +293,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "End date in YYYY-MM-DD format (e.g. \"2024-02-01\")."
                     },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC token for API access. This is required to access the data.",
+                    }
                 },
-                "required": ["date_from_str", "date_to_str"]
+                "required": ["date_from_str", "date_to_str", "user_onc_token"],
             },
         },
     },
