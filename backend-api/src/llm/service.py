@@ -1,16 +1,26 @@
+import asyncio
+import logging
 from typing import List
 
+import httpx
 from fastapi import HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.auth.schemas import UserOut
-from .schemas import Conversation, Message, Feedback, CreateLLMQuery, CreateConversationBody
-from .models import Conversation as ConversationModel, Message as MessageModel, Feedback as FeedbackModel
-from .utils import get_context
 
-import logging
+from .models import Conversation as ConversationModel
+from .models import Feedback as FeedbackModel
+from .models import Message as MessageModel
+from .schemas import (
+    Conversation,
+    CreateConversationBody,
+    CreateLLMQuery,
+    Feedback,
+    Message,
+)
+from .utils import get_context
 
 logger = logging.getLogger("nautichat")
 
@@ -70,6 +80,35 @@ async def get_conversation(
     return conversation
 
 
+async def get_data_download_link(request_id: str, onc_token: str) -> str:
+    """Get a download link for the data associated with a request_id"""
+
+    # Run the data download request
+    async with httpx.AsyncClient() as client:
+        for _ in range(10):
+            url = (
+                f"https://data.oceannetworks.ca/api/dataProductDelivery/run?dpRequestId={request_id}&token={onc_token}"
+            )
+            response = await client.get(url)
+            data = response.json()[0]
+            logger.info(response)
+            logger.info(data)
+            if "status" in data and data["status"] == "complete":
+                # the request is complete, return the formed download link
+                run_id = data["dpRunId"]
+
+                # currently hardcoded (will download the first file available. there might be more than 1)
+                index = 1
+                return f"https://data.oceannetworks.ca/api/dataProductDelivery/download?dpRunId={run_id}&index={index}&token={onc_token}"
+            else:
+                await asyncio.sleep(2)
+        # raise exception if we timeout in the range
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to get download link for request_id {request_id}",
+        )
+
+
 async def generate_response(
     llm_query: CreateLLMQuery,
     current_user: UserOut,
@@ -115,10 +154,14 @@ async def generate_response(
         )
 
         message.response = response["response"]
+        # Handle queueing data download
         if "dpRequestId" in response:
-            logger.info(f"we got a request ID !!!!!! dpRequestId: {response['dpRequestId']['dpRequestId']}")
-        else:
-            logger.info("No dpRequestId found in response, this is not a download request.")
+            logger.info(f"Got a data product request id back from LLM {response['dpRequestId']['dpRequestId']}")
+            request_id = response["dpRequestId"]["dpRequestId"]
+            message.request_id = request_id
+            # Right now, backend is just waiting until the download is ready so we can return direct link to frontend
+            # A better way would be for the request_id to be returned to frontend directly and they poll onc for the download link
+            message.download_link = await get_data_download_link(request_id, current_user.onc_token)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating response from LLM: {str(e)}")
 

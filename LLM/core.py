@@ -3,9 +3,7 @@ import logging
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 import sys
 import pandas as pd
-import asyncio
 import json
-from datetime import datetime
 from LLM.toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
@@ -22,7 +20,6 @@ from LLM.toolsSprint2 import (
 )
 from LLM.codes import generate_download_codes
 from LLM.RAG import RAG, JinaEmbeddings
-from LLM.Environment import Environment
 from LLM.Constants.toolDescriptions import toolDescriptions
 
 logger = logging.getLogger(__name__)
@@ -41,13 +38,13 @@ def get_request_id():
 
 
 class LLM:
-    __shared: dict[str, object] | None = None         
+    __shared: dict[str, object] | None = None
     # singleton cache
 
     def __init__(self, env, *, RAG_instance=None):
         self.env = env
         self.client = env.get_client()
-        self.model  = env.get_model()
+        self.model = env.get_model()
         self.model = "llama-3.1-8b-instant"
 
         if LLM.__shared is None:
@@ -71,12 +68,14 @@ class LLM:
             "generate_download_codes": generate_download_codes,
             "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
             "get_oxygen_data_24h": get_oxygen_data_24h,
-            #"get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
+            # "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
         }
 
-    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None):
+    async def run_conversation(
+        self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None
+    ):
         try:
             set_request_id("")
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -125,7 +124,7 @@ class LLM:
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
-            #print("Vector DB Response:", vector_content)
+            # print("Vector DB Response:", vector_content)
             messages.append({"role": "system", "content": vector_content})
 
             response = self.client.chat.completions.create(
@@ -155,7 +154,11 @@ class LLM:
                         except json.JSONDecodeError:
                             function_args = {}
                         print(f"Calling function: {function_name} with args: {function_args}")
-                        function_response = await self.call_tool(self.available_functions[function_name], function_args or {}, user_onc_token=user_onc_token or self.env.get_onc_token())
+                        function_response = await self.call_tool(
+                            self.available_functions[function_name],
+                            function_args or {},
+                            user_onc_token=user_onc_token or self.env.get_onc_token(),
+                        )
                         messages.append(
                             {
                                 "tool_call_id": tool_call.id,
@@ -166,45 +169,38 @@ class LLM:
                         )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
                 second_response = self.client.chat.completions.create(
-                    model=self.model, 
-                    messages=messages, 
-                    max_completion_tokens=4096, 
-                    temperature=0.25,
-                    stream=False
+                    model=self.model, messages=messages, max_completion_tokens=4096, temperature=0.25, stream=False
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
                 print("Second response:", second_response)
-                respone = second_response.choices[0].message.content
-                return respone
-                # if(dpRequestId):
-                    # return {
-                    #     "status": 201,
-                    #     "response": response,
-                    #     "dpRequestId": dpRequestId,
-                    # }
-                # else:
-                    # return {
-                    #     "status": 200,
-                    #     "response": response,
-                    # }
+                response = second_response.choices[0].message.content
+                if dpRequestId:
+                    return {
+                        "status": 201,
+                        "response": response,
+                        "dpRequestId": dpRequestId,
+                    }
+                else:
+                    return {
+                        "status": 200,
+                        "response": response,
+                    }
             else:
                 print(response_message)
                 return response_message.content
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
-            return "Sorry, your request failed. Please try again."
-            # return {
-            #     "status": 400,
-            #     "response": "Sorry, your request failed. Please try again.",
-            # }
-        
+            return {
+                "status": 400,
+                "response": "Sorry, your request failed. Please try again.",
+            }
+
     async def call_tool(self, fn, args, user_onc_token):
         try:
             return await fn(**args, user_onc_token=user_onc_token)
         except TypeError:
             # fallback if fn doesn't accept user_onc_token
             return await fn(**args)
-
 
 
 # async def main():
