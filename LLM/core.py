@@ -6,13 +6,19 @@ import pandas as pd
 import asyncio
 import json
 from datetime import datetime
-from typing import Optional
-from .toolsSprint1 import (
+from LLM.toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
+)
+from LLM.toolsSprint2 import (
+    get_daily_air_temperature_stats_cambridge_bay,
+    get_oxygen_data_24h,
+    # get_ship_noise_acoustic_for_date,
+    get_wind_speed_at_timestamp,
+    get_ice_thickness,
 )
 from LLM.codes import generate_download_codes
 from LLM.RAG import RAG, JinaEmbeddings
@@ -42,6 +48,7 @@ class LLM:
         self.env = env
         self.client = env.get_client()
         self.model  = env.get_model()
+        self.model = "llama-3.1-8b-instant"
 
         if LLM.__shared is None:
             logging.info("First LLM() building shared embedder/cross-encoder")
@@ -62,9 +69,14 @@ class LLM:
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
             "get_active_instruments_at_cambridge_bay": get_active_instruments_at_cambridge_bay,
             "generate_download_codes": generate_download_codes,
+            "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
+            "get_oxygen_data_24h": get_oxygen_data_24h,
+            #"get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
+            "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
+            "get_ice_thickness": get_ice_thickness,
         }
 
-    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = []):
+    async def run_conversation(self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None):
         try:
             set_request_id("")
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -90,6 +102,7 @@ class LLM:
                 DO NOT guess what the tool might return.
                 DO NOT say "I will now use the tool".
                 DO NOT try to reason about data availability.
+                Here is the user_onc_token: {user_onc_token}.
                 """
 
             messages = chatHistory + [
@@ -112,6 +125,7 @@ class LLM:
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
+            #print("Vector DB Response:", vector_content)
             messages.append({"role": "system", "content": vector_content})
 
             response = self.client.chat.completions.create(
@@ -123,11 +137,13 @@ class LLM:
                 max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
                 temperature=0.25,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
+            print("Response from LLM:", response)
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
             # print(tool_calls)
             if tool_calls:
                 # print("Tool calls detected, processing...")
+                print("tools calls:", tool_calls)
                 for tool_call in tool_calls:
                     # print(tool_call)
                     # print()
@@ -139,7 +155,7 @@ class LLM:
                         except json.JSONDecodeError:
                             function_args = {}
                         print(f"Calling function: {function_name} with args: {function_args}")
-                        function_response = await self.call_tool(self.available_functions[function_name], function_args or {}, user_onc_token=self.env.get_onc_token())
+                        function_response = await self.call_tool(self.available_functions[function_name], function_args or {}, user_onc_token=user_onc_token or self.env.get_onc_token())
                         messages.append(
                             {
                                 "tool_call_id": tool_call.id,
@@ -150,12 +166,16 @@ class LLM:
                         )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
                 second_response = self.client.chat.completions.create(
-                    model=self.model, messages=messages, max_completion_tokens=4096, temperature=0.25
+                    model=self.model, 
+                    messages=messages, 
+                    max_completion_tokens=4096, 
+                    temperature=0.25,
+                    stream=False
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
-                # print("Second response:", second_response)
+                print("Second response:", second_response)
                 respone = second_response.choices[0].message.content
-                return second_response.choices[0].message.content
+                return respone
                 # if(dpRequestId):
                     # return {
                     #     "status": 201,
@@ -168,6 +188,7 @@ class LLM:
                     #     "response": response,
                     # }
             else:
+                print(response_message)
                 return response_message.content
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
@@ -186,24 +207,24 @@ class LLM:
 
 
 
-async def main():
+# async def main():
 
-    env = Environment()
-    RAG_instance = RAG(env)
-    print("RAG instance created successfully.")
-    try:
-        LLM_Instance = LLM(env=env, RAG_instance=RAG_instance)  # Create an instance of the LLM class
-        user_prompt = input("Enter your first question (or 'exit' to quit): ")
-        chatHistory = []
-        while user_prompt not in ["exit", "quit"]:
-            response = await LLM_Instance.run_conversation(user_prompt=user_prompt, chatHistory=chatHistory)
-            print(response)
-            response = {"role": "system", "content": response}
-            user_prompt = input("Enter your next question (or 'exit' to quit): ")
+#     env = Environment()
+#     RAG_instance = RAG(env)
+#     print("RAG instance created successfully.")
+#     try:
+#         LLM_Instance = LLM(env=env, RAG_instance=RAG_instance)  # Create an instance of the LLM class
+#         user_prompt = input("Enter your first question (or 'exit' to quit): ")
+#         chatHistory = []
+#         while user_prompt not in ["exit", "quit"]:
+#             response = await LLM_Instance.run_conversation(user_prompt=user_prompt, chatHistory=chatHistory)
+#             print(response)
+#             response = {"role": "system", "content": response}
+#             user_prompt = input("Enter your next question (or 'exit' to quit): ")
 
-    except Exception as e:
-        print("Error occurred:", e)
+#     except Exception as e:
+#         print("Error occurred:", e)
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+# if __name__ == "__main__":
+#     asyncio.run(main())
