@@ -174,7 +174,7 @@ toolDescriptions = [
                     #     "description": "User's ONC token for API access. This is required to access the data.",
                     # },
                 },
-                "required": ["deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"],
+                "required": [], #"deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"
                 "type": "object",
             },
             "returns": {

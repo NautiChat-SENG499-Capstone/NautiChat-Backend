@@ -5,38 +5,29 @@ import sys
 import pandas as pd
 import json
 from collections import OrderedDict
-from LLM.toolsSprint1 import (
+from Environment import Environment
+import asyncio
+from toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
 )
-from LLM.toolsSprint2 import (
+from toolsSprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_oxygen_data_24h,
     # get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
     get_ice_thickness,
 )
-from LLM.datatDownload import generate_download_codes
-from LLM.RAG import RAG, JinaEmbeddings
-from LLM.Constants.toolDescriptions import toolDescriptions
+from datatDownload import generate_download_codes
+from RAG import RAG, JinaEmbeddings
+from Constants.toolDescriptions import toolDescriptions
 
 logger = logging.getLogger(__name__)
 
 sys.modules["LLM"] = sys.modules[__name__]
-dpRequestId: str = ""
-
-
-def set_request_id(value: str) -> None:
-    global dpRequestId
-    dpRequestId = value
-
-
-def get_request_id():
-    return dpRequestId
-
 
 class LLM:
     __shared: dict[str, object] | None = None
@@ -75,10 +66,9 @@ class LLM:
         }
 
     async def run_conversation(
-        self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None
+        self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None, obtainedParams: dict = {}
     ) -> dict:
         try:
-            set_request_id("")
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
             if startingPrompt is None:
                 startingPrompt = f"""
@@ -137,11 +127,11 @@ class LLM:
                 max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
                 temperature=0.25,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
-            print("Response from LLM:", response)
+            #print("Response from LLM:", response)
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
             # print(tool_calls)
-            DownloadDone = False
+            DoingDataDownload = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 print("tools calls:", tool_calls)
@@ -156,27 +146,54 @@ class LLM:
                         if function_name == "generate_download_codes":
                             # Special case for download codes
                             print("Generating download codes...")
-                            set_request_id("")
-                            DownloadDone = True
+                            DoingDataDownload = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
                         except json.JSONDecodeError:
                             function_args = {}
                         print(f"Calling function: {function_name} with args: {function_args}")
+                        if (DoingDataDownload):
+                            print("function_args: ", function_args)
+                            print("**function_args: ",**function_args)
+                            function_args["obtainedParams"] = obtainedParams
+                           
                         function_response = await self.call_tool(
                             self.available_functions[function_name],
                             function_args or {},
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
-                        if(DownloadDone):
-                            print("download done so returning response now")
-                            DownloadDone = False
-                            function_response = {
-                                "status": 201,
-                                "response": "Your download is being processed. ",
-                                "dpRequestId": get_request_id(),
-                            }
-                            return function_response
+                        if(DoingDataDownload):
+                            if (function_response.get("status") == "ParamsNeeded"):
+                                print("Download parameters needed, returning response now")
+                                function_response = {
+                                    "status": "ParamsNeeded",
+                                    "response": function_response.get("message"),
+                                    "obtainedParams": function_response.get("obtainedParams", {}),
+                                }
+                                return function_response
+                            elif (function_response.get("status") == "queued"):
+                                print("download done so returning response now")
+                                DoingDataDownload = False
+                                dpRequestId = response.dpRequestId
+                                doi = response.doi
+                                citation = response.citation
+                                function_response = {
+                                    "status": 201,
+                                    "response": "Your download is being processed. ",
+                                    "dpRequestId": dpRequestId,
+                                    "doi": doi,
+                                    "citation": citation,
+                                }
+                                return function_response
+                            elif (function_response.get("status") == "error"):
+                                print("Download error so returning response now")
+                                DoingDataDownload = False
+                                function_response = {
+                                    "status": 400,
+                                    "response": function_response.get("message", "An error occurred while processing your download request."),
+                                }
+                                return function_response
+                            
                         messages.append(
                             {
                                 "tool_call_id": tool_call.id,
@@ -190,19 +207,12 @@ class LLM:
                     model=self.model, messages=messages, max_completion_tokens=4096, temperature=0.25, stream=False
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
-                print("Second response:", second_response)
+                print("Second response: ", second_response.choices[0].message)
                 response = second_response.choices[0].message.content
-                if dpRequestId:
-                    return {
-                        "status": 201,
-                        "response": response,
-                        "dpRequestId": dpRequestId,
-                    }
-                else:
-                    return {
-                        "status": 200,
-                        "response": response,
-                    }
+                return {
+                    "status": 200,
+                    "response": response,
+                }
             else:
                 print(response_message)
                 return {"status": 200, "response": response_message.content}
@@ -221,24 +231,39 @@ class LLM:
             return await fn(**args)
 
 
-# async def main():
+async def main():
 
-#     env = Environment()
-#     RAG_instance = RAG(env)
-#     print("RAG instance created successfully.")
-#     try:
-#         LLM_Instance = LLM(env=env, RAG_instance=RAG_instance)  # Create an instance of the LLM class
-#         user_prompt = input("Enter your first question (or 'exit' to quit): ")
-#         chatHistory = []
-#         while user_prompt not in ["exit", "quit"]:
-#             response = await LLM_Instance.run_conversation(user_prompt=user_prompt, chatHistory=chatHistory)
-#             print(response)
-#             response = {"role": "system", "content": response}
-#             user_prompt = input("Enter your next question (or 'exit' to quit): ")
+    env = Environment()
+    RAG_instance = RAG(env)
+    print("RAG instance created successfully.")
+    try:
+        LLM_Instance = LLM(env=env, RAG_instance=RAG_instance)  # Create an instance of the LLM class
+        user_prompt = input("Enter your first question (or 'exit' to quit): ")
+        chatHistory = []
+        obtainedParams = {}
+        while user_prompt not in ["exit", "quit"]:
+            response = await LLM_Instance.run_conversation(user_prompt=user_prompt, chatHistory=chatHistory, obtainedParams=obtainedParams)
+            print()
+            print()
+            print()
+            if (response.status == 201):
+                print("Download request initiated. Request ID:", response.dpRequestId)
+                print("DOI:", response.doi)
+                print("Citation:", response.citation)
+                obtainedParams = {}
+            elif (response.status == "ParamsNeeded"):
+                print("Error:", response.response)
+                obtainedParams = response.obtainedParams
+                print("Obtained parameters:", obtainedParams)
+            else:
+                print("Response:", response.response)
+            response = {"role": "system", "content": response}
+            chatHistory.append(user_prompt)
+            user_prompt = input("Enter your next question (or 'exit' to quit): ")
 
-#     except Exception as e:
-#         print("Error occurred:", e)
+    except Exception as e:
+        print("Error occurred:", e)
 
 
-# if __name__ == "__main__":
-#     asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

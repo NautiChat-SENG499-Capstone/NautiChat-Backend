@@ -5,7 +5,6 @@ from sentence_transformers import SentenceTransformer
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_core.documents import Document
-from qdrant_client.http.models import VectorParams, Distance
 import pandas as pd
 from LLM.Environment import Environment
 
@@ -36,7 +35,6 @@ class RAG:
         env: Environment,
         *,
         embedder: Embeddings | None = None,
-        cross_encoder: HuggingFaceCrossEncoder | None = None,
         qdrant_client: QdrantClient | None = None,
     ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
