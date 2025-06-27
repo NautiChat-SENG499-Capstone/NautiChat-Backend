@@ -6,7 +6,8 @@ from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_core.documents import Document
 import pandas as pd
-from LLM.Environment import Environment
+#from LLM.Environment import Environment
+from Environment import Environment
 
 
 class JinaEmbeddings(Embeddings):

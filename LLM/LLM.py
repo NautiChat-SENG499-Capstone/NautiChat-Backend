@@ -1,6 +1,5 @@
 from datetime import datetime
 import logging
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 import sys
 import pandas as pd
 import json
@@ -21,8 +20,8 @@ from toolsSprint2 import (
     get_wind_speed_at_timestamp,
     get_ice_thickness,
 )
-from datatDownload import generate_download_codes
-from RAG import RAG, JinaEmbeddings
+from dataDownload import generate_download_codes
+from RAG import RAG
 from Constants.toolDescriptions import toolDescriptions
 
 logger = logging.getLogger(__name__)
@@ -30,7 +29,7 @@ logger = logging.getLogger(__name__)
 sys.modules["LLM"] = sys.modules[__name__]
 
 class LLM:
-    __shared: dict[str, object] | None = None
+    #__shared: dict[str, object] | None = None
     # singleton cache
 
     def __init__(self, env, *, RAG_instance=None):
@@ -39,19 +38,15 @@ class LLM:
         self.model = env.get_model()
         #self.model = "llama-3.1-8b-instant"
 
-        if LLM.__shared is None:
-            logging.info("First LLM() building shared embedder/cross-encoder")
-            LLM.__shared = {
-                "embedder": JinaEmbeddings(),
-                "cross": HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
-            }
+        # if LLM.__shared is None:
+        #     logging.info("First LLM() building shared embedder/cross-encoder")
+        #     LLM.__shared = {
+        #         "embedder": JinaEmbeddings(),
+        #         "cross": HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
+        #     }
 
-        shared = LLM.__shared
-        self.RAG_instance = RAG_instance or RAG(
-            env,
-            embedder=shared["embedder"],
-            cross_encoder=shared["cross"],
-        )
+        # shared = LLM.__shared
+        self.RAG_instance = RAG_instance if RAG_instance else RAG(env)  # Use provided RAG instance or create a new one
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
@@ -88,6 +83,8 @@ class LLM:
 
                 USE the last context of the conversation as the user question to be answered. The previous messages in the conversation are provided to you as context only!
                 Do NOT add follow-up suggestions, guesses, or recommendations.
+
+                For data download, do not add properties to the function call unless the user has provided them. 
 
                 DO NOT guess what the tool might return.
                 DO NOT say "I will now use the tool".
@@ -154,7 +151,7 @@ class LLM:
                         print(f"Calling function: {function_name} with args: {function_args}")
                         if (DoingDataDownload):
                             print("function_args: ", function_args)
-                            print("**function_args: ",**function_args)
+                            #print("**function_args: ",**function_args)
                             function_args["obtainedParams"] = obtainedParams
                            
                         function_response = await self.call_tool(
@@ -246,17 +243,18 @@ async def main():
             print()
             print()
             print()
-            if (response.status == 201):
-                print("Download request initiated. Request ID:", response.dpRequestId)
-                print("DOI:", response.doi)
-                print("Citation:", response.citation)
+            print("Response from LLM:", response)
+            if (response["status"] == 201):
+                print("Download request initiated. Request ID:", response["dpRequestId"])
+                print("DOI:", response["doi"])
+                print("Citation:", response["citation"])
                 obtainedParams = {}
-            elif (response.status == "ParamsNeeded"):
-                print("Error:", response.response)
-                obtainedParams = response.obtainedParams
+            elif (response["status"] == "ParamsNeeded"):
+                print("Error:", response["response"])
+                obtainedParams = response["obtainedParams"]
                 print("Obtained parameters:", obtainedParams)
             else:
-                print("Response:", response.response)
+                print("Response:", response["response"])
             response = {"role": "system", "content": response}
             chatHistory.append(user_prompt)
             user_prompt = input("Enter your next question (or 'exit' to quit): ")

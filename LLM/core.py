@@ -19,7 +19,7 @@ from LLM.toolsSprint2 import (
     get_wind_speed_at_timestamp,
     get_ice_thickness,
 )
-from LLM.datatDownload import generate_download_codes
+from LLM.dataDownload import generate_download_codes
 from LLM.RAG import RAG, JinaEmbeddings
 from LLM.Constants.toolDescriptions import toolDescriptions
 
