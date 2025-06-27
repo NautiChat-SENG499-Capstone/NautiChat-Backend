@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db_session
 from src.settings import Settings, get_settings
 
-from . import service, models
+from . import models, service
 
 # Helpers from FastAPI security to extract OAuth2 token from HTTP request
 oauth2_scheme_required = OAuth2PasswordBearer(tokenUrl="/auth/login")

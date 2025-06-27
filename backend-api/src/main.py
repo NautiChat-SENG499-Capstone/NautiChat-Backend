@@ -1,24 +1,23 @@
 import asyncio
 import logging
-from contextlib import asynccontextmanager  # Used to manage async app startup/shutdown events
+import sys
+import traceback
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware  # Enables frontend-backend communications via CORS
+from fastapi.middleware.cors import CORSMiddleware
 
+from LLM.core import LLM
+from LLM.Environment import Environment
+from src.admin.router import router as admin_router
 
 # Need to import the models in the same module that Base is defined to ensure they are registered with SQLAlchemy
 from src.auth import models  # noqa
-from src.llm import models  # noqa
-
-from src.admin.router import router as admin_router
 from src.auth.router import router as auth_router
-from src.llm.router import router as llm_router
 from src.database import DatabaseSessionManager, init_redis
+from src.llm import models  # noqa
+from src.llm.router import router as llm_router
 from src.settings import get_settings  # Settings management for environment variables
-from LLM.core import LLM
-from LLM.Environment import Environment  # Importing Environment to initialize LLM
-import sys
-import traceback
 
 # Configure logging to work with uvicorn
 logger = logging.getLogger("nautichat")
@@ -37,6 +36,7 @@ logger.info("NAUTICHAT BACKEND STARTING")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manage async app startup/shutdown events"""
     logger.info("Starting up application...")
 
     # Connect to Supabase Postgres as async engine
@@ -108,7 +108,7 @@ def create_app():
 
     origins = ["http://localhost:3000", "https://nautichat.vercel.app"]
 
-    # Add CORS and Rate Limit Middleware
+    # Add CORS middleware  to enable frontend-backend communications
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -122,13 +122,23 @@ def create_app():
     @app.get("/")
     async def root():
         logger.info("Root endpoint accessed")
-        return {"message": "NautiChat Backend API is running!", "docs": "/docs", "health": "/health", "status": "ready"}
+        return {
+            "message": "NautiChat Backend API is running!",
+            "docs": "/docs",
+            "health": "/health",
+            "status": "ready",
+        }
 
     @app.get("/health")
     async def health_check():
         """Health check endpoint"""
         logger.info("Health check endpoint accessed")
-        return {"status": "healthy", "database": "connected", "redis": "connected", "llm": "initialized"}
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "redis": "connected",
+            "llm": "initialized",
+        }
 
     # Register Routes from modules (auth, llm, admin)
     app.include_router(auth_router, prefix="/auth", tags=["auth"])

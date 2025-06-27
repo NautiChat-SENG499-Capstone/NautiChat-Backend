@@ -1,16 +1,21 @@
-from typing import List, Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Dependencies
 from src.auth.dependencies import get_current_user
+from src.auth.schemas import UserOut
 from src.database import get_db_session
 
-from src.auth.schemas import UserOut
-from .schemas import Conversation, Message, Feedback, CreateLLMQuery, CreateConversationBody
 from . import service
-
+from .schemas import (
+    Conversation,
+    CreateConversationBody,
+    CreateLLMQuery,
+    Feedback,
+    Message,
+)
 
 router = APIRouter()
 

@@ -1,11 +1,12 @@
 from typing import Optional
+
 import anyio
-
-
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis  # Async Redis Client
-from starlette.middleware.base import BaseHTTPMiddleware  # Base class for custom middleware
+from starlette.middleware.base import (
+    BaseHTTPMiddleware,
+)  # Base class for custom middleware
 
 
 # TODO: There should be try/except for catching Redis Errors (If Redis is unavailable)
@@ -41,9 +42,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # If Rate limit got exceeded
         if not await self.permit_request(redis, key):
             time_to_wait = await redis.ttl(key)
-            retry_info = f" Retry after {int(time_to_wait)}" if time_to_wait is not None else ""
+            retry_info = (
+                f" Retry after {int(time_to_wait)}" if time_to_wait is not None else ""
+            )
             return JSONResponse(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS, content={"detail": f"Rate limit exceeded.{retry_info}"}
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={"detail": f"Rate limit exceeded.{retry_info}"},
             )
         try:
             with anyio.move_on_after(30) as scope:

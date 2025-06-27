@@ -1,17 +1,17 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Dependencies
 from src.database import get_db_session
-from .dependencies import get_current_user, get_settings
 from src.settings import Settings
 
-from .models import User
-from .schemas import Token, CreateUserRequest, UserOut
 from . import service
+from .dependencies import get_current_user, get_settings
+from .models import User
+from .schemas import CreateUserRequest, Token, UserOut
 
 router = APIRouter()
 

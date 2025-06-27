@@ -6,10 +6,6 @@ from uuid import uuid4
 from fastapi import Request
 from redis.asyncio import Redis
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.pool import AsyncAdaptedQueuePool
-from sqlalchemy.orm import DeclarativeBase
-
-from .settings import get_settings
 
 # Building async engine & sessionmaker
 from sqlalchemy.ext.asyncio import (
@@ -19,6 +15,10 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import AsyncAdaptedQueuePool
+
+from .settings import get_settings
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -50,7 +50,7 @@ class DatabaseSessionManager:
 
             connect_args = {
                 "ssl": False,
-                "statement_cache_size": 0, #Disable asyncpg prepared statement cache
+                "statement_cache_size": 0,  # Disable asyncpg prepared statement cache
                 "prepared_statement_cache_size": 0,
                 "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
                 "timeout": 5,  # seconds
@@ -112,6 +112,7 @@ class DatabaseSessionManager:
             raise
         finally:
             await session.close()
+
 
 # FastAPI dependency for Endpoints
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:

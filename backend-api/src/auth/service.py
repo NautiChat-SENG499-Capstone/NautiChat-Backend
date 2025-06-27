@@ -1,29 +1,31 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-import jwt # JSON Web Token for creating and decoding tokens
-from passlib.context import CryptContext # For password hashing and verification
+import jwt  # JSON Web Token for creating and decoding tokens
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
-from sqlalchemy.ext.asyncio import AsyncSession
+from passlib.context import CryptContext  # For password hashing and verification
 from sqlalchemy import select
-
-from src.settings import Settings
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.models import User as UserModel
 from src.auth.schemas import CreateUserRequest, Token
+from src.settings import Settings
 
 # Create a password context using bycrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password"""
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt"""
     return pwd_context.hash(password)
+
 
 def create_access_token(
     username: str,
@@ -47,7 +49,8 @@ async def get_user(username: str, db: AsyncSession) -> Optional[UserModel]:
     """Look up a user by their username in the DB"""
     user = select(UserModel).where(UserModel.username == username)
     result = await db.execute(user)
-    return result.scalar_one_or_none() # Fetch only single result
+    return result.scalar_one_or_none()  # Fetch only single result
+
 
 async def get_user_by_token(
     token: str, settings: Settings, db: AsyncSession
@@ -61,18 +64,20 @@ async def get_user_by_token(
 
     # Validate token of user
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         username = payload.get("sub")
         if username is None:
             raise credentials_exception
     except InvalidTokenError:
         raise credentials_exception
-    
+
     # Look up user
     user = await get_user(username, db)
     if user is None:
         raise credentials_exception
-    
+
     return user
 
 
@@ -133,7 +138,9 @@ async def login_user(
     return Token(access_token=token, token_type="bearer")
 
 
-async def update_onc_token(user: UserModel, new_onc_token: str, db: AsyncSession) -> UserModel:
+async def update_onc_token(
+    user: UserModel, new_onc_token: str, db: AsyncSession
+) -> UserModel:
     """Update the ONC token for the given user"""
 
     user.onc_token = new_onc_token
