@@ -139,55 +139,130 @@ toolDescriptions = [
 #         },
 #     },
     {
-        "type": "function",
+    "type": "function",
         "function": {
             "name": "generate_download_codes",
-            "description": "Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, so that users request to download data, over a specified time period. Returns a result of a data download request. This function simply queues a download from ONC, and gives no additional information to the LLM. If this function is called, the LLM will either tell the user that their download is queued, or that their download request was unsuccessful. If the request is successful, the download is not necessarily successful, so do not tell the user if the download is successful or not. Returns: result (str): The result of the download request. It will either signify that the download was successful, or that the download was unsuccessful, and you should inform the user of this result. Args: deviceCategory (str): An ONC defined code identifying each device. locationCode (str): An ONC defined code identifying each device site. dataProductCode (str): AN ONC defined code identifying the data type being delivered. extension (str): The format of the dataProduct to be delivered. dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+            "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to pass in only the parameters that the user has explicitly provided. Do not guess, assume, or invent any missing parameters. If dateFrom or dateTo are not mentioned by the user, do not include them. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in the response handling or in checking the status of the download. You do not need to explain the result to the user.",
             "parameters": {
-                "properties": {
-                    "deviceCategory": {
-                        "type": "string",
-                        "description": "The device category code for which scalar data is requested.",
-                    },
-                    "locationCode": {
-                        "type": "string",
-                        "description": "The location code for which the data is requested.",
-                    },
-                    "dataProductCode": {
-                        "type": "string",
-                        "description": "The type of data product requested.",
-                    },
-                    "extension": {
-                        "type": "string",
-                        "description": "The format in which the data product will be delivered.",
-                    },
-                    "dateFrom": {
-                        "type": "string",
-                        "description": "The starting date of the data request.",
-                    },
-                    "dateTo": {
-                        "type": "string",
-                        "description": "The end date of the data request.",
-                    },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # },
+            "type": "object",
+            "properties": {
+                "deviceCategoryCode": {
+                "type": "string",
+                "description": "The ONC-defined code representing the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ)."
                 },
-                "required": [], #"deviceCategory", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"
-                "type": "object",
-            },
-            "returns": {
-                "type": "object",
-                "properties": {
-                    "status": {"type": "string", "enum": ["queued", "error"]},
-                    "dpRequestId": {"type": "string"},
-                    "message": {"type": "string"},
+                "locationCode": {
+                "type": "string",
+                "description": "The ONC-defined location code where the device is deployed (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, or 'CBYSS' for the Cambridge Bay Shore Station)."
                 },
-                "required": ["status", "message"],
+                "dataProductCode": {
+                "type": "string",
+                "description": "The ONC-defined code for the data product requested (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)."
+                },
+                "extension": {
+                "type": "string",
+                "description": "The file format in which the data product should be delivered (e.g., 'txt', 'json', 'mat', 'png', 'zip', 'mp4', 'vrl', 'nc', 'fft', 'flac', 'wav', 'an', 'csv', 'pdf', 'jpg')."
+                },
+                "dateFrom": {
+                "type": "string",
+                "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
+                },
+                "dateTo": {
+                "type": "string",
+                "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
+                }
             },
-        },
+            "required": []
+            }
+        }
     },
+    # {
+    # "type": "function",
+    #     "function": {
+    #         "name": "generate_download_codes",
+    #         "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to pass in only the parameters that the user has explicitly provided. Do not guess, assume, or invent any missing parameters. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in the response handling or in checking the status of the download. You do not need to explain the result to the user.",
+    #         "parameters": {
+    #         "type": "object",
+    #         "properties": {
+    #             "deviceCategoryCode": {
+    #             "type": "string",
+    #             "description": "The ONC-defined code representing the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ)."
+    #             },
+    #             "locationCode": {
+    #             "type": "string",
+    #             "description": "The ONC-defined location code where the device is deployed (e.g., 'CBYDS' for the Cambridge Bay Diver data or 'CBYIP' for the Cambridge Bay Underwater Network or 'CBYSP' for the Cambridge Bay Safe Passage Buoy or 'CBYSS' for the Cambridge Bay Shore Station)."
+    #             },
+    #             "dataProductCode": {
+    #             "type": "string",
+    #             "description": "The ONC-defined code for the data product requested (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)."
+    #             },
+    #             "extension": {
+    #             "type": "string",
+    #             "description": "The file format in which the data product should be delivered (e.g., 'txt', 'json', 'mat', 'png', 'zip', 'mp4', 'vrl', 'nc', 'fft', 'flac', 'wav', 'an', 'csv', 'pdf', 'jpg')."
+    #             },
+    #             "dateFrom": {
+    #             "type": "string",
+    #             "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
+    #             },
+    #             "dateTo": {
+    #             "type": "string",
+    #             "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
+    #             }
+    #         },
+    #         "required": []
+    #         },
+    #     }  
+    # },
+
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "generate_download_codes",
+    #         "description": "Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, so that users request to download data, over a specified time period. Returns a result of a data download request. This function simply queues a download from ONC, and gives no additional information to the LLM. If this function is called, the LLM will either tell the user that their download is queued, or that their download request was unsuccessful. If the request is successful, the download is not necessarily successful, so do not tell the user if the download is successful or not. Returns: result (str): The result of the download request. It will either signify that the download was successful, or that the download was unsuccessful, and you should inform the user of this result. Args: deviceCategoryCode (str): An ONC defined code identifying each device. locationCode (str): An ONC defined code identifying each device site. dataProductCode (str): AN ONC defined code identifying the data type being delivered. extension (str): The format of the dataProduct to be delivered. dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+    #         "parameters": {
+    #             "properties": {
+    #                 "deviceCategoryCode": {
+    #                     "type": "string",
+    #                     "description": "The device category code for which scalar data is requested.",
+    #                 },
+    #                 "locationCode": {
+    #                     "type": "string",
+    #                     "description": "The location code for which the data is requested.",
+    #                 },
+    #                 "dataProductCode": {
+    #                     "type": "string",
+    #                     "description": "The type of data product requested.",
+    #                 },
+    #                 "extension": {
+    #                     "type": "string",
+    #                     "description": "The format in which the data product will be delivered.",
+    #                 },
+    #                 "dateFrom": {
+    #                     "type": "string",
+    #                     "description": "The starting date of the data request.",
+    #                 },
+    #                 "dateTo": {
+    #                     "type": "string",
+    #                     "description": "The end date of the data request.",
+    #                 },
+    #                 # "user_onc_token": {
+    #                 #     "type": "string",
+    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
+    #                 # },
+    #             },
+    #             "required": [], #"deviceCategoryCode", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"
+    #             "type": "object",
+    #         },
+    #         "returns": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "status": {"type": "string", "enum": ["queued", "error"]},
+    #                 "dpRequestId": {"type": "string"},
+    #                 "message": {"type": "string"},
+    #             },
+    #             "required": ["status", "message"],
+    #         },
+    #     },
+    # },
    {
         "type": "function",
         "function": {

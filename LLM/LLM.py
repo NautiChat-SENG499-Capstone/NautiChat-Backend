@@ -61,7 +61,7 @@ class LLM:
         }
 
     async def run_conversation(
-        self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None, obtainedParams: dict = {}
+        self, user_prompt, user_onc_token: str, chatHistory: list[dict] = [],  obtainedParams: dict = {}
     ) -> dict:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")

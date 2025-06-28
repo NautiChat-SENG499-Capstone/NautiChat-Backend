@@ -3,7 +3,7 @@ from Environment import Environment
 
 
 async def generate_download_codes(
-    deviceCategory: str = None,
+    deviceCategoryCode: str = None,
     locationCode: str = None,
     dataProductCode: str = None,
     extension: str = None,
@@ -16,23 +16,35 @@ async def generate_download_codes(
     env = Environment()
     onc = ONC(user_onc_token) if user_onc_token else ONC(env.get_onc_token())
     """
-    Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, 
-    so that users request to download data, over a specified time period.
-    Returns a result of a data download request.
-    This function simply queues a download from ONC, and gives no additional information to the LLM.
-    If this function is called, the LLM will either tell the user that their download is queued, or that their download request
-    was unsucessful.
-    If the request is successful, the download is not necessarily successful, so do not tell the user if the download is successful or not.
-    Returns:
-        result (str): The result of the download request. It will either signify that the download was successful,
-                      or that the download was unsuccessful, and you should inform the user of this result.
-    Args:
-        deviceCategory (str): An ONC defined code identifying each device.
-        locationCode (str): An ONC defined code identifying each device site.
-        dataProductCode (str): AN ONC defined code identifying the data type being delivered.
-        extension (str): The format of the dataProduct to be delivered.
-        dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')
-        dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')
+        Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension,
+        so that users request to download data, over a specified time period.
+        Returns a result of a data download request.
+
+        This function simply queues a download from ONC, and gives no additional information to the LLM.
+        If this function is called, the LLM will only provide the parameters the user has explicitly given.
+        Do not guess, assume, or invent any missing parameters.
+        If parameters are missing, the function will handle asking the user for them.
+
+        If the request is successful, it means the download has been queued — it does not mean the data will actually be delivered successfully.
+        The LLM is not responsible for interpreting the result or following up.
+
+        Returns:
+            result (str): The result of the download request. It will either signify that the request has been queued,
+                        that required parameters are missing, or that the request was unsuccessful.
+
+        Args:
+            deviceCategoryCode (str): An ONC-defined code identifying the type of device 
+                                    (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ).
+            locationCode (str): An ONC-defined code identifying the location of the device 
+                                (e.g., 'CBYDS' for the Cambridge Bay Diver data or 'CBYIP' for the Cambridge Bay Underwater Network or 'CBYSP' for the Cambridge Bay Safe Passage Buoy or 'CBYSS' for the Cambridge Bay Shore Station).
+            dataProductCode (str): An ONC-defined code identifying the type of data being requested 
+                                (e.g., 'LF' for Log File, 'TSSD' for Time Series Scalar Data).
+            extension (str): The file format of the data product to be delivered 
+                            (e.g., 'csv', 'pdf', 'jpg', 'zip', 'flac', 'mp4', etc.).
+            dateFrom (str): The start date of the data request in ISO 8601 format 
+                            (e.g., '2016-06-01T00:00:00.000Z'). (YYYY-MM-DDTHH:MM:SS.sssZ)
+            dateTo (str): The end date of the data request in ISO 8601 format 
+                    (e.g., '2016-09-30T23:59:59.999Z'). (YYYY-MM-DDTHH:MM:SS.sssZ)
     """
 
     """
@@ -50,8 +62,8 @@ async def generate_download_codes(
         Dont forget to append ONC token at the end of the URL
     """
     
-    if deviceCategory is None and "deviceCategory" in obtainedParams:
-        deviceCategory = obtainedParams.get("deviceCategory")
+    if deviceCategoryCode is None and "deviceCategoryCode" in obtainedParams:
+        deviceCategoryCode = obtainedParams.get("deviceCategoryCode")
     if locationCode is None and "locationCode" in obtainedParams:
         locationCode = obtainedParams.get("locationCode")
     if dataProductCode is None and "dataProductCode" in obtainedParams:
@@ -63,7 +75,7 @@ async def generate_download_codes(
     if dateTo is None and "dateTo" in obtainedParams:
         dateTo = obtainedParams.get("dateTo")
     allParams = {
-        "deviceCategory": deviceCategory, 
+        "deviceCategoryCode": deviceCategoryCode, 
         "locationCode": locationCode, 
         "dataProductCode": dataProductCode, 
         "extension": extension, 
@@ -85,7 +97,7 @@ async def generate_download_codes(
         }
     params = {
         "locationCode": locationCode,
-        "deviceCategoryCode": deviceCategory,
+        "deviceCategoryCode": deviceCategoryCode,
         "dataProductCode": dataProductCode,
         "extension": extension,
         "dateFrom": dateFrom,
