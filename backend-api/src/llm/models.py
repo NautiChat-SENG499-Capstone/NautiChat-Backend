@@ -35,7 +35,9 @@ class Message(Base):
     __tablename__ = "messages"
 
     message_id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.conversation_id"), nullable=False)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.conversation_id"), nullable=False
+    )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     input: Mapped[str] = mapped_column(Text)
@@ -48,7 +50,10 @@ class Message(Base):
     # one-to-one: one message, one feedback
     # NOTE: lazy:selectin eager loads by default
     feedback: Mapped["Feedback"] = relationship(
-        back_populates="message", uselist=False, cascade="all, delete-orphan", lazy="selectin"
+        back_populates="message",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
 
@@ -58,7 +63,9 @@ class Feedback(Base):
     __tablename__ = "feedback"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    message_id: Mapped[int] = mapped_column(ForeignKey("messages.message_id"), unique=True)
+    message_id: Mapped[int] = mapped_column(
+        ForeignKey("messages.message_id"), unique=True
+    )
     rating: Mapped[int] = mapped_column(Integer)
     comment: Mapped[str] = mapped_column(Text, nullable=True)
 

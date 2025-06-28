@@ -34,7 +34,9 @@ async def create_conversation(
     create_conversation: CreateConversationBody,
 ) -> Conversation:
     """Create a conversation and store in db"""
-    conversation = ConversationModel(user_id=current_user.id, title=create_conversation.title)
+    conversation = ConversationModel(
+        user_id=current_user.id, title=create_conversation.title
+    )
 
     # Add conversation to DB
     db.add(conversation)
@@ -56,7 +58,9 @@ async def get_conversations(
 ) -> List[Conversation]:
     """Get all conversations (of the user)"""
     stmt = select(ConversationModel).options(selectinload(ConversationModel.messages))
-    query = stmt.where(ConversationModel.user_id == current_user.id).order_by(ConversationModel.conversation_id.desc())
+    query = stmt.where(ConversationModel.user_id == current_user.id).order_by(
+        ConversationModel.conversation_id.desc()
+    )
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -86,9 +90,7 @@ async def get_data_download_link(request_id: str, onc_token: str) -> str:
     # Run the data download request
     async with httpx.AsyncClient() as client:
         for _ in range(10):
-            url = (
-                f"https://data.oceannetworks.ca/api/dataProductDelivery/run?dpRequestId={request_id}&token={onc_token}"
-            )
+            url = f"https://data.oceannetworks.ca/api/dataProductDelivery/run?dpRequestId={request_id}&token={onc_token}"
             response = await client.get(url)
             data = response.json()[0]
             logger.info(response)
@@ -135,13 +137,20 @@ async def generate_response(
 
     # Fetch up to MAX_CONTEXT_WORDS of prior messages for context
     try:
-        chat_history = await get_context(conversation_id=llm_query.conversation_id, max_words=MAX_CONTEXT_WORDS, db=db)
+        chat_history = await get_context(
+            conversation_id=llm_query.conversation_id,
+            max_words=MAX_CONTEXT_WORDS,
+            db=db,
+        )
     except AssertionError:
         raise HTTPException(status_code=404, detail="Invalid conversation id")
 
     # Create Message to send to LLM
     message = MessageModel(
-        conversation_id=llm_query.conversation_id, user_id=current_user.id, input=llm_query.input, response=""
+        conversation_id=llm_query.conversation_id,
+        user_id=current_user.id,
+        input=llm_query.input,
+        response="",
     )
 
     # Call LLM to generate response
@@ -156,14 +165,20 @@ async def generate_response(
         message.response = response["response"]
         # Handle queueing data download
         if "dpRequestId" in response:
-            logger.info(f"Got a data product request id back from LLM {response['dpRequestId']['dpRequestId']}")
+            logger.info(
+                f"Got a data product request id back from LLM {response['dpRequestId']['dpRequestId']}"
+            )
             request_id = response["dpRequestId"]["dpRequestId"]
             message.request_id = request_id
             # Right now, backend is just waiting until the download is ready so we can return direct link to frontend
             # A better way would be for the request_id to be returned to frontend directly and they poll onc for the download link
-            message.download_link = await get_data_download_link(request_id, current_user.onc_token)
+            message.download_link = await get_data_download_link(
+                request_id, current_user.onc_token
+            )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating response from LLM: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error generating response from LLM: {str(e)}"
+        )
 
     # Add message to DB
     db.add(message)
@@ -186,7 +201,9 @@ async def get_message(
     if message is None:
         raise HTTPException(status_code=404, detail="Message not found")
     if message.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to view this message")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to view this message"
+        )
 
     return message
 
@@ -208,14 +225,18 @@ async def submit_feedback(
         raise HTTPException(status_code=403, detail="Invalid message access")
 
     # Check if feedback exists for this message
-    result = await db.execute(select(FeedbackModel).where(FeedbackModel.message_id == message_id))
+    result = await db.execute(
+        select(FeedbackModel).where(FeedbackModel.message_id == message_id)
+    )
     existing_feedback = result.scalar_one_or_none()
 
     if existing_feedback:
         # Update only fields that are provided in the request
         update_data = feedback.model_dump(exclude_unset=True)
         if not update_data:
-            raise HTTPException(status_code=400, detail="At least one feedback field must be provided.")
+            raise HTTPException(
+                status_code=400, detail="At least one feedback field must be provided."
+            )
 
         # Update feedback model with new data
         for key, value in update_data.items():

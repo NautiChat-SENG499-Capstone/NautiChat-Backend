@@ -1,27 +1,29 @@
-from datetime import datetime
-import logging
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-import sys
-import pandas as pd
 import json
+import logging
+import sys
 from collections import OrderedDict
+from datetime import datetime
+
+import pandas as pd
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+
+from LLM.codes import generate_download_codes
+from LLM.Constants.toolDescriptions import toolDescriptions
+from LLM.RAG import RAG, JinaEmbeddings
 from LLM.toolsSprint1 import (
-    get_properties_at_cambridge_bay,
-    get_daily_sea_temperature_stats_cambridge_bay,
-    get_deployed_devices_over_time_interval,
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
+    get_daily_sea_temperature_stats_cambridge_bay,
+    get_deployed_devices_over_time_interval,
+    get_properties_at_cambridge_bay,
 )
 from LLM.toolsSprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
+    get_ice_thickness,
     get_oxygen_data_24h,
     # get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
-    get_ice_thickness,
 )
-from LLM.codes import generate_download_codes
-from LLM.RAG import RAG, JinaEmbeddings
-from LLM.Constants.toolDescriptions import toolDescriptions
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ class LLM:
         self.env = env
         self.client = env.get_client()
         self.model = env.get_model()
-        #self.model = "llama-3.1-8b-instant"
+        # self.model = "llama-3.1-8b-instant"
 
         if LLM.__shared is None:
             logging.info("First LLM() building shared embedder/cross-encoder")
@@ -75,7 +77,11 @@ class LLM:
         }
 
     async def run_conversation(
-        self, user_prompt, startingPrompt: str = None, chatHistory: list[dict] = [], user_onc_token: str = None
+        self,
+        user_prompt,
+        startingPrompt: str = None,
+        chatHistory: list[dict] = [],
+        user_onc_token: str = None,
     ) -> dict:
         try:
             set_request_id("")
@@ -145,7 +151,12 @@ class LLM:
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 print("tools calls:", tool_calls)
-                tool_calls = list(OrderedDict(((call.id, call.function.name, call.function.arguments), call) for call in tool_calls).values())
+                tool_calls = list(
+                    OrderedDict(
+                        ((call.id, call.function.name, call.function.arguments), call)
+                        for call in tool_calls
+                    ).values()
+                )
                 print("Unique tool calls:", tool_calls)
                 for tool_call in tool_calls:
                     # print(tool_call)
@@ -162,13 +173,15 @@ class LLM:
                             function_args = json.loads(tool_call.function.arguments)
                         except json.JSONDecodeError:
                             function_args = {}
-                        print(f"Calling function: {function_name} with args: {function_args}")
+                        print(
+                            f"Calling function: {function_name} with args: {function_args}"
+                        )
                         function_response = await self.call_tool(
                             self.available_functions[function_name],
                             function_args or {},
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
-                        if(DownloadDone):
+                        if DownloadDone:
                             print("download done so returning response now")
                             DownloadDone = False
                             function_response = {
@@ -187,7 +200,11 @@ class LLM:
                         )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
                 second_response = self.client.chat.completions.create(
-                    model=self.model, messages=messages, max_completion_tokens=4096, temperature=0.25, stream=False
+                    model=self.model,
+                    messages=messages,
+                    max_completion_tokens=4096,
+                    temperature=0.25,
+                    stream=False,
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
                 print("Second response:", second_response)
