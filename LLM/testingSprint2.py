@@ -34,11 +34,9 @@ print()
 print()
 print()
 
-
 date_from_str = day_str
-date_to_str = (datetime.strptime(day_str, "%Y-%m-%d") + timedelta(days=1)).strftime(
-    "%Y-%m-%d"
-)
+date_to = datetime.strptime(day_str, "%Y-%m-%d") + timedelta(days=1)
+date_to_str = date_to.strftime("%Y-%m-%d")
 
 params = {
     "locationCode": "CBYIP",
@@ -59,7 +57,10 @@ times = sensor["sampleTimes"]
 values = sensor["values"]
 
 # Build DataFrame
-df = {"datetime": times[0:24], "oxygen_ml_per_l": values[0:24]}
+df = {
+    "datetime": times[0:24],
+    "oxygen_ml_per_l": values[0:24],
+}
 print(df)
 print()
 print()
