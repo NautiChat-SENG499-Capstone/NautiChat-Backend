@@ -122,6 +122,20 @@ class LLM:
                 DO NOT try to reason about data availability.
 
                 Here is the user_onc_token: {user_onc_token}.
+
+                USE the following function description for data download if you use this starting prompt:
+                {
+                "type": "function",
+                    "function": {
+                        "name": "generate_download_codes",
+                        "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to trigger this tool call; do not provide or guess any parameters. The parameters for this data download function call are obtained separately by backend logic using vector database lookups based on the user's query. Do not attempt to supply or infer deviceCategoryCode, locationCode, dataProductCode, extension, dateFrom, or dateTo. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in response handling or checking the status of the download. You do not need to explain the result to the user.",
+                        "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                        }
+                    }
+                },
             """
             messages = chatHistory + [
                 {
