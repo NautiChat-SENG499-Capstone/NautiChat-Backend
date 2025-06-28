@@ -1,6 +1,5 @@
 from onc import ONC
-from Environment import Environment
-
+import asyncio
 
 async def generate_download_codes(
     deviceCategoryCode: str = None,
@@ -12,9 +11,7 @@ async def generate_download_codes(
     user_onc_token: str = None,
     obtainedParams: dict = {},
 ):
-
-    env = Environment()
-    onc = ONC(user_onc_token) if user_onc_token else ONC(env.get_onc_token())
+    onc = ONC(user_onc_token)
     """
         Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension,
         so that users request to download data, over a specified time period.
@@ -136,3 +133,19 @@ async def generate_download_codes(
             "message": "Data is unavailable for this sensor and time. "
             "DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT TRY AGAIN WITH DIFFERENT PARAMETERS.",
         }
+    
+async def main():
+    rs = await generate_download_codes(
+        deviceCategoryCode="DIVE_COMPUTER",
+        locationCode="CBYDS",
+        dataProductCode="LF",
+        extension="txt",
+        dateFrom="2015-08-15T00:00:00.000Z",
+        dateTo="2015-08-15T23:59:59.999Z",
+        user_onc_token="6a316121-e017-4f4c-9cb1-eaf5dd706425"
+    )
+    print()
+    print("RES: ", rs)
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -65,8 +65,7 @@ class LLM:
     ) -> dict:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
-            if startingPrompt is None:
-                startingPrompt = f"""
+            startingPrompt = f"""
                 You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed. 
                 Today’s date is {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required.
                 Dont summarize data unless asked to.
@@ -90,7 +89,7 @@ class LLM:
                 DO NOT say "I will now use the tool".
                 DO NOT try to reason about data availability.
                 Here is the user_onc_token: {user_onc_token}.
-                """
+            """
 
 
             """
@@ -147,6 +146,7 @@ class LLM:
                     "content": user_prompt,
                 },
             ]
+            print("Messages: ", messages)
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
             if isinstance(vectorDBResponse, pd.DataFrame):
@@ -216,9 +216,9 @@ class LLM:
                             elif (function_response.get("status") == "queued"):
                                 print("download done so returning response now")
                                 DoingDataDownload = False
-                                dpRequestId = response.dpRequestId
-                                doi = response.doi
-                                citation = response.citation
+                                dpRequestId = function_response.get("dpRequestId")
+                                doi = function_response.get("doi", "No DOI available")
+                                citation = function_response.get("citation", "No citation available")
                                 function_response = {
                                     "status": 201,
                                     "response": "Your download is being processed. ",
@@ -284,7 +284,7 @@ async def main():
         chatHistory = []
         obtainedParams = {}
         while user_prompt not in ["exit", "quit"]:
-            response = await LLM_Instance.run_conversation(user_prompt=user_prompt, chatHistory=chatHistory, obtainedParams=obtainedParams)
+            response = await LLM_Instance.run_conversation(user_prompt=user_prompt, user_onc_token="6a316121-e017-4f4c-9cb1-eaf5dd706425", chatHistory=chatHistory, obtainedParams=obtainedParams)
             print()
             print()
             print()
@@ -301,7 +301,7 @@ async def main():
             else:
                 print("Response:", response["response"])
             response = {"role": "system", "content": response}
-            chatHistory.append(user_prompt)
+            chatHistory.append({"role": "user", "content": user_prompt})
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
 
     except Exception as e:
