@@ -1,6 +1,6 @@
 from enum import Enum
 
-class StatusCodes(Enum):
+class StatusCode(Enum):
     REGULAR_MESSAGE = 1
     PROCESSING_DATA_DOWNLOAD = 2
     PARAMS_NEEDED = 3
