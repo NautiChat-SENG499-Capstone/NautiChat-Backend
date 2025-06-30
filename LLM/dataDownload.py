@@ -1,6 +1,6 @@
 from onc import ONC
 from Environment import Environment #add . at start to work in prod.
-from Constants.StatusCodes import StatusCode
+from Constants.statusCodes import StatusCode
 from schemas import RunConversationResponse, ObtainedParamsDictionary
 
 
