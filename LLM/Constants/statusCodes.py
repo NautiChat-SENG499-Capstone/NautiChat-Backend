@@ -1,4 +1,4 @@
-from enum import Enum
+Efrom enum import Enum
 
 class StatusCode(Enum):
     REGULAR_MESSAGE = 1

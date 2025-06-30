@@ -23,6 +23,8 @@ from toolsSprint2 import (
 from dataDownload import generate_download_codes
 from RAG import RAG
 from Constants.toolDescriptions import toolDescriptions
+from schemas import RunConversationResponse, ObtainedParamsDictionary
+from Constants.StatusCodes import StatusCode
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ class LLM:
         }
 
     async def run_conversation(
-        self, user_prompt, user_onc_token: str, chatHistory: list[dict] = [],  obtainedParams: dict = {}
+        self, user_prompt, user_onc_token: str, chatHistory: list[dict] = [],  obtainedParams: ObtainedParamsDictionary = {}
     ) -> dict:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -205,36 +207,31 @@ class LLM:
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
                         if(DoingDataDownload):
-                            if (function_response.get("status") == "ParamsNeeded"):
+                            if (function_response.get("status") == StatusCode.ParamsNeeded):
                                 print("Download parameters needed, returning response now")
-                                function_response = {
-                                    "status": "ParamsNeeded",
-                                    "response": function_response.get("message"),
-                                    "obtainedParams": function_response.get("obtainedParams", {}),
-                                }
-                                return function_response
-                            elif (function_response.get("status") == "queued"):
+                                return RunConversationResponse(
+                                        status=400,
+                                        response=function_response.get("response"),
+                                        obtainedParams=function_response.get("obtainedParams", {}),
+                                )
+                            elif (function_response.get("status") == StatusCode.ProcessingDataDownload):
                                 print("download done so returning response now")
-                                DoingDataDownload = False
                                 dpRequestId = function_response.get("dpRequestId")
                                 doi = function_response.get("doi", "No DOI available")
                                 citation = function_response.get("citation", "No citation available")
-                                function_response = {
-                                    "status": 201,
-                                    "response": "Your download is being processed. ",
-                                    "dpRequestId": dpRequestId,
-                                    "doi": doi,
-                                    "citation": citation,
-                                }
-                                return function_response
-                            elif (function_response.get("status") == "error"):
+                                return RunConversationResponse(
+                                        status=201,
+                                        response=function_response.get("response", "Your download is being processed."),
+                                        dpRequestId=dpRequestId,
+                                        doi=doi,
+                                        citation=citation,
+                                    )
+                            elif (function_response.get("status") == StatusCode.ERROR_WITH_DATA_DOWNLOAD):
                                 print("Download error so returning response now")
-                                DoingDataDownload = False
-                                function_response = {
-                                    "status": 400,
-                                    "response": function_response.get("message", "An error occurred while processing your download request."),
-                                }
-                                return function_response
+                                return RunConversationResponse(
+                                        status=400,
+                                        response=function_response.get("response", "An error occurred while processing your download request."),
+                                    )
                             
                         messages.append(
                             {
@@ -251,19 +248,22 @@ class LLM:
                 # Return the final response
                 print("Second response: ", second_response.choices[0].message)
                 response = second_response.choices[0].message.content
-                return {
-                    "status": 200,
-                    "response": response,
-                }
+                return RunConversationResponse(
+                    status=StatusCode.REGULAR_MESSAGE,
+                    response=response
+                )
             else:
                 print(response_message)
-                return {"status": 200, "response": response_message.content}
+                return RunConversationResponse(
+                    status=StatusCode.REGULAR_MESSAGE,
+                    response=response_message.content
+                )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
-            return {
-                "status": 400,
-                "response": "Sorry, your request failed. Please try again.",
-            }
+            return RunConversationResponse(
+                status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+                response="Sorry, your request failed. Please try again.",
+            )
 
     async def call_tool(self, fn, args, user_onc_token):
         try:
@@ -289,12 +289,12 @@ async def main():
             print()
             print()
             print("Response from LLM:", response)
-            if (response["status"] == 201):
+            if (response["status"] == StatusCode.PROCESSING_DATA_DOWNLOAD):
                 print("Download request initiated. Request ID:", response["dpRequestId"])
                 print("DOI:", response["doi"])
                 print("Citation:", response["citation"])
                 obtainedParams = {}
-            elif (response["status"] == "ParamsNeeded"):
+            elif (response["status"] == StatusCode.PARAMS_NEEDED):
                 print("Error:", response["response"])
                 obtainedParams = response["obtainedParams"]
                 print("Obtained parameters:", obtainedParams)

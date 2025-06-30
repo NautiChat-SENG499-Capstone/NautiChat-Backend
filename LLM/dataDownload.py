@@ -1,5 +1,7 @@
 from onc import ONC
 from Environment import Environment #add . at start to work in prod.
+from Constants.StatusCodes import StatusCode
+from schemas import RunConversationResponse, ObtainedParamsDictionary
 
 
 async def generate_download_codes(
@@ -10,7 +12,7 @@ async def generate_download_codes(
     dateFrom: str = None,
     dateTo: str = None,
     user_onc_token: str = None,
-    obtainedParams: dict = {},
+    obtainedParams: ObtainedParamsDictionary = {},
 ):
 
     env = Environment()
@@ -91,7 +93,7 @@ async def generate_download_codes(
             obtainedParams[param] = value #remaking the obtainedParams dict
     if len(neededParams) > 0: #If need one or more parameters
         return {
-            "status": "ParamsNeeded",
+            "status": StatusCode.ParamsNeeded,
             "message": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(obtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
             "obtainedParams": obtainedParams,
         }
@@ -122,17 +124,16 @@ async def generate_download_codes(
     try:
         response = (onc.requestDataProduct(params))
         print(f"Response from ONC: {response}")
-        return {
-            "status": "queued",
-            "dpRequestId": response["dpRequestId"],
-            "doi": response["citations"][0]["doi"],
-            "citation": response["citations"][0]["citation"],
-            "message": "Your download is being processed. ",
-        }
+        return RunConversationResponse(
+            status=StatusCode.ProcessingDataDownload,
+            dpRequestId=response["dpRequestId"],
+            doi=response["citations"][0]["doi"],
+            citation=response["citations"][0]["citation"],
+            response="Your download is being processed.",
+        )
     except Exception as e:
         print(f"Error occurred: {type(e).__name__}: {e}")
-        return {
-            "status": "error",
-            "message": "Data is unavailable for this sensor and time. "
-            "DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT TRY AGAIN WITH DIFFERENT PARAMETERS.",
-        }
+        return RunConversationResponse(
+            status=StatusCode.ErrorWithDataDownload,
+            response="Data is unavailable for this sensor and time.",
+        )
