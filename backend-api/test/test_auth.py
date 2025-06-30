@@ -1,16 +1,17 @@
 import pytest
-from httpx import AsyncClient
 from fastapi import status
-from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import AsyncClient
 from sqlalchemy import select
-
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth import models, schemas
 from src.auth.service import get_password_hash
 
 
 @pytest.mark.asyncio
 async def test_register_new_user(client: AsyncClient, async_session: AsyncSession):
-    new_user = schemas.CreateUserRequest(username="lebron", password="cavs", onc_token="lebrontoken")
+    new_user = schemas.CreateUserRequest(
+        username="lebron", password="cavs", onc_token="lebrontoken"
+    )
     response = await client.post("/auth/register", json=new_user.model_dump())
 
     assert response.status_code == status.HTTP_201_CREATED
@@ -31,17 +32,22 @@ async def test_register_new_user(client: AsyncClient, async_session: AsyncSessio
     assert added_user.id == 1
     assert not added_user.is_admin
 
+
 @pytest.mark.asyncio
 async def test_register_existing_user(client: AsyncClient, async_session: AsyncSession):
     # add a user
-    existing_user = models.User(username="lebron", hashed_password="cavs", onc_token="lebrontoken")
-    
+    existing_user = models.User(
+        username="lebron", hashed_password="cavs", onc_token="lebrontoken"
+    )
+
     async_session.add(existing_user)
     await async_session.commit()
     await async_session.refresh(existing_user)
 
     user_attempt = schemas.CreateUserRequest(
-        username=existing_user.username, password="differentpassword", onc_token="differenttoken"
+        username=existing_user.username,
+        password="differentpassword",
+        onc_token="differenttoken",
     )
     response = await client.post("/auth/register", json=user_attempt.model_dump())
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -50,19 +56,22 @@ async def test_register_existing_user(client: AsyncClient, async_session: AsyncS
     users = query.scalars().all()
     assert len(users) == 1, "duplicate user was added"
 
+
 @pytest.mark.asyncio
 async def test_get_me_unauthorized(client: AsyncClient):
     unauthenticated_response = await client.get("/auth/me")
     assert unauthenticated_response.status_code == status.HTTP_401_UNAUTHORIZED
 
+
 @pytest.mark.asyncio
-async def test_get_me_endpoint(client: AsyncClient, async_session: AsyncSession, user_headers):
+async def test_get_me_endpoint(
+    client: AsyncClient, async_session: AsyncSession, user_headers
+):
     # at this point only one user in db, so current user should be that one
     response = await client.get("/auth/me", headers=user_headers)
 
     assert response.status_code == status.HTTP_200_OK
     returned_user = schemas.UserOut.model_validate(response.json())
-
 
     query = await async_session.execute(select(models.User))
     db_user = query.scalar_one_or_none()
@@ -71,11 +80,16 @@ async def test_get_me_endpoint(client: AsyncClient, async_session: AsyncSession,
     # compare pydantic models
     assert returned_user == schemas.UserOut.model_validate(db_user)
 
+
 @pytest.mark.asyncio
 async def test_login_existing_user(client: AsyncClient, async_session: AsyncSession):
     # add user. since adding directly to db the password is not hashed which is easier for testing
     password = "supersecure"
-    user = models.User(username="new user", hashed_password=get_password_hash(password), onc_token="newtoken")
+    user = models.User(
+        username="new user",
+        hashed_password=get_password_hash(password),
+        onc_token="newtoken",
+    )
 
     async_session.add(user)
     await async_session.commit()
@@ -91,6 +105,7 @@ async def test_login_existing_user(client: AsyncClient, async_session: AsyncSess
     data = response.json()
     assert data["token_type"] == "bearer"
     assert isinstance(data["access_token"], str)
+
 
 @pytest.mark.asyncio
 async def test_login_invalid_user(client: AsyncClient):

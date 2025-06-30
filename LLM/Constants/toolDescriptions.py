@@ -40,12 +40,16 @@ toolDescriptions = [
             "description": (
                 'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n Note: This function does not take any parameters'
             ),
-            "parameters": {"type": "object", "properties": {
-                # "user_onc_token": {
-                #         "type": "string",
-                #         "description": "User's ONC token for API access. This is required to access the data.",
-                #     }
-            }, "required": []},
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    # "user_onc_token": {
+                    #         "type": "string",
+                    #         "description": "User's ONC token for API access. This is required to access the data.",
+                    #     }
+                },
+                "required": [],
+            },
         },
     },
     # {
@@ -113,31 +117,31 @@ toolDescriptions = [
             },
         },
     },
-#     {
-#         "type": "function",
-#         "function": {
-#             "name": "get_scalar_data_by_device",
-#             "description": "gets the scalar data for a device at cambridge bay over a specified time interval, given the device code and time range",
-#             "parameters": {
-#                 "properties": {
-#                     "deviceCode": {
-#                         "type": "string",
-#                         "description": "The device code for which scalar data is requested.",
-#                     },
-#                     "dateFrom": {
-#                         "type": "string",
-#                         "description": "ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')",
-#                     },
-#                     "dateTo": {
-#                         "type": "string",
-#                         "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
-#                     },
-#                 },
-#                 "required": ["deviceCode", "dateFrom", "dateTo"],
-#                 "type": "object",
-#             },
-#         },
-#     },
+    #     {
+    #         "type": "function",
+    #         "function": {
+    #             "name": "get_scalar_data_by_device",
+    #             "description": "gets the scalar data for a device at cambridge bay over a specified time interval, given the device code and time range",
+    #             "parameters": {
+    #                 "properties": {
+    #                     "deviceCode": {
+    #                         "type": "string",
+    #                         "description": "The device code for which scalar data is requested.",
+    #                     },
+    #                     "dateFrom": {
+    #                         "type": "string",
+    #                         "description": "ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')",
+    #                     },
+    #                     "dateTo": {
+    #                         "type": "string",
+    #                         "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+    #                     },
+    #                 },
+    #                 "required": ["deviceCode", "dateFrom", "dateTo"],
+    #                 "type": "object",
+    #             },
+    #         },
+    #     },
     {
     "type": "function",
         "function": {
@@ -273,14 +277,14 @@ toolDescriptions = [
                 "properties": {
                     "date_from_str": {
                         "type": "string",
-                        "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-23\")."
+                        "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-23").',
                     },
                     # "user_onc_token": {
                     #     "type": "string",
                     #     "description": "User's ONC token for API access. This is required to access the data.",
                     # }
                 },
-                "required": ["date_from_str"] 
+                "required": ["date_from_str"],
             },
         },
     },
@@ -298,7 +302,7 @@ toolDescriptions = [
                     # },
                     "date_from_str": {
                         "type": "string",
-                        "description": "Date in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
+                        "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-24").',
                     }
                 },
                 "required": [],
@@ -336,7 +340,7 @@ toolDescriptions = [
                 "properties": {
                     "date_from_str": {
                         "type": "string",
-                        "description": "Date to get wind speed in YYYY-MM-DD format, (e.g. \"2024-06-24\")."
+                        "description": 'Date to get wind speed in YYYY-MM-DD format, (e.g. "2024-06-24").',
                     },
                     # "user_onc_token": {
                     #     "type": "string",
@@ -344,13 +348,12 @@ toolDescriptions = [
                     # },
                     "hourInterval": {
                         "type": "integer",
-                        "description": "Hour of the day wanted for windspeed, default is 12 (noon)"
+                        "description": "Hour of the day wanted for windspeed, default is 12 (noon)",
                     },
-                    
                 },
                 "required": ["date_from_str"],
             },
-        },  
+        },
     },
     {
         "type": "function",
@@ -362,11 +365,11 @@ toolDescriptions = [
                 "properties": {
                     "date_from_str": {
                         "type": "string",
-                        "description": "Start date in YYYY-MM-DD format (e.g. \"2024-02-01\")."
+                        "description": 'Start date in YYYY-MM-DD format (e.g. "2024-02-01").',
                     },
                     "date_to_str": {
                         "type": "string",
-                        "description": "End date in YYYY-MM-DD format (e.g. \"2024-02-01\")."
+                        "description": 'End date in YYYY-MM-DD format (e.g. "2024-02-01").',
                     },
                     # "user_onc_token": {
                     #     "type": "string",
@@ -378,4 +381,3 @@ toolDescriptions = [
         },
     },
 ]
-

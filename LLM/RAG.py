@@ -1,19 +1,24 @@
-from langchain_community.vectorstores import Qdrant
-from qdrant_client import QdrantClient
+import pandas as pd
 from langchain.embeddings.base import Embeddings
-from sentence_transformers import SentenceTransformer
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+from langchain_community.vectorstores import Qdrant
 from langchain_core.documents import Document
 import pandas as pd
 #from LLM.Environment import Environment
-from Environment import Environment
+from Environment import Environment #Remove when running in prod. Only good for testing LLM.py 
+from qdrant_client import QdrantClient
+from sentence_transformers import SentenceTransformer
+
+#from LLM.Environment import Environment 
 
 
 class JinaEmbeddings(Embeddings):
     def __init__(self, task="retrieval.passage"):
         print("Creating Jina Embeddings instance...")
-        self.model = SentenceTransformer("jinaai/jina-embeddings-v3", trust_remote_code=True)
+        self.model = SentenceTransformer(
+            "jinaai/jina-embeddings-v3", trust_remote_code=True
+        )
         print("Jina Embeddings instance created.")
         self.task = task
 
@@ -21,12 +26,16 @@ class JinaEmbeddings(Embeddings):
         return self.model.encode(texts, task=self.task, prompt_name=self.task)
 
     def embed_query(self, text):
-        return self.model.encode([text], task="retrieval.query", prompt_name="retrieval.query")[0]
+        return self.model.encode(
+            [text], task="retrieval.query", prompt_name="retrieval.query"
+        )[0]
 
 
 class QdrantClientWrapper:
     def __init__(self, env: Environment):
-        self.qdrant_client = QdrantClient(url=env.get_qdrant_url(), api_key=env.get_qdrant_api_key())
+        self.qdrant_client = QdrantClient(
+            url=env.get_qdrant_url(), api_key=env.get_qdrant_api_key()
+        )
         self.collection_name = env.get_collection_name()
 
 
@@ -58,35 +67,33 @@ class RAG:
         self.compressor = CrossEncoderReranker(model=self.model, top_n=15)
 
     def get_documents(self, question: str):
-    
         query_embedding = self.embedding.embed_query(question)
         search_results = self.qdrant_client.search(
             collection_name=self.collection_name,
             query_vector=query_embedding,
             limit=100,  # same as k in retriever
             with_payload=True,
-            with_vectors=False
+            with_vectors=False,
         )
 
         # Filter results by score threshold
         filtered_hits = [hit for hit in search_results if hit.score >= 0.4]
 
         documents = [
-            Document(
-                page_content=hit.payload["text"],
-                metadata={"score": hit.score}
-            )
+            Document(page_content=hit.payload["text"], metadata={"score": hit.score})
             for hit in filtered_hits
-        ]        
+        ]
 
         # No documents were above threshold
         if documents == []:
             return pd.DataFrame({"contents": []})
 
         # Rerank using the CrossEncoderReranker
-        reranked_documents = self.compressor.compress_documents(documents, query=question)
+        reranked_documents = self.compressor.compress_documents(
+            documents, query=question
+        )
 
-        #Ensure there is only a maximum of around 2000 tokens of data
+        # Ensure there is only a maximum of around 2000 tokens of data
         max_tokens = 2000
         total_tokens = 0
         selected_docs = []
