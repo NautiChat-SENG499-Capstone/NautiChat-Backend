@@ -1,7 +1,7 @@
 from typing import Optional #,List
 
 from pydantic import BaseModel
-from LLM.Constants.statusCodes import StatusCode
+from Constants.statusCodes import StatusCode #Change to LLM. for production
 
 class ObtainedParamsDictionary(BaseModel):
     """Parameters obtained from the user"""

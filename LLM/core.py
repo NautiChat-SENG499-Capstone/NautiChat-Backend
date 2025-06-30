@@ -24,11 +24,13 @@ from LLM.toolsSprint2 import (
     # get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
 )
+
+from LLM.Constants.statusCodes import StatusCode
+from LLM.schemas import RunConversationResponse, ObtainedParamsDictionary
 from LLM.dataDownload import generate_download_codes
 from LLM.RAG import RAG, JinaEmbeddings
 from LLM.Constants.toolDescriptions import toolDescriptions
-from LLM.schemas import RunConversationResponse, ObtainedParamsDictionary
-from LLM.Constants.statusCodes import StatusCode
+
 
 logger = logging.getLogger(__name__)
 
@@ -101,51 +103,6 @@ class LLM:
                 Here is the user_onc_token: {user_onc_token}.
             """
 
-
-            """
-            OTHER POSSIBLE STARTING PROMPT:
-                You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed.  
-                Today’s date is {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required.  
-                Don't summarize data unless asked to.
-
-                You may use tools when required to answer user questions. Do NOT describe what you *will* do — only use tools if needed.
-
-                When a tool is used, DO NOT continue reasoning or take further steps based on its result.
-
-                Instead, return a final response to the user that clearly and colloquially explains the tool's result — without guessing, adding advice, or planning further steps. Stay within the limits of the message returned by the tool.
-
-                DO NOT speculate or describe what might happen next.
-
-                You are NEVER required to generate code in any language.
-
-                USE the last context of the conversation as the user question to be answered. The previous messages in the conversation are provided to you as context only!  
-                Do NOT add follow-up suggestions, guesses, or recommendations.
-
-                For data download requests:  
-                - Do NOT add any parameters when calling the data download function.  
-                - Your only responsibility is to detect the user’s intent to download data and trigger the data download tool call.  
-                - The parameters for the data download function will be determined separately by backend logic using vector database lookups and do NOT require your input.
-
-                DO NOT guess what the tool might return.  
-                DO NOT say "I will now use the tool".  
-                DO NOT try to reason about data availability.
-
-                Here is the user_onc_token: {user_onc_token}.
-
-                USE the following function description for data download if you use this starting prompt:
-                {
-                "type": "function",
-                    "function": {
-                        "name": "generate_download_codes",
-                        "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to trigger this tool call; do not provide or guess any parameters. The parameters for this data download function call are obtained separately by backend logic using vector database lookups based on the user's query. Do not attempt to supply or infer deviceCategoryCode, locationCode, dataProductCode, extension, dateFrom, or dateTo. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in response handling or checking the status of the download. You do not need to explain the result to the user.",
-                        "parameters": {
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                        }
-                    }
-                },
-            """
             messages = chatHistory + [
                 {
                     "role": "system",
@@ -215,20 +172,20 @@ class LLM:
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
                         if(DoingDataDownload):
-                            if (function_response.get("status") == StatusCode.ParamsNeeded):
+                            if (function_response.get("status") == StatusCode.PARAMS_NEEDED):
                                 print("Download parameters needed, returning response now")
                                 return RunConversationResponse(
-                                        status=400,
+                                        status=StatusCode.PARAMS_NEEDED,
                                         response=function_response.get("response"),
                                         obtainedParams=function_response.get("obtainedParams", {}),
                                 )
-                            elif (function_response.get("status") == StatusCode.ProcessingDataDownload):
+                            elif (function_response.get("status") == StatusCode.PROCESSING_DATA_DOWNLOAD):
                                 print("download done so returning response now")
                                 dpRequestId = function_response.get("dpRequestId")
                                 doi = function_response.get("doi", "No DOI available")
                                 citation = function_response.get("citation", "No citation available")
                                 return RunConversationResponse(
-                                        status=201,
+                                        status=StatusCode.PROCESSING_DATA_DOWNLOAD,
                                         response=function_response.get("response", "Your download is being processed."),
                                         dpRequestId=dpRequestId,
                                         doi=doi,
@@ -237,7 +194,7 @@ class LLM:
                             elif (function_response.get("status") == StatusCode.ERROR_WITH_DATA_DOWNLOAD):
                                 print("Download error so returning response now")
                                 return RunConversationResponse(
-                                        status=400,
+                                        status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
                                         response=function_response.get("response", "An error occurred while processing your download request."),
                                     )
                             
@@ -269,8 +226,8 @@ class LLM:
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
             return RunConversationResponse(
-                status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
-                response="Sorry, your request failed. Please try again.",
+                status=StatusCode.LLM_ERROR,
+                response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
             )
 
     async def call_tool(self, fn, args, user_onc_token):

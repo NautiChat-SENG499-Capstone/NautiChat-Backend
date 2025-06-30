@@ -6,6 +6,7 @@ import json
 from collections import OrderedDict
 from Environment import Environment
 import asyncio
+
 from toolsSprint1 import (
     get_properties_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
@@ -20,11 +21,12 @@ from toolsSprint2 import (
     get_wind_speed_at_timestamp,
     get_ice_thickness,
 )
+from Constants.statusCodes import StatusCode
+from schemas import RunConversationResponse, ObtainedParamsDictionary
 from dataDownload import generate_download_codes
 from RAG import RAG
 from Constants.toolDescriptions import toolDescriptions
-from schemas import RunConversationResponse, ObtainedParamsDictionary
-from Constants.statusCodes import StatusCode
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ sys.modules["LLM"] = sys.modules[__name__]
 class LLM:
     #__shared: dict[str, object] | None = None
     # singleton cache
+    
 
     def __init__(self, env, *, RAG_instance=None):
         self.env = env
@@ -207,20 +210,20 @@ class LLM:
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
                         if(DoingDataDownload):
-                            if (function_response.get("status") == StatusCode.ParamsNeeded):
+                            if (function_response.get("status") == StatusCode.PARAMS_NEEDED):
                                 print("Download parameters needed, returning response now")
                                 return RunConversationResponse(
-                                        status=400,
+                                        status=StatusCode.PARAMS_NEEDED,
                                         response=function_response.get("response"),
                                         obtainedParams=function_response.get("obtainedParams", {}),
                                 )
-                            elif (function_response.get("status") == StatusCode.ProcessingDataDownload):
+                            elif (function_response.get("status") == StatusCode.PROCESSING_DATA_DOWNLOAD):
                                 print("download done so returning response now")
                                 dpRequestId = function_response.get("dpRequestId")
                                 doi = function_response.get("doi", "No DOI available")
                                 citation = function_response.get("citation", "No citation available")
                                 return RunConversationResponse(
-                                        status=201,
+                                        status=StatusCode.PROCESSING_DATA_DOWNLOAD,
                                         response=function_response.get("response", "Your download is being processed."),
                                         dpRequestId=dpRequestId,
                                         doi=doi,
@@ -229,7 +232,7 @@ class LLM:
                             elif (function_response.get("status") == StatusCode.ERROR_WITH_DATA_DOWNLOAD):
                                 print("Download error so returning response now")
                                 return RunConversationResponse(
-                                        status=400,
+                                        status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
                                         response=function_response.get("response", "An error occurred while processing your download request."),
                                     )
                             
@@ -261,8 +264,8 @@ class LLM:
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
             return RunConversationResponse(
-                status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
-                response="Sorry, your request failed. Please try again.",
+                status=StatusCode.LLM_ERROR,
+                response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
             )
 
     async def call_tool(self, fn, args, user_onc_token):
@@ -289,17 +292,17 @@ async def main():
             print()
             print()
             print("Response from LLM:", response)
-            if (response["status"] == StatusCode.PROCESSING_DATA_DOWNLOAD):
-                print("Download request initiated. Request ID:", response["dpRequestId"])
-                print("DOI:", response["doi"])
-                print("Citation:", response["citation"])
+            if (response.status == StatusCode.PROCESSING_DATA_DOWNLOAD):
+                print("Download request initiated. Request ID:", response.dpRequestId)
+                print("DOI:", response.doi)
+                print("Citation:", response.citation)
                 obtainedParams = {}
-            elif (response["status"] == StatusCode.PARAMS_NEEDED):
-                print("Error:", response["response"])
-                obtainedParams = response["obtainedParams"]
+            elif (response.status == StatusCode.PARAMS_NEEDED):
+                print("Error:", response.response)
+                obtainedParams = response.obtainedParams
                 print("Obtained parameters:", obtainedParams)
             else:
-                print("Response:", response["response"])
+                print("Response:", response.response)
             response = {"role": "system", "content": response}
             chatHistory.append({"role": "user", "content": user_prompt})
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
