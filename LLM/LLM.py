@@ -24,7 +24,7 @@ from dataDownload import generate_download_codes
 from RAG import RAG
 from Constants.toolDescriptions import toolDescriptions
 from schemas import RunConversationResponse, ObtainedParamsDictionary
-from Constants.StatusCodes import StatusCode
+from Constants.statusCodes import StatusCode
 
 logger = logging.getLogger(__name__)
 

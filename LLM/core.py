@@ -28,7 +28,7 @@ from LLM.dataDownload import generate_download_codes
 from LLM.RAG import RAG, JinaEmbeddings
 from LLM.Constants.toolDescriptions import toolDescriptions
 from LLM.schemas import RunConversationResponse, ObtainedParamsDictionary
-from LLM.Constants.StatusCodes import StatusCode
+from LLM.Constants.statusCodes import StatusCode
 
 logger = logging.getLogger(__name__)
 
