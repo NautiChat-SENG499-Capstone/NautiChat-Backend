@@ -207,6 +207,15 @@ def process_pdf(file_path: str):
         })
     return results
 
+def chunk_text(text, max_characters=1024, overlap=150):
+    chunks = []
+    while len(text) > max_characters:
+        chunks.append(text[:max_characters])
+        text = text[max_characters-overlap:]
+    chunks.append(text)
+    return chunks
+    
+
 def prepare_embedding_input(processing_results: list, embedding_model: JinaEmbeddings = None):
     if embedding_model is None:
         embedding_model = JinaEmbeddings()
@@ -237,7 +246,7 @@ def prepare_embedding_input_from_preformatted(input: list, embedding_model: Jina
 
     for section in input:
         full_text = " ".join(section["paragraphs"])
-        chunks = deprecated_chunk_text_with_heading(full_text, section["heading"])
+        chunks = chunk_text(full_text)
 
         if embedding_model is None:
             embedding_model = JinaEmbeddings()
