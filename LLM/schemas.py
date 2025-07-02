@@ -22,3 +22,5 @@ class RunConversationResponse(BaseModel):
     dpRequestId: Optional[int] = None
     doi: Optional[str] = None  #may need to switch to a list of strings if we go through citations and make a list of all of them
     citation: Optional[str] = None  #may need to switch to a list of strings
+    baseUrl: Optional[str] = None
+    urlParamsUsed: Optional[ObtainedParamsDictionary] = {}

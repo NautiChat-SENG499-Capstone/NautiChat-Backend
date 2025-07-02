@@ -129,6 +129,8 @@ async def generate_download_codes(
             "doi": response["citations"][0]["doi"],
             "citation": response["citations"][0]["citation"],
             "response": "Your download is being processed.",
+            "urlParamsUsed": obtainedParams,
+            "baseUrl": "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
         }
     except Exception as e:
         print(f"Error occurred: {type(e).__name__}: {e}")
