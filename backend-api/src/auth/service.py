@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.models import User as UserModel
-from src.auth.schemas import CreateUserRequest, Token
+from src.auth.schemas import UpdateUserRequest, CreateUserRequest, ChangePasswordRequest, Token
 from src.settings import Settings
 
 # Create a password context using bycrypt
@@ -112,6 +112,77 @@ async def register_user(
     )
     return Token(access_token=token, token_type="bearer")
 
+
+async def update_user_info(
+    updated_user: UpdateUserRequest,
+    user: UserModel,
+    db: AsyncSession,        
+) -> UserModel:
+    """Update User Info for the Given User"""
+
+    #Make sure that a field IS updated to avoid unnecessary db calls
+    updated = False
+
+    if updated_user.username and updated_user.username != user.username:
+        existing_user = await get_user(updated_user.username, db)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists",
+            )
+        user.username = updated_user.username
+        update = True
+
+    if updated_user.onc_token:
+        user.onc_token = updated_user.onc_token
+        updated = True
+
+    if updated:
+        await db.commit()
+        await db.refresh(user)
+
+    return user
+
+
+async def change_user_password(
+    request: ChangePasswordRequest,
+    user: UserModel,
+    db: AsyncSession,
+) -> UserModel:
+    """Change user passward by first confirming current password"""
+    # Check current password
+    if not verify_password(request.current_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect"
+        )
+    
+    # If new password is empty
+    if not request.new_password.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="New password cannot be empty"
+        )
+
+    # Compare new password with confirmation password
+    if request.new_password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password and confirmation do not match"
+        )
+    
+    # Check new password isn't the same as old one
+    if verify_password(request.new_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password"
+        )
+    
+    user.hashed_password = get_password_hash(request.new_password)
+    await db.commit()
+    await db.refresh(user)
+
+    return user
 
 async def login_user(
     form_data: OAuth2PasswordRequestForm, settings: Settings, db: AsyncSession

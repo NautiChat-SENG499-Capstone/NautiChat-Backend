@@ -9,7 +9,6 @@ from src.middleware import init_middleware
 
 logger.info("NAUTICHAT BACKEND STARTING")
 
-
 def create_app():
     logger.info("Creating FastAPI app...")
     app = FastAPI(
