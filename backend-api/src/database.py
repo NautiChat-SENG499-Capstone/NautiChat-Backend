@@ -1,5 +1,4 @@
 import contextlib
-import logging
 from typing import Any, AsyncIterator
 from uuid import uuid4
 
@@ -18,9 +17,8 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 
-from .settings import get_settings
-
-logger = logging.getLogger("uvicorn.error")
+from src.logger import logger
+from src.settings import get_settings
 
 
 # Base class for all ORM models (Helps with Lazy Loading)
