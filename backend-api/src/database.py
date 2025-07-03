@@ -3,7 +3,6 @@ from typing import Any, AsyncIterator
 from uuid import uuid4
 
 from fastapi import Request
-from redis.asyncio import Redis
 from sqlalchemy.engine.url import make_url
 
 # Building async engine & sessionmaker
@@ -18,7 +17,6 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from src.logger import logger
-from src.settings import get_settings
 
 
 # Base class for all ORM models (Helps with Lazy Loading)
@@ -117,19 +115,3 @@ async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Dependency that yields a database session"""
     async with request.app.state.session_manager.session() as session:
         yield session
-
-
-# Creates an async Redis Client
-async def init_redis():
-    redis = await Redis(
-        host="redis-13649.crce199.us-west-2-2.ec2.redns.redis-cloud.com",
-        port=13649,
-        decode_responses=True,
-        username="default",
-        password=get_settings().REDIS_PASSWORD,
-        socket_timeout=5,  # Prevents hanging forever
-        socket_connect_timeout=5,
-    )
-    await redis.ping()
-
-    return redis
