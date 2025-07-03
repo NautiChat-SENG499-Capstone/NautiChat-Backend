@@ -1,25 +1,19 @@
 from typing import Optional
 
-from LLM.Constants.StatusCodes import StatusCode
 from pydantic import BaseModel
 
-
-
-
-
-
-
+from LLM.Constants.StatusCodes import StatusCode
 
 
 class ObtainedParamsDictionary(BaseModel):
     """Parameters obtained from the user"""
 
-    deviceCategoryCode: Optional[str] = None     
-    locationCode: Optional[str] = None  
+    deviceCategoryCode: Optional[str] = None
+    locationCode: Optional[str] = None
     dataProductCode: Optional[str] = None
-    extension: Optional[str] = None     
-    dateFrom: Optional[str] = None  
-    dateTo: Optional[str] = None # super long comment for no reason reason no reason reason reason reason no reason no reason long comment
+    extension: Optional[str] = None
+    dateFrom: Optional[str] = None
+    dateTo: Optional[str] = None
     dpo_qualityControl: Optional[int] = 0  # default is 0, which means no qc
     dpo_resample: Optional[str] = "none"  # default is "none", which means no resampling
     dpo_dataGaps: Optional[int] = 1  # default is 1, which means data gaps are included
