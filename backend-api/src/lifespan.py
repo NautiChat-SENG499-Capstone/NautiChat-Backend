@@ -6,13 +6,9 @@ from fastapi import FastAPI
 
 from LLM.core import LLM
 from LLM.Environment import Environment
-
-# Need to import the models in the same module that Base is defined to ensure they are registered with SQLAlchemy
-from src.auth import models  # noqa
 from src.database import DatabaseSessionManager
-from src.llm import models  # noqa
 from src.logger import logger
-from src.settings import get_settings  # Settings management for environment variables
+from src.settings import get_settings
 
 
 @asynccontextmanager
