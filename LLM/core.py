@@ -224,11 +224,22 @@ class LLM:
                 print(response_message)
                 return {"status": 200, "response": response_message.content}
         except Exception as e:
-            logger.error(f"LLM failed: {e}", exc_info=True)
-            return {
-                "status": 400,
-                "response": "Sorry, your request failed. Please try again.",
-            }
+            logger.info(f"LLM failed on first attempt: {e}", exc_info=True)
+            try:
+                self.env.cycle_new_groq_api_key()
+                logger.info("Cycled tokens, retrying run_conversation...")
+                return await self.run_conversation(
+                    user_prompt,
+                    startingPrompt=startingPrompt,
+                    chatHistory=chatHistory,
+                    user_onc_token=user_onc_token,
+                )
+            except Exception as retry_error:
+                logger.error(f"Retry after cycling tokens failed: {retry_error}", exc_info=True)
+                return {
+                    "status": 400,
+                    "response": "Sorry, your request failed. Please try again.",
+                }
 
     async def call_tool(self, fn, args, user_onc_token):
         try:
