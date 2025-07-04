@@ -143,41 +143,41 @@ toolDescriptions = [
     #         },
     #     },
     {
-    "type": "function",
+        "type": "function",
         "function": {
             "name": "generate_download_codes",
-            "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to pass in only the parameters that the user has explicitly provided. Do not guess, assume, or invent any missing parameters. If dateFrom or dateTo are not mentioned by the user, do not include them. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in the response handling or in checking the status of the download. You do not need to explain the result to the user.",
+            "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to pass in only the parameters that the user has explicitly provided. Do not guess, assume, or invent any missing parameters. If dateFrom or dateTo are not mentioned by the user, do not include them. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in the response handling or in checking the status of the download. You do not need to explain the result to the user. ",
             "parameters": {
-            "type": "object",
-            "properties": {
-                "deviceCategoryCode": {
-                "type": "string",
-                "description": "The ONC-defined code representing the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ)."
+                "type": "object",
+                "properties": {
+                    "deviceCategoryCode": {
+                        "type": "string",
+                        "description": "The ONC-defined code representing the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ).",
+                    },
+                    "locationCode": {
+                        "type": "string",
+                        "description": "The ONC-defined location code where the device is deployed (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, or 'CBYSS' for the Cambridge Bay Shore Station).",
+                    },
+                    "dataProductCode": {
+                        "type": "string",
+                        "description": "The ONC-defined code for the data product requested (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data).",
+                    },
+                    "extension": {
+                        "type": "string",
+                        "description": "The file format in which the data product should be delivered (e.g., 'txt', 'json', 'mat', 'png', 'zip', 'mp4', 'vrl', 'nc', 'fft', 'flac', 'wav', 'an', 'csv', 'pdf', 'jpg').",
+                    },
+                    "dateFrom": {
+                        "type": "string",
+                        "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
+                    },
+                    "dateTo": {
+                        "type": "string",
+                        "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
+                    },
                 },
-                "locationCode": {
-                "type": "string",
-                "description": "The ONC-defined location code where the device is deployed (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, or 'CBYSS' for the Cambridge Bay Shore Station)."
-                },
-                "dataProductCode": {
-                "type": "string",
-                "description": "The ONC-defined code for the data product requested (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)."
-                },
-                "extension": {
-                "type": "string",
-                "description": "The file format in which the data product should be delivered (e.g., 'txt', 'json', 'mat', 'png', 'zip', 'mp4', 'vrl', 'nc', 'fft', 'flac', 'wav', 'an', 'csv', 'pdf', 'jpg')."
-                },
-                "dateFrom": {
-                "type": "string",
-                "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
-                },
-                "dateTo": {
-                "type": "string",
-                "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
-                }
+                "required": [],
             },
-            "required": []
-            }
-        }
+        },
     },
     # {
     # "type": "function",
@@ -214,9 +214,8 @@ toolDescriptions = [
     #         },
     #         "required": []
     #         },
-    #     }  
+    #     }
     # },
-
     # {
     #     "type": "function",
     #     "function": {
@@ -267,7 +266,7 @@ toolDescriptions = [
     #         },
     #     },
     # },
-   {
+    {
         "type": "function",
         "function": {
             "name": "get_daily_air_temperature_stats_cambridge_bay",

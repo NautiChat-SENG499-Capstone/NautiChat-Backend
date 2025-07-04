@@ -1,6 +1,6 @@
-from onc import ONC
-from Environment import Environment #add . at start to work in prod.
 from Constants.statusCodes import StatusCode
+from Environment import Environment  # add . at start to work in prod.
+from onc import ONC
 
 
 async def generate_download_codes(
@@ -13,7 +13,6 @@ async def generate_download_codes(
     user_onc_token: str = None,
     obtainedParams: dict = {},
 ):
-
     env = Environment()
     onc = ONC(user_onc_token) if user_onc_token else ONC(env.get_onc_token())
     """
@@ -62,11 +61,16 @@ async def generate_download_codes(
         + "&dateTo=" + dateTo 
         Dont forget to append ONC token at the end of the URL
     """
-    
+
     if deviceCategoryCode is None and "deviceCategoryCode" in obtainedParams:
         deviceCategoryCode = obtainedParams.get("deviceCategoryCode")
+    elif deviceCategoryCode is not None:
+        obtainedParams["deviceCategoryCode"] = deviceCategoryCode
     if locationCode is None and "locationCode" in obtainedParams:
         locationCode = obtainedParams.get("locationCode")
+    elif locationCode is not None:
+        obtainedParams["locationCode"] = locationCode
+
     if dataProductCode is None and "dataProductCode" in obtainedParams:
         dataProductCode = obtainedParams.get("dataProductCode")
     if extension is None and "extension" in obtainedParams:
@@ -76,38 +80,48 @@ async def generate_download_codes(
     if dateTo is None and "dateTo" in obtainedParams:
         dateTo = obtainedParams.get("dateTo")
     allParams = {
-        "deviceCategoryCode": deviceCategoryCode, 
-        "locationCode": locationCode, 
-        "dataProductCode": dataProductCode, 
-        "extension": extension, 
-        "dateFrom": dateFrom, 
-        "dateTo": dateTo
-    }
+        "dataProductCode": dataProductCode,
+        "extension": extension,
+        "dateFrom": dateFrom,
+        "dateTo": dateTo,
+    }  # Only the necessary parameters for a data download request.
     neededParams = []
     obtainedParams = {}
     for param, value in allParams.items():
         if value is None:
-            neededParams.append(param) #finding the parameters that are not set
+            neededParams.append(param)  # finding the parameters that are not set
         else:
-            obtainedParams[param] = value #remaking the obtainedParams dict
-    if len(neededParams) > 0: #If need one or more parameters
+            obtainedParams[param] = value  # remaking the obtainedParams dict
+    for param, value in obtainedParams.items():
+        if value is not None:
+            obtainedParams[param] = value
+    if len(neededParams) > 0:  # If need one or more parameters
         return {
             "status": StatusCode.PARAMS_NEEDED,
             "response": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(obtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
             "obtainedParams": obtainedParams,
         }
     params = {
-        "locationCode": locationCode,
-        "deviceCategoryCode": deviceCategoryCode,
         "dataProductCode": dataProductCode,
         "extension": extension,
         "dateFrom": dateFrom,
         "dateTo": dateTo,
-        "dpo_qualityControl": "1", #1 means to clean the data, 0 means to not clean the data. Cleaning the data will use qaqc flags 3,4 and 6 to be replaced with Nans when dpo)dataGaps is set to 1. If its set to 0, then the data will be removed.
-        "dpo_resample": "none",#No sampling done. If set to average, then the data will be averaged over the time period specified. This auto cleans the data. Same for minMax and minMaxAvg.
-        #If using dpo_resample then can use for example dpo_minMaxAvg = {0, 60, 600, 900, 3600, 86400} to get 1 min, 10 min, 10 min, 15 min, 1 hour, and 1 day min, max and averages.
-        "dpo_dataGaps": "1", #Fills missing/bad data with NaNs
     }
+
+    #  "dpo_qualityControl": "1", #1 means to clean the data, 0 means to not clean the data. Cleaning the data will use qaqc flags 3,4 and 6 to be replaced with Nans when dpo)dataGaps is set to 1. If its set to 0, then the data will be removed.
+    #  "dpo_resample": "none",#No sampling done. If set to average, then the data will be averaged over the time period specified. This auto cleans the data. Same for minMax and minMaxAvg.
+    #  #If using dpo_resample then can use for example dpo_minMaxAvg = {0, 60, 600, 900, 3600, 86400} to get 1 min, 10 min, 10 min, 15 min, 1 hour, and 1 day min, max and averages.
+    #  "dpo_dataGaps": "1", #Fills missing/bad data with NaNs
+    if "dpo_qualityControl" in obtainedParams:
+        params["dpo_qualityControl"] = obtainedParams["dpo_qualityControl"]
+    if "dpo_resample" in obtainedParams:
+        params["dpo_resample"] = obtainedParams["dpo_resample"]
+    if "dpo_dataGaps" in obtainedParams:
+        params["dpo_dataGaps"] = obtainedParams["dpo_dataGaps"]
+    if deviceCategoryCode is not None:
+        params["deviceCategoryCode"] = deviceCategoryCode
+    if locationCode is not None:
+        params["locationCode"] = locationCode
     """
     https://wiki.oceannetworks.ca/spaces/DP/pages/40206402/Resampling+Data+Files 
     dpo_resample=minMax and dpo_minMax={0, 60, 600, 900, 3600, 86400}
@@ -121,7 +135,7 @@ async def generate_download_codes(
     Note that tides are not filtered out in resampled products.
     """
     try:
-        response = (onc.requestDataProduct(params))
+        response = onc.requestDataProduct(params)
         print(f"Response from ONC: {response}")
         return {
             "status": StatusCode.PROCESSING_DATA_DOWNLOAD,
