@@ -1,4 +1,5 @@
 import pandas as pd
+from Environment import Environment
 from langchain.embeddings.base import Embeddings
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
@@ -7,7 +8,7 @@ from langchain_core.documents import Document
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
-from LLM.Environment import Environment
+# Used for testingLLM.py only.
 
 
 class JinaEmbeddings(Embeddings):

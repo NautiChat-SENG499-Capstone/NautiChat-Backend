@@ -1,8 +1,10 @@
 from typing import Optional
 
 from pydantic import BaseModel
+from Constants.statusCodes import StatusCode #Change to LLM. for production
 
-from LLM.Constants.StatusCodes import StatusCode
+
+#from LLM.Constants.StatusCodes import StatusCode
 
 
 class ObtainedParamsDictionary(BaseModel):
@@ -24,8 +26,9 @@ class RunConversationResponse(BaseModel):
 
     status: StatusCode
     response: str
-    obtainedParams: Optional[ObtainedParamsDictionary] = None
+    obtainedParams: Optional[ObtainedParamsDictionary] = {}
     dpRequestId: Optional[int] = None
-    # may need to switch to a list of strings if we go through citations and make a list of all of them
-    doi: Optional[str] = None
-    citation: Optional[str] = None  # may need to switch to a list of strings
+    doi: Optional[str] = None  #may need to switch to a list of strings if we go through citations and make a list of all of them
+    citation: Optional[str] = None  #may need to switch to a list of strings
+    baseUrl: Optional[str] = None
+    urlParamsUsed: Optional[ObtainedParamsDictionary] = {}

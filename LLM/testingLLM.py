@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import sys
@@ -5,22 +6,20 @@ from collections import OrderedDict
 from datetime import datetime
 
 import pandas as pd
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-
-from LLM.codes import generate_download_codes
-from LLM.Constants.statusCodes import StatusCode
-from LLM.Constants.toolDescriptions import toolDescriptions
-from LLM.dataDownload import generate_download_codes
-from LLM.RAG import RAG, JinaEmbeddings
-from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
-from LLM.toolsSprint1 import (
+from Constants.statusCodes import StatusCode
+from Constants.toolDescriptions import toolDescriptions
+from dataDownload import generate_download_codes
+from Environment import Environment
+from schemas import ObtainedParamsDictionary, RunConversationResponse
+from testingRAG import RAG
+from toolsSprint1 import (
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_properties_at_cambridge_bay,
 )
-from LLM.toolsSprint2 import (
+from toolsSprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_ice_thickness,
     get_oxygen_data_24h,
@@ -34,7 +33,7 @@ sys.modules["LLM"] = sys.modules[__name__]
 
 
 class LLM:
-    __shared: dict[str, object] | None = None
+    # __shared: dict[str, object] | None = None
     # singleton cache
 
     def __init__(self, env, *, RAG_instance=None):
@@ -43,19 +42,17 @@ class LLM:
         self.model = env.get_model()
         # self.model = "llama-3.1-8b-instant"
 
-        if LLM.__shared is None:
-            logging.info("First LLM() building shared embedder/cross-encoder")
-            LLM.__shared = {
-                "embedder": JinaEmbeddings(),
-                "cross": HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
-            }
+        # if LLM.__shared is None:
+        #     logging.info("First LLM() building shared embedder/cross-encoder")
+        #     LLM.__shared = {
+        #         "embedder": JinaEmbeddings(),
+        #         "cross": HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
+        #     }
 
-        shared = LLM.__shared
-        self.RAG_instance = RAG_instance or RAG(
-            env,
-            embedder=shared["embedder"],
-            cross_encoder=shared["cross"],
-        )
+        # shared = LLM.__shared
+        self.RAG_instance = (
+            RAG_instance if RAG_instance else RAG(env)
+        )  # Use provided RAG instance or create a new one
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
@@ -79,7 +76,7 @@ class LLM:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
             startingPrompt = f"""
-               You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed. 
+                You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed. 
                 Today’s date is {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required.
                 Do not summarize data unless explicitly asked.
 
@@ -112,6 +109,50 @@ class LLM:
                 Here is the user_onc_token: {user_onc_token}.
             """
 
+            """
+            OTHER POSSIBLE STARTING PROMPT:
+                You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed.  
+                Today’s date is {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required.  
+                Don't summarize data unless asked to.
+
+                You may use tools when required to answer user questions. Do NOT describe what you *will* do — only use tools if needed.
+
+                When a tool is used, DO NOT continue reasoning or take further steps based on its result.
+
+                Instead, return a final response to the user that clearly and colloquially explains the tool's result — without guessing, adding advice, or planning further steps. Stay within the limits of the message returned by the tool.
+
+                DO NOT speculate or describe what might happen next.
+
+                You are NEVER required to generate code in any language.
+
+                USE the last context of the conversation as the user question to be answered. The previous messages in the conversation are provided to you as context only!  
+                Do NOT add follow-up suggestions, guesses, or recommendations.
+
+                For data download requests:  
+                - Do NOT add any parameters when calling the data download function.  
+                - Your only responsibility is to detect the user’s intent to download data and trigger the data download tool call.  
+                - The parameters for the data download function will be determined separately by backend logic using vector database lookups and do NOT require your input.
+
+                DO NOT guess what the tool might return.  
+                DO NOT say "I will now use the tool".  
+                DO NOT try to reason about data availability.
+
+                Here is the user_onc_token: {user_onc_token}.
+
+                USE the following function description for data download if you use this starting prompt:
+                {
+                "type": "function",
+                    "function": {
+                        "name": "generate_download_codes",
+                        "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to trigger this tool call; do not provide or guess any parameters. The parameters for this data download function call are obtained separately by backend logic using vector database lookups based on the user's query. Do not attempt to supply or infer deviceCategoryCode, locationCode, dataProductCode, extension, dateFrom, or dateTo. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in response handling or checking the status of the download. You do not need to explain the result to the user.",
+                        "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                        }
+                    }
+                },
+            """
             messages = chatHistory + [
                 {
                     "role": "system",
@@ -122,9 +163,10 @@ class LLM:
                     "content": user_prompt,
                 },
             ]
-            print("Messages: ", messages)
+            # print("Messages: ", messages)
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
+            print("Vector DB Response:", vectorDBResponse)
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -152,7 +194,7 @@ class LLM:
             DoingDataDownload = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
-                print("tools calls:", tool_calls)
+                # print("tools calls:", tool_calls)
                 tool_calls = list(
                     OrderedDict(
                         ((call.id, call.function.name, call.function.arguments), call)
@@ -274,3 +316,48 @@ class LLM:
         except TypeError:
             # fallback if fn doesn't accept user_onc_token
             return await fn(**args)
+
+
+async def main():
+    env = Environment()
+    RAG_instance = RAG(env)
+    print("RAG instance created successfully.")
+    try:
+        LLM_Instance = LLM(
+            env=env, RAG_instance=RAG_instance
+        )  # Create an instance of the LLM class
+        user_prompt = input("Enter your first question (or 'exit' to quit): ")
+        chatHistory = []
+        obtainedParams = {}
+        while user_prompt not in ["exit", "quit"]:
+            response = await LLM_Instance.run_conversation(
+                user_prompt=user_prompt,
+                user_onc_token="6a316121-e017-4f4c-9cb1-eaf5dd706425",
+                chatHistory=chatHistory,
+                obtainedParams=obtainedParams,
+            )
+            print()
+            print()
+            print()
+            print("Response from LLM:", response)
+            if response.status == StatusCode.PROCESSING_DATA_DOWNLOAD:
+                print("Download request initiated. Request ID:", response.dpRequestId)
+                print("DOI:", response.doi)
+                print("Citation:", response.citation)
+                obtainedParams = {}
+            elif response.status == StatusCode.PARAMS_NEEDED:
+                print("Error:", response.response)
+                obtainedParams = response.obtainedParams
+                print("Obtained parameters:", obtainedParams)
+            else:
+                print("Response:", response.response)
+            response = {"role": "system", "content": response}
+            chatHistory.append({"role": "user", "content": user_prompt})
+            user_prompt = input("Enter your next question (or 'exit' to quit): ")
+
+    except Exception as e:
+        print("Error occurred:", e)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
