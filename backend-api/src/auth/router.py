@@ -11,7 +11,13 @@ from src.settings import Settings, get_settings
 from . import service
 from .dependencies import get_current_user
 from .models import User
-from .schemas import UpdateUserRequest, CreateUserRequest, ChangePasswordRequest, Token, UserOut
+from .schemas import (
+    ChangePasswordRequest,
+    CreateUserRequest,
+    Token,
+    UpdateUserRequest,
+    UserOut,
+)
 
 router = APIRouter()
 

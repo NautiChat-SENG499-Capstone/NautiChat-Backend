@@ -20,7 +20,7 @@ async def test_create_admin_success(client: AsyncClient, admin_headers):
     new_admin_data = {
         "username": "newadmin",
         "password": "securepass123",
-        "onc_token": "token123"
+        "onc_token": "token123",
     }
 
     response = await client.post(

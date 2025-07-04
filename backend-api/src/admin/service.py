@@ -3,9 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.auth.service import get_user, get_password_hash
-from src.auth.schemas import UserOut, CreateUserRequest
 from src.auth.models import User
+from src.auth.schemas import CreateUserRequest, UserOut
+from src.auth.service import get_password_hash, get_user
 from src.logger import logger
 
 
@@ -14,7 +14,6 @@ async def create_user(
     db: AsyncSession,
     is_admin: bool = False,
 ) -> User:
-
     existing_user = await get_user(user_request.username, db)
 
     if existing_user:

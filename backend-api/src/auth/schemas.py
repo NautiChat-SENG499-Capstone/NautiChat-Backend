@@ -1,4 +1,5 @@
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -24,15 +25,18 @@ class CreateUserRequest(BaseModel):
 
 class UpdateUserRequest(BaseModel):
     """Payload for updating user info"""
+
     username: Optional[str] = None
     onc_token: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):
     """Payload to change password"""
+
     current_password: str
     new_password: str
     confirm_password: str
+
 
 class Token(BaseModel):
     """JWT Token Response"""

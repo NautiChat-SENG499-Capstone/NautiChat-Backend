@@ -121,11 +121,10 @@ async def test_login_invalid_user(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_user_info_success(client: AsyncClient, async_session: AsyncSession, user_headers):
-    new_info = {
-        "username": "updated_user",
-        "onc_token": "new_onc_token"
-    }
+async def test_update_user_info_success(
+    client: AsyncClient, async_session: AsyncSession, user_headers
+):
+    new_info = {"username": "updated_user", "onc_token": "new_onc_token"}
 
     response = await client.put("/auth/me", json=new_info, headers=user_headers)
     assert response.status_code == status.HTTP_200_OK
@@ -134,32 +133,40 @@ async def test_update_user_info_success(client: AsyncClient, async_session: Asyn
     assert updated["username"] == "updated_user"
     assert updated["onc_token"] == "new_onc_token"
 
-    result = await async_session.execute(select(models.User).where(models.User.username == "updated_user"))
+    result = await async_session.execute(
+        select(models.User).where(models.User.username == "updated_user")
+    )
     user = result.scalar_one_or_none()
     assert user is not None
     assert user.onc_token == "new_onc_token"
 
 
 @pytest.mark.asyncio
-async def test_update_user_info_username_exists(client: AsyncClient, async_session: AsyncSession, user_headers):
+async def test_update_user_info_username_exists(
+    client: AsyncClient, async_session: AsyncSession, user_headers
+):
     other_user = models.User(
         username="existing_user",
         hashed_password=get_password_hash("irrelevant"),
-        onc_token="existing_token"
+        onc_token="existing_token",
     )
 
     async_session.add(other_user)
     await async_session.commit()
 
-    response = await client.put("/auth/me", json={"username": "existing_user"}, headers=user_headers)
+    response = await client.put(
+        "/auth/me", json={"username": "existing_user"}, headers=user_headers
+    )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json()["detail"] == "Username already exists"    
+    assert response.json()["detail"] == "Username already exists"
 
 
 @pytest.mark.asyncio
-async def test_change_password_success(client: AsyncClient, async_session: AsyncSession, user_headers_hashed):
+async def test_change_password_success(
+    client: AsyncClient, async_session: AsyncSession, user_headers_hashed
+):
     body = {
-        "current_password": "hashedpassword",  
+        "current_password": "hashedpassword",
         "new_password": "newpassword123",
         "confirm_password": "newpassword123",
     }
@@ -174,7 +181,7 @@ async def test_change_password_success(client: AsyncClient, async_session: Async
         data={"username": updated_user["username"], "password": "newpassword123"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    assert login.status_code == status.HTTP_200_OK    
+    assert login.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.asyncio

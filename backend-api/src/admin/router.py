@@ -7,14 +7,15 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.auth import models as auth_models
+from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
 from src.auth.schemas import UserOut
+from src.database import get_db_session
+from src.llm import models, schemas
 
 # Dependencies
 from . import service
-from src.database import get_db_session
-from src.llm import models, schemas
-from src.auth import models as auth_models, schemas as auth_schemas
 
 router = APIRouter()
 

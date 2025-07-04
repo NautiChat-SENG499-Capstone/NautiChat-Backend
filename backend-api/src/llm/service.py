@@ -89,7 +89,7 @@ async def delete_conversation(
     """Given conv_id (of the user), delete conversation"""
     query = select(ConversationModel).where(
         ConversationModel.user_id == current_user.id,
-        ConversationModel.conversation_id == conversation_id
+        ConversationModel.conversation_id == conversation_id,
     )
     result = await db.execute(query)
     conversation = result.scalar_one_or_none()
@@ -101,7 +101,6 @@ async def delete_conversation(
     # Because conversation model has cascading message deletion
     await db.delete(conversation)
     await db.commit()
-    
 
 
 async def get_data_download_link(request_id: str, onc_token: str) -> str:

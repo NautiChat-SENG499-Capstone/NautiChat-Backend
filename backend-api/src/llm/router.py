@@ -49,6 +49,7 @@ async def get_conversation(
     """Get a conversation"""
     return await service.get_conversation(conversation_id, current_user, db)
 
+
 @router.delete("/conversations/{conversation_id}", status_code=204)
 async def delete_converstation(
     conversation_id: int,
@@ -57,6 +58,7 @@ async def delete_converstation(
 ):
     """Delete specific conversation"""
     return await service.delete_conversation(conversation_id, current_user, db)
+
 
 @router.post("/messages", status_code=201, response_model=Message)
 @limiter.limit("6/minute")

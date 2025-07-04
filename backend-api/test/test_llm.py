@@ -107,7 +107,6 @@ async def test_get_conversation_unauthorized(client: AsyncClient, user_headers):
 
 @pytest.mark.asyncio
 async def test_delete_conversation_success(client: AsyncClient, user_headers):
-    
     response = await client.post(
         "/llm/conversations", json={"title": "ToDelete"}, headers=user_headers
     )
@@ -118,16 +117,14 @@ async def test_delete_conversation_success(client: AsyncClient, user_headers):
     )
     assert delete_resp.status_code == status.HTTP_204_NO_CONTENT
 
-    get_resp = await client.get(
-        f"/llm/conversations/{conv_id}", headers=user_headers
-    )
+    get_resp = await client.get(f"/llm/conversations/{conv_id}", headers=user_headers)
     assert get_resp.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.asyncio
 async def test_delete_conversation_unauthorized(client: AsyncClient, user_headers):
     response = await client.post(
-        '/llm/conversations', json={"title": "PrivateDelete"}, headers=user_headers
+        "/llm/conversations", json={"title": "PrivateDelete"}, headers=user_headers
     )
     conv_id = response.json()["conversation_id"]
 
