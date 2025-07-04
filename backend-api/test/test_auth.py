@@ -118,3 +118,73 @@ async def test_login_invalid_user(client: AsyncClient):
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_update_user_info_success(client: AsyncClient, async_session: AsyncSession, user_headers):
+    new_info = {
+        "username": "updated_user",
+        "onc_token": "new_onc_token"
+    }
+
+    response = await client.put("/auth/me", json=new_info, headers=user_headers)
+    assert response.status_code == status.HTTP_200_OK
+
+    updated = response.json()
+    assert updated["username"] == "updated_user"
+    assert updated["onc_token"] == "new_onc_token"
+
+    result = await async_session.execute(select(models.User).where(models.User.username == "updated_user"))
+    user = result.scalar_one_or_none()
+    assert user is not None
+    assert user.onc_token == "new_onc_token"
+
+
+@pytest.mark.asyncio
+async def test_update_user_info_username_exists(client: AsyncClient, async_session: AsyncSession, user_headers):
+    other_user = models.User(
+        username="existing_user",
+        hashed_password=get_password_hash("irrelevant"),
+        onc_token="existing_token"
+    )
+
+    async_session.add(other_user)
+    await async_session.commit()
+
+    response = await client.put("/auth/me", json={"username": "existing_user"}, headers=user_headers)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json()["detail"] == "Username already exists"    
+
+
+@pytest.mark.asyncio
+async def test_change_password_success(client: AsyncClient, async_session: AsyncSession, user_headers_hashed):
+    body = {
+        "current_password": "hashedpassword",  
+        "new_password": "newpassword123",
+        "confirm_password": "newpassword123",
+    }
+
+    resp = await client.put("/auth/me/password", json=body, headers=user_headers_hashed)
+    assert resp.status_code == status.HTTP_200_OK
+    updated_user = resp.json()
+    assert updated_user["username"]  # user still exists
+
+    login = await client.post(
+        "/auth/login",
+        data={"username": updated_user["username"], "password": "newpassword123"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login.status_code == status.HTTP_200_OK    
+
+
+@pytest.mark.asyncio
+async def test_change_password_wrong_current(client: AsyncClient, user_headers_hashed):
+    body = {
+        "current_password": "wrongpassword",
+        "new_password": "somethingnew",
+        "confirm_password": "somethingnew",
+    }
+
+    resp = await client.put("/auth/me/password", json=body, headers=user_headers_hashed)
+    assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+    assert resp.json()["detail"] == "Current password is incorrect"
