@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db_session
 from src.middleware import limiter
-from src.settings import Settings
+from src.settings import Settings, get_settings
 
 from . import service
-from .dependencies import get_current_user, get_settings
+from .dependencies import get_current_user
 from .models import User
 from .schemas import UpdateUserRequest, CreateUserRequest, ChangePasswordRequest, Token, UserOut
 

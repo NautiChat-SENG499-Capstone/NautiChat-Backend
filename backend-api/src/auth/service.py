@@ -131,7 +131,7 @@ async def update_user_info(
                 detail="Username already exists",
             )
         user.username = updated_user.username
-        update = True
+        updated = True
 
     if updated_user.onc_token:
         user.onc_token = updated_user.onc_token
