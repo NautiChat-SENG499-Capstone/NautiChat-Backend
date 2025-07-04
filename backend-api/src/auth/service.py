@@ -1,3 +1,5 @@
+import random
+import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -136,6 +138,21 @@ async def login_user(
         settings,
     )
     return Token(access_token=token, token_type="bearer")
+
+
+# Create an actual user entry in db for each guest. No current method for deleting guests.
+async def guest_login(settings: Settings, db: AsyncSession) -> Token:
+    """Authenticate guest user"""
+    chars = string.ascii_letters + string.digits
+
+    guest_username = "guest_" + "".join(random.choice(chars) for _ in range(8))
+    guest_password = "".join(random.choice(chars) for _ in range(12))
+    onc_token = settings.ONC_TOKEN  # use global ONC token for guests
+
+    create_user_request = CreateUserRequest(
+        username=guest_username, password=guest_password, onc_token=onc_token
+    )
+    return await register_user(create_user_request, settings, db)
 
 
 async def update_onc_token(

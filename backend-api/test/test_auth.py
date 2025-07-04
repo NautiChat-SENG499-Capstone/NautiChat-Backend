@@ -108,6 +108,20 @@ async def test_login_existing_user(client: AsyncClient, async_session: AsyncSess
 
 
 @pytest.mark.asyncio
+async def test_login_guest_user(client: AsyncClient, async_session: AsyncSession):
+    response = await client.post("/auth/guest-login")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["token_type"] == "bearer"
+    assert isinstance(data["access_token"], str)
+
+    # make sure a guest user was created in the db
+    query = await async_session.execute(select(models.User))
+    users = query.scalars().all()
+    assert len(users) == 1
+
+
+@pytest.mark.asyncio
 async def test_login_invalid_user(client: AsyncClient):
     # add user. since adding directly to db the password is not hashed which is easier for testing
 

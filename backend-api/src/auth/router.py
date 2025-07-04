@@ -28,6 +28,15 @@ async def login(
     return await service.login_user(form_data, settings, db)
 
 
+@router.post("/guest-login", response_model=Token)
+async def guest_login(
+    settings: Annotated[Settings, Depends(get_settings)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> Token:
+    """Authenticate guest user"""
+    return await service.guest_login(settings, db)
+
+
 @router.post("/register", status_code=201, response_model=Token)
 async def register_user(
     user_request: CreateUserRequest,
