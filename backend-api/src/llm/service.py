@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from typing import List
 
 import httpx
@@ -9,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.auth.schemas import UserOut
+from src.logger import logger
 
 from .models import Conversation as ConversationModel
 from .models import Feedback as FeedbackModel
@@ -21,9 +21,6 @@ from .schemas import (
     Message,
 )
 from .utils import get_context
-
-logger = logging.getLogger("nautichat")
-
 
 MAX_CONTEXT_WORDS = 200
 

@@ -1,62 +1,74 @@
-from typing import Optional
-
 import anyio
-from fastapi import Request, status
+from fastapi import Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from redis.asyncio import Redis  # Async Redis Client
-from starlette.middleware.base import (
-    BaseHTTPMiddleware,
-)  # Base class for custom middleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from src.logger import logger
+from src.settings import get_settings
+
+TIMEOUT_SECONDS = 30
 
 
-# TODO: There should be try/except for catching Redis Errors (If Redis is unavailable)
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, window_sec: int = 30, max_requests: int = 30):
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to handle request timeouts.
+    If a request takes longer than the specified timeout, it returns a 504 Gateway Timeout response.
+    """
+
+    def __init__(self, app):
         super().__init__(app)
-        self.window_sec = window_sec  # Time window in seconds
-        self.max_requests = max_requests  # Max allowed requests in time window
-
-    async def permit_request(self, redis: Redis, key: str):
-        # If the ip does not exist in the cache, add it with the value of max_requests
-        # and set the expiration time to window_sec
-        await redis.set(key, self.max_requests, ex=self.window_sec, nx=True)
-        cache_val: Optional[bytes] = await redis.get(key)
-
-        if cache_val is not None:
-            requests_remaining = int(cache_val)
-            if requests_remaining > 0:
-                await redis.decr(key)
-                return True
-
-        return False  # Rate limit got exceeded
+        self.timeout_seconds = TIMEOUT_SECONDS
 
     async def dispatch(self, request: Request, call_next):
-        if not request.client:
-            raise ValueError("Client IP not found")
+        response = None
+        with anyio.move_on_after(self.timeout_seconds) as scope:
+            response = await call_next(request)
 
-        # Track per-user requests
-        client_ip = request.client.host
-        redis: Redis = request.app.state.redis_client
-        key = f"{client_ip}:RATELIMIT"
-
-        # If Rate limit got exceeded
-        if not await self.permit_request(redis, key):
-            time_to_wait = await redis.ttl(key)
-            retry_info = (
-                f" Retry after {int(time_to_wait)}" if time_to_wait is not None else ""
-            )
-            return JSONResponse(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content={"detail": f"Rate limit exceeded.{retry_info}"},
-            )
-        try:
-            with anyio.move_on_after(30) as scope:
-                response = await call_next(request)
-                if scope.cancel_called:
-                    raise TimeoutError("Request exceeded 30s")
-        except TimeoutError:
+        if scope.cancel_called or response is None:
             return JSONResponse(
                 status_code=504,
                 content={"detail": "Request timed out"},
             )
+
         return response
+
+
+# Gloabal limiter class
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=f"redis://default:{get_settings().REDIS_PASSWORD}@redis-13649.crce199.us-west-2-2.ec2.redns.redis-cloud.com:13649",
+    default_limits=["80/minute"],
+)
+
+
+def init_middleware(app):
+    """
+    Initializes the middleware for the FastAPI application.
+    This function is called during application startup.
+    """
+
+    origins = ["http://localhost:3000", "https://nautichat.vercel.app"]
+
+    # Add CORS middleware  to enable frontend-backend communications
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.info("CORS middleware added.")
+
+    # Add slowapi rate limiter
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
+    app.add_middleware(SlowAPIMiddleware)
+
+    app.add_middleware(TimeoutMiddleware)
+
+    logger.info("Middleware initialized successfully.")
