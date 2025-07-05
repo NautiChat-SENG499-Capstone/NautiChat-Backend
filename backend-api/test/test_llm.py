@@ -105,6 +105,49 @@ async def test_get_conversation_unauthorized(client: AsyncClient, user_headers):
     ).status_code == status.HTTP_404_NOT_FOUND
 
 
+@pytest.mark.asyncio
+async def test_delete_conversation_success(client: AsyncClient, user_headers):
+    response = await client.post(
+        "/llm/conversations", json={"title": "ToDelete"}, headers=user_headers
+    )
+    conv_id = response.json()["conversation_id"]
+
+    delete_resp = await client.delete(
+        f"/llm/conversations/{conv_id}", headers=user_headers
+    )
+    assert delete_resp.status_code == status.HTTP_204_NO_CONTENT
+
+    get_resp = await client.get(f"/llm/conversations/{conv_id}", headers=user_headers)
+    assert get_resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_delete_conversation_unauthorized(client: AsyncClient, user_headers):
+    response = await client.post(
+        "/llm/conversations", json={"title": "PrivateDelete"}, headers=user_headers
+    )
+    conv_id = response.json()["conversation_id"]
+
+    reg = await client.post(
+        "/auth/register",
+        json={"username": "someoneelse", "password": "1234", "onc_token": "abc"},
+    )
+
+    other_token = reg.json()["access_token"]
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+
+    delete_resp = await client.delete(
+        f"/llm/conversations/{conv_id}", headers=other_headers
+    )
+    assert delete_resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_delete_conversation_not_found(client: AsyncClient, user_headers):
+    resp = await client.delete("/llm/conversations/999999", headers=user_headers)
+    assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
 async def test_generate_and_retrieve_message(client: AsyncClient, user_headers):
     conv_id = (
         await client.post(

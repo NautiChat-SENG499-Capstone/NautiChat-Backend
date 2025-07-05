@@ -7,14 +7,25 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.auth import models as auth_models
+from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
 from src.auth.schemas import UserOut
-
-# Dependencies
+from src.auth.service import create_new_user
 from src.database import get_db_session
 from src.llm import models, schemas
 
 router = APIRouter()
+
+
+@router.post("/create", status_code=201, response_model=UserOut)
+async def create_admin_user(
+    _: Annotated[auth_models.User, Depends(get_admin_user)],
+    new_admin: auth_schemas.CreateUserRequest,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserOut:
+    """Create new admin"""
+    return await create_new_user(new_admin, db, is_admin=True)
 
 
 @router.get("/messages")
