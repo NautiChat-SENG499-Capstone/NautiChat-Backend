@@ -81,6 +81,28 @@ async def get_conversation(
     return conversation
 
 
+async def delete_conversation(
+    conversation_id: int,
+    current_user: UserOut,
+    db: AsyncSession,
+):
+    """Given conv_id (of the user), delete conversation"""
+    query = select(ConversationModel).where(
+        ConversationModel.user_id == current_user.id,
+        ConversationModel.conversation_id == conversation_id,
+    )
+    result = await db.execute(query)
+    conversation = result.scalar_one_or_none()
+
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Don't have to worry about deleting messages
+    # Because conversation model has cascading message deletion
+    await db.delete(conversation)
+    await db.commit()
+
+
 async def get_data_download_link(request_id: str, onc_token: str) -> str:
     """Get a download link for the data associated with a request_id"""
 

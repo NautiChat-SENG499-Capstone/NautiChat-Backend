@@ -16,7 +16,7 @@ SUPABASE_DB_URL = os.environ["SUPABASE_DB_URL"]
 
 # Must be imported after setting SUPABASE_DB_URL
 from src.auth import models
-from src.auth.service import create_access_token
+from src.auth.service import create_access_token, get_password_hash
 from src.database import Base, get_db_session
 from src.main import create_app
 from src.settings import get_settings
@@ -77,7 +77,7 @@ async def user_headers(async_session: AsyncSession):
 
     test_user = models.User(
         username="testuser",
-        hashed_password="nothashedpassword",
+        hashed_password=get_password_hash("hashedpassword"),
         onc_token="onctoken",
         is_admin=False,
     )

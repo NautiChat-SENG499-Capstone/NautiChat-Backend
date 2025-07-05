@@ -6,12 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db_session
 from src.middleware import limiter
-from src.settings import Settings
+from src.settings import Settings, get_settings
 
 from . import service
-from .dependencies import get_current_user, get_settings
+from .dependencies import get_current_user
 from .models import User
-from .schemas import CreateUserRequest, Token, UserOut
+from .schemas import (
+    ChangePasswordRequest,
+    CreateUserRequest,
+    Token,
+    UpdateUserRequest,
+    UserOut,
+)
 
 router = APIRouter()
 
@@ -55,6 +61,26 @@ async def get_me(
     """Get the current user"""
     # Uses get_current_user() dependency to grab user
     return user
+
+
+@router.put("/me", response_model=UserOut)
+async def update_user_info(
+    updated_user: UpdateUserRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserOut:
+    """Update current user's profile info"""
+    return await service.update_user_info(updated_user, user, db)
+
+
+@router.put("/me/password", response_model=UserOut)
+async def change_password(
+    request: ChangePasswordRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserOut:
+    """Change the password for the user"""
+    return await service.change_user_password(request, user, db)
 
 
 @router.put("/me/onc-token", response_model=UserOut)
