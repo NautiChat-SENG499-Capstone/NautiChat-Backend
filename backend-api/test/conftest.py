@@ -77,31 +77,6 @@ async def user_headers(async_session: AsyncSession):
 
     test_user = models.User(
         username="testuser",
-        hashed_password="nothashedpassword",
-        onc_token="onctoken",
-        is_admin=False,
-    )
-
-    async_session.add(test_user)
-    await async_session.commit()
-    await async_session.refresh(test_user)
-
-    settings = get_settings()
-    token = create_access_token(
-        test_user.username,
-        timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS),
-        settings,
-    )
-
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest_asyncio.fixture()
-async def user_headers_hashed(async_session: AsyncSession):
-    """Return headers for a simple user"""
-
-    test_user = models.User(
-        username="testuser",
         hashed_password=get_password_hash("hashedpassword"),
         onc_token="onctoken",
         is_admin=False,

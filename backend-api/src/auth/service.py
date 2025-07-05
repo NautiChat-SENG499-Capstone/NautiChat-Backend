@@ -50,6 +50,35 @@ def create_access_token(
     return encoded_jwt
 
 
+async def create_new_user(
+    user_data: CreateUserRequest, db: AsyncSession, is_admin: bool = False
+) -> UserModel:
+    """Create a new user and add to db"""
+
+    # Check if existing user with same username exists in db
+    existing_user = await get_user(user_data.username, db)
+
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists",
+        )
+
+    # Create the user
+    new_user = UserModel(
+        username=user_data.username,
+        hashed_password=get_password_hash(user_data.password),
+        onc_token=user_data.onc_token,
+        is_admin=is_admin,
+    )
+
+    # Add to db
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
+
+
 async def get_user(username: str, db: AsyncSession) -> Optional[UserModel]:
     """Look up a user by their username in the DB"""
     user = select(UserModel).where(UserModel.username == username)
@@ -91,30 +120,14 @@ async def register_user(
 ) -> Token:
     """Register a new user and return a JWT token"""
 
-    # Check if the username is already taken
-    existing_user = await get_user(user_register.username, db)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already exists",
-        )
-
-    # create a new user (with hashed password)
-    new_user = UserModel(
-        username=user_register.username,
-        onc_token=user_register.onc_token,
-        hashed_password=get_password_hash(user_register.password),
-    )
-
-    # Add new user to DB
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
+    # create a new user
+    new_user = await create_new_user(user_register, db, is_admin=False)
 
     # Generate and return a JWT token for the new user
     token = create_access_token(
         new_user.username, timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS), settings
     )
+
     return Token(access_token=token, token_type="bearer")
 
 

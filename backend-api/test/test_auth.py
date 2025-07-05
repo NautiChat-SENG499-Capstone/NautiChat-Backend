@@ -163,7 +163,7 @@ async def test_update_user_info_username_exists(
 
 @pytest.mark.asyncio
 async def test_change_password_success(
-    client: AsyncClient, async_session: AsyncSession, user_headers_hashed
+    client: AsyncClient, async_session: AsyncSession, user_headers
 ):
     body = {
         "current_password": "hashedpassword",
@@ -171,7 +171,7 @@ async def test_change_password_success(
         "confirm_password": "newpassword123",
     }
 
-    resp = await client.put("/auth/me/password", json=body, headers=user_headers_hashed)
+    resp = await client.put("/auth/me/password", json=body, headers=user_headers)
     assert resp.status_code == status.HTTP_200_OK
     updated_user = resp.json()
     assert updated_user["username"]  # user still exists
@@ -185,13 +185,13 @@ async def test_change_password_success(
 
 
 @pytest.mark.asyncio
-async def test_change_password_wrong_current(client: AsyncClient, user_headers_hashed):
+async def test_change_password_wrong_current(client: AsyncClient, user_headers):
     body = {
         "current_password": "wrongpassword",
         "new_password": "somethingnew",
         "confirm_password": "somethingnew",
     }
 
-    resp = await client.put("/auth/me/password", json=body, headers=user_headers_hashed)
+    resp = await client.put("/auth/me/password", json=body, headers=user_headers)
     assert resp.status_code == status.HTTP_401_UNAUTHORIZED
     assert resp.json()["detail"] == "Current password is incorrect"

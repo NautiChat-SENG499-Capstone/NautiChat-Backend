@@ -11,11 +11,9 @@ from src.auth import models as auth_models
 from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
 from src.auth.schemas import UserOut
+from src.auth.service import create_new_user
 from src.database import get_db_session
 from src.llm import models, schemas
-
-# Dependencies
-from . import service
 
 router = APIRouter()
 
@@ -27,7 +25,7 @@ async def create_admin_user(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> UserOut:
     """Create new admin"""
-    return await service.create_user(new_admin, db, is_admin=True)
+    return await create_new_user(new_admin, db, is_admin=True)
 
 
 @router.get("/messages")
