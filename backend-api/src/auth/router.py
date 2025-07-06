@@ -81,13 +81,3 @@ async def change_password(
 ) -> UserOut:
     """Change the password for the user"""
     return await service.change_user_password(request, user, db)
-
-
-@router.put("/me/onc-token", response_model=UserOut)
-async def update_onc_token(
-    user: Annotated[User, Depends(get_current_user)],
-    onc_token: str,
-    db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> UserOut:
-    """Update the ONC token for the current user"""
-    return await service.update_onc_token(user, onc_token, db)
