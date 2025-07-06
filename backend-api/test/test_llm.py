@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.models import User
 from src.llm.models import Conversation, Message
 from src.llm.utils import get_context
+from src.settings import get_settings
 
 
 class DummyLLM:
@@ -96,7 +97,8 @@ async def test_get_conversation_unauthorized(client: AsyncClient, user_headers):
     ).json()["conversation_id"]
 
     reg = await client.post(
-        "/auth/register", json={"username": "x", "password": "p", "onc_token": "tok"}
+        "/auth/register",
+        json={"username": "x", "password": "p", "onc_token": get_settings().ONC_TOKEN},
     )
     headers2 = {"Authorization": f"Bearer {reg.json()['access_token']}"}
 
@@ -130,7 +132,11 @@ async def test_delete_conversation_unauthorized(client: AsyncClient, user_header
 
     reg = await client.post(
         "/auth/register",
-        json={"username": "someoneelse", "password": "1234", "onc_token": "abc"},
+        json={
+            "username": "someoneelse",
+            "password": "1234",
+            "onc_token": get_settings().ONC_TOKEN,
+        },
     )
 
     other_token = reg.json()["access_token"]
