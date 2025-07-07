@@ -25,7 +25,7 @@ async def generate_download_codes(
     extension: str = None,
     dateFrom: str = None,
     dateTo: str = None,
-    obtainedParams: ObtainedParamsDictionary = {},
+    obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
 ):
     onc = ONC(user_onc_token)
     """
@@ -101,10 +101,11 @@ async def generate_download_codes(
         if value is not None:
             obtainedParams[param] = value
     if len(neededParams) > 0:  # If need one or more parameters
+        print("OBTAINED PARAMS: ", ObtainedParamsDictionary(**obtainedParams))
         return {
             "status": StatusCode.PARAMS_NEEDED,
             "response": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(obtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
-            "obtainedParams": obtainedParams,
+            "obtainedParams": ObtainedParamsDictionary(**obtainedParams),
         }
     params = {
         "dataProductCode": dataProductCode,

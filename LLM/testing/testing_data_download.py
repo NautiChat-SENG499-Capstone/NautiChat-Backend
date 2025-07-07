@@ -1,26 +1,24 @@
 import asyncio
 import os
 from pathlib import Path
-from typing import Optional
 
 from Constants.status_codes import StatusCode
 from dotenv import load_dotenv
 from onc import ONC
-from pydantic import BaseModel
+from testing.testing_schemas import ObtainedParamsDictionary
 
+# class ObtainedParamsDictionary(BaseModel):
+#     """Parameters obtained from the user"""
 
-class ObtainedParamsDictionary(BaseModel):
-    """Parameters obtained from the user"""
-
-    deviceCategoryCode: Optional[str] = None
-    locationCode: Optional[str] = None
-    dataProductCode: Optional[str] = None
-    extension: Optional[str] = None
-    dateFrom: Optional[str] = None
-    dateTo: Optional[str] = None
-    dpo_qualityControl: Optional[int] = 0  # default is 0, which means no qc
-    dpo_resample: Optional[str] = "none"  # default is "none", which means no resampling
-    dpo_dataGaps: Optional[int] = 1  # default is 1, which means data gaps are included
+#     deviceCategoryCode: Optional[str] = None
+#     locationCode: Optional[str] = None
+#     dataProductCode: Optional[str] = None
+#     extension: Optional[str] = None
+#     dateFrom: Optional[str] = None
+#     dateTo: Optional[str] = None
+#     dpo_qualityControl: Optional[int] = 0  # default is 0, which means no qc
+#     dpo_resample: Optional[str] = "none"  # default is "none", which means no resampling
+#     dpo_dataGaps: Optional[int] = 1  # default is 1, which means data gaps are included
 
 
 def sync_param(field_name: str, local_value, params_model):
@@ -45,7 +43,7 @@ async def generate_download_codes(
     extension: str = None,
     dateFrom: str = None,
     dateTo: str = None,
-    obtainedParams: ObtainedParamsDictionary = {},
+    obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
 ):
     onc = ONC(user_onc_token)
     """
@@ -121,10 +119,11 @@ async def generate_download_codes(
         if value is not None:
             obtainedParams[param] = value
     if len(neededParams) > 0:  # If need one or more parameters
+        print("OBTAINED PARAMS: ", ObtainedParamsDictionary(**obtainedParams))
         return {
             "status": StatusCode.PARAMS_NEEDED,
             "response": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(obtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
-            "obtainedParams": obtainedParams,
+            "obtainedParams": ObtainedParamsDictionary(**obtainedParams),
         }
     params = {
         "dataProductCode": dataProductCode,

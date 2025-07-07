@@ -71,8 +71,8 @@ class LLM:
         user_prompt,
         user_onc_token: str,
         chatHistory: list[dict] = [],
-        obtainedParams: ObtainedParamsDictionary = {},
-    ) -> dict:
+        obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+    ) -> RunConversationResponse:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
             startingPrompt = f"""
@@ -254,12 +254,17 @@ class LLM:
                                 print(
                                     "Download parameters needed, returning response now"
                                 )
+                                print("Function response:", function_response)
+                                obtainedParams: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtainedParams)
+                                print("Obtained parameters:", type(obtainedParams))
+                                # Return a response indicating that
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
-                                    obtainedParams=function_response.get(
-                                        "obtainedParams", {}
-                                    ),
+                                    obtainedParams=obtainedParams,
                                 )
                             elif (
                                 function_response.get("status")
@@ -345,7 +350,7 @@ async def main():
         )  # Create an instance of the LLM class
         user_prompt = input("Enter your first question (or 'exit' to quit): ")
         chatHistory = []
-        obtainedParams = {}
+        obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
         while user_prompt not in ["exit", "quit"]:
             response = await LLM_Instance.run_conversation(
                 user_prompt=user_prompt,
@@ -361,7 +366,7 @@ async def main():
                 print("Download request initiated. Request ID:", response.dpRequestId)
                 print("DOI:", response.doi)
                 print("Citation:", response.citation)
-                obtainedParams = {}
+                obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
             elif response.status == StatusCode.PARAMS_NEEDED:
                 print("Error:", response.response)
                 obtainedParams = response.obtainedParams

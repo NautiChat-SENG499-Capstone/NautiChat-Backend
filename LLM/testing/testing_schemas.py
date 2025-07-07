@@ -1,7 +1,7 @@
 from typing import Optional
 
 from Constants.status_codes import StatusCode  # Change to LLM. for production
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # from LLM.Constants.StatusCodes import StatusCode
 
@@ -25,11 +25,13 @@ class RunConversationResponse(BaseModel):
 
     status: StatusCode
     response: str
-    obtainedParams: Optional[ObtainedParamsDictionary] = {}
+    obtainedParams: Optional[ObtainedParamsDictionary] = Field(
+        default_factory=ObtainedParamsDictionary
+    )
     dpRequestId: Optional[int] = None
     doi: Optional[str] = (
         None  # may need to switch to a list of strings if we go through citations and make a list of all of them
     )
     citation: Optional[str] = None  # may need to switch to a list of strings
     baseUrl: Optional[str] = None
-    urlParamsUsed: Optional[ObtainedParamsDictionary] = {}
+    urlParamsUsed: Optional[dict] = Field(default_factory=dict)
