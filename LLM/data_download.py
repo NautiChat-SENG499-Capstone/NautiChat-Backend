@@ -1,6 +1,7 @@
 from Constants.status_codes import StatusCode
 from onc import ONC
-from schemas import ObtainedParamsDictionary
+
+from LLM.schemas import ObtainedParamsDictionary
 
 
 def sync_param(field_name: str, local_value, params_model):
