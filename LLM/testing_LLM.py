@@ -6,20 +6,20 @@ from collections import OrderedDict
 from datetime import datetime
 
 import pandas as pd
-from Constants.statusCodes import StatusCode
-from Constants.toolDescriptions import toolDescriptions
-from dataDownload import generate_download_codes
+from Constants.status_codes import StatusCode
+from Constants.tool_descriptions import toolDescriptions
 from Environment import Environment
-from schemas import ObtainedParamsDictionary, RunConversationResponse
-from testingRAG import RAG
-from toolsSprint1 import (
+from testing.testing_data_download import generate_download_codes
+from testing.testing_RAG import RAG
+from testing.testing_schemas import ObtainedParamsDictionary, RunConversationResponse
+from tools_sprint1 import (
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_properties_at_cambridge_bay,
 )
-from toolsSprint2 import (
+from tools_sprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_ice_thickness,
     get_oxygen_data_24h,
@@ -78,13 +78,30 @@ class LLM:
             startingPrompt = f"""
                 You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed. 
                 Today’s date is {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required.
+
+                You MUST prioritize information provided to you via previous assistant messages (such as search results or sensor descriptions) before using any tools.
+
+                You should ONLY use the data download tool or any other time-series-related tool when the user:
+                - explicitly asks to download or retrieve data,
+                - requests measurements, time series, plots, or values over a date or time range,
+                - or provides specific parameters like `dateFrom`, `dateTo`, or timestamp values.
+
+                Even if valid parameters (such as `deviceCategoryCode`, `dataProductCode`, or `locationCode`) are present in the conversation or from the vector search, do NOT assume the user wants data. The presence of these parameters is common and should be treated as context only.
+
+                Do NOT use any data-fetching tools for general, conceptual, or sensor-related questions if relevant information has already been provided (e.g., from a vector search or assistant message).
+
+                Listing or describing sensors is enough to answer most conceptual questions — you should NOT follow up by trying to download or offer data unless the user has clearly asked for it.
+
                 Do not summarize data unless explicitly asked.
+                If the user asks whether a type of data or measurement is available at a given observatory or location, respond with a simple yes or no based on your knowledge or the vector search information. Do NOT call data retrieval functions in response to such questions.
 
                 After every answer you give—no matter what the topic is—you MUST end your response with a warm, natural follow-up like:
                 “Is there anything else I can help you with?” or “Let me know if you have any other questions!”
+
                 This closing line is required even if the user just says “thanks” or ends the conversation.
+
                 If the user says something like “thanks” or “goodbye”, you should still respond with a friendly closing line like:
-                “You’re welcome! If you have any more questions in the future, feel free to ask. Have a great day!” or “Goodbye! If you need anything else, just let me know!”.
+                “You’re welcome! If you have any more questions in the future, feel free to ask. Have a great day!” or “Goodbye! If you need anything else, just let me know!”
 
                 You may use tools when required to answer user questions. Do not describe what you *will* do — only use tools if needed.
 
@@ -96,17 +113,16 @@ class LLM:
 
                 You are NEVER required to generate code in any language.
 
-                USE the last context of the conversation as the user question to be answered. 
-                The previous messages in the conversation are provided to you as context only.
                 Do NOT add follow-up suggestions, guesses, or recommendations.
 
-                For data download, do not add properties to the function call unless the user has provided them. 
+                DO NOT guess what parameters the user might want to use for data download requests.
 
-                DO NOT guess what the tool might return.
-                DO NOT say "I will now use the tool".
+                DO NOT guess what the tool might return.  
+                DO NOT say "I will now use the tool."  
                 DO NOT try to reason about data availability.
-                IF the user requests an example of data without specifying the dateFrom or dateTo parameters, use the most recent available dates for the requested device.
-                Here is the user_onc_token: {user_onc_token}.
+
+                If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
+
             """
 
             """
@@ -153,16 +169,7 @@ class LLM:
                     }
                 },
             """
-            messages = chatHistory + [
-                {
-                    "role": "system",
-                    "content": startingPrompt,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
-            ]
+
             # print("Messages: ", messages)
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
@@ -176,8 +183,18 @@ class LLM:
             else:
                 vector_content = str(vectorDBResponse)
             # print("Vector DB Response:", vector_content)
-            messages.append({"role": "system", "content": vector_content})
-
+            messages = [
+                {
+                    "role": "system",
+                    "content": startingPrompt,
+                },
+                {"role": "assistant", "content": vector_content},
+                *chatHistory,
+                {
+                    "role": "user",
+                    "content": user_prompt,
+                },
+            ]
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
                 messages=messages,  # Conversation history
@@ -185,13 +202,13 @@ class LLM:
                 tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
                 tool_choice="auto",  # Let our LLM decide when to use tools
                 max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
-                temperature=0.25,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
+                temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
             # print("Response from LLM:", response)
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
             # print(tool_calls)
-            DoingDataDownload = False
+            doing_data_download = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 # print("tools calls:", tool_calls)
@@ -211,7 +228,7 @@ class LLM:
                         if function_name == "generate_download_codes":
                             # Special case for download codes
                             print("Generating download codes...")
-                            DoingDataDownload = True
+                            doing_data_download = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
                         except json.JSONDecodeError:
@@ -219,7 +236,7 @@ class LLM:
                         print(
                             f"Calling function: {function_name} with args: {function_args}"
                         )
-                        if DoingDataDownload:
+                        if doing_data_download:
                             print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
                             function_args["obtainedParams"] = obtainedParams
@@ -229,7 +246,7 @@ class LLM:
                             function_args or {},
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
-                        if DoingDataDownload:
+                        if doing_data_download:
                             if (
                                 function_response.get("status")
                                 == StatusCode.PARAMS_NEEDED
@@ -289,7 +306,7 @@ class LLM:
                     model=self.model,
                     messages=messages,
                     max_completion_tokens=4096,
-                    temperature=0.25,
+                    temperature=0,
                     stream=False,
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
@@ -351,8 +368,9 @@ async def main():
                 print("Obtained parameters:", obtainedParams)
             else:
                 print("Response:", response.response)
-            response = {"role": "system", "content": response}
+            response = {"role": "assistant", "content": response.response}
             chatHistory.append({"role": "user", "content": user_prompt})
+            chatHistory.append(response)
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
 
     except Exception as e:

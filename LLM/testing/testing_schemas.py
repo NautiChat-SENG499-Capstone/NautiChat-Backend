@@ -1,8 +1,7 @@
 from typing import Optional
 
+from Constants.status_codes import StatusCode  # Change to LLM. for production
 from pydantic import BaseModel
-
-from LLM.Constants.status_codes import StatusCode  # Change to LLM. for production
 
 # from LLM.Constants.StatusCodes import StatusCode
 

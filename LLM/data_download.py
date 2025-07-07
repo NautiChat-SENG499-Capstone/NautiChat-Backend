@@ -1,20 +1,33 @@
-from Constants.statusCodes import StatusCode
-from Environment import Environment  # add . at start to work in prod.
+from Constants.status_codes import StatusCode
 from onc import ONC
+from schemas import ObtainedParamsDictionary
+
+
+def sync_param(field_name: str, local_value, params_model):
+    """
+    Sync a local variable with a field in a Pydantic model:
+    - If local_value is None, try to pull from model.
+    - If local_value is not None, update model with it.
+    Returns the resolved value.
+    """
+    if local_value is None:
+        return getattr(params_model, field_name, None)
+    else:
+        setattr(params_model, field_name, local_value)
+        return local_value
 
 
 async def generate_download_codes(
+    user_onc_token: str,
     deviceCategoryCode: str = None,
     locationCode: str = None,
     dataProductCode: str = None,
     extension: str = None,
     dateFrom: str = None,
     dateTo: str = None,
-    user_onc_token: str = None,
-    obtainedParams: dict = {},
+    obtainedParams: ObtainedParamsDictionary = {},
 ):
-    env = Environment()
-    onc = ONC(user_onc_token) if user_onc_token else ONC(env.get_onc_token())
+    onc = ONC(user_onc_token)
     """
         Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension,
         so that users request to download data, over a specified time period.
@@ -62,23 +75,15 @@ async def generate_download_codes(
         Dont forget to append ONC token at the end of the URL
     """
 
-    if deviceCategoryCode is None and "deviceCategoryCode" in obtainedParams:
-        deviceCategoryCode = obtainedParams.get("deviceCategoryCode")
-    elif deviceCategoryCode is not None:
-        obtainedParams["deviceCategoryCode"] = deviceCategoryCode
-    if locationCode is None and "locationCode" in obtainedParams:
-        locationCode = obtainedParams.get("locationCode")
-    elif locationCode is not None:
-        obtainedParams["locationCode"] = locationCode
+    deviceCategoryCode = sync_param(
+        "deviceCategoryCode", deviceCategoryCode, obtainedParams
+    )
+    locationCode = sync_param("locationCode", locationCode, obtainedParams)
+    dataProductCode = sync_param("dataProductCode", dataProductCode, obtainedParams)
+    extension = sync_param("extension", extension, obtainedParams)
+    dateFrom = sync_param("dateFrom", dateFrom, obtainedParams)
+    dateTo = sync_param("dateTo", dateTo, obtainedParams)
 
-    if dataProductCode is None and "dataProductCode" in obtainedParams:
-        dataProductCode = obtainedParams.get("dataProductCode")
-    if extension is None and "extension" in obtainedParams:
-        extension = obtainedParams.get("extension")
-    if dateFrom is None and "dateFrom" in obtainedParams:
-        dateFrom = obtainedParams.get("dateFrom")
-    if dateTo is None and "dateTo" in obtainedParams:
-        dateTo = obtainedParams.get("dateTo")
     allParams = {
         "dataProductCode": dataProductCode,
         "extension": extension,

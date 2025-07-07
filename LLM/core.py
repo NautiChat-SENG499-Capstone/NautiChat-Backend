@@ -8,19 +8,19 @@ import pandas as pd
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 
 from LLM.codes import generate_download_codes
-from LLM.Constants.statusCodes import StatusCode
-from LLM.Constants.toolDescriptions import toolDescriptions
-from LLM.dataDownload import generate_download_codes
+from LLM.Constants.status_codes import StatusCode
+from LLM.Constants.tool_descriptions import toolDescriptions
+from LLM.data_download import generate_download_codes
 from LLM.RAG import RAG, JinaEmbeddings
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
-from LLM.toolsSprint1 import (
+from LLM.tools_sprint1 import (
     get_active_instruments_at_cambridge_bay,
     # get_time_range_of_available_data,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_properties_at_cambridge_bay,
 )
-from LLM.toolsSprint2 import (
+from LLM.tools_sprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_ice_thickness,
     get_oxygen_data_24h,
@@ -149,7 +149,7 @@ class LLM:
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
             # print(tool_calls)
-            DoingDataDownload = False
+            doing_data_download = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 print("tools calls:", tool_calls)
@@ -169,7 +169,7 @@ class LLM:
                         if function_name == "generate_download_codes":
                             # Special case for download codes
                             print("Generating download codes...")
-                            DoingDataDownload = True
+                            doing_data_download = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
                         except json.JSONDecodeError:
@@ -177,7 +177,7 @@ class LLM:
                         print(
                             f"Calling function: {function_name} with args: {function_args}"
                         )
-                        if DoingDataDownload:
+                        if doing_data_download:
                             print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
                             function_args["obtainedParams"] = obtainedParams
@@ -187,7 +187,7 @@ class LLM:
                             function_args or {},
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
-                        if DoingDataDownload:
+                        if doing_data_download:
                             if (
                                 function_response.get("status")
                                 == StatusCode.PARAMS_NEEDED

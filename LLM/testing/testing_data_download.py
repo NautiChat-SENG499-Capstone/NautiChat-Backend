@@ -1,15 +1,51 @@
-from onc import ONC
 import asyncio
+import os
+from pathlib import Path
+from typing import Optional
+
+from Constants.status_codes import StatusCode
+from dotenv import load_dotenv
+from onc import ONC
+from pydantic import BaseModel
+
+
+class ObtainedParamsDictionary(BaseModel):
+    """Parameters obtained from the user"""
+
+    deviceCategoryCode: Optional[str] = None
+    locationCode: Optional[str] = None
+    dataProductCode: Optional[str] = None
+    extension: Optional[str] = None
+    dateFrom: Optional[str] = None
+    dateTo: Optional[str] = None
+    dpo_qualityControl: Optional[int] = 0  # default is 0, which means no qc
+    dpo_resample: Optional[str] = "none"  # default is "none", which means no resampling
+    dpo_dataGaps: Optional[int] = 1  # default is 1, which means data gaps are included
+
+
+def sync_param(field_name: str, local_value, params_model):
+    """
+    Sync a local variable with a field in a Pydantic model:
+    - If local_value is None, try to pull from model.
+    - If local_value is not None, update model with it.
+    Returns the resolved value.
+    """
+    if local_value is None:
+        return getattr(params_model, field_name, None)
+    else:
+        setattr(params_model, field_name, local_value)
+        return local_value
+
 
 async def generate_download_codes(
+    user_onc_token: str,
     deviceCategoryCode: str = None,
     locationCode: str = None,
     dataProductCode: str = None,
     extension: str = None,
     dateFrom: str = None,
     dateTo: str = None,
-    user_onc_token: str = None,
-    obtainedParams: dict = {},
+    obtainedParams: ObtainedParamsDictionary = {},
 ):
     onc = ONC(user_onc_token)
     """
@@ -58,52 +94,59 @@ async def generate_download_codes(
         + "&dateTo=" + dateTo 
         Dont forget to append ONC token at the end of the URL
     """
-    
-    if deviceCategoryCode is None and "deviceCategoryCode" in obtainedParams:
-        deviceCategoryCode = obtainedParams.get("deviceCategoryCode")
-    if locationCode is None and "locationCode" in obtainedParams:
-        locationCode = obtainedParams.get("locationCode")
-    if dataProductCode is None and "dataProductCode" in obtainedParams:
-        dataProductCode = obtainedParams.get("dataProductCode")
-    if extension is None and "extension" in obtainedParams:
-        extension = obtainedParams.get("extension")
-    if dateFrom is None and "dateFrom" in obtainedParams:
-        dateFrom = obtainedParams.get("dateFrom")
-    if dateTo is None and "dateTo" in obtainedParams:
-        dateTo = obtainedParams.get("dateTo")
+
+    deviceCategoryCode = sync_param(
+        "deviceCategoryCode", deviceCategoryCode, obtainedParams
+    )
+    locationCode = sync_param("locationCode", locationCode, obtainedParams)
+    dataProductCode = sync_param("dataProductCode", dataProductCode, obtainedParams)
+    extension = sync_param("extension", extension, obtainedParams)
+    dateFrom = sync_param("dateFrom", dateFrom, obtainedParams)
+    dateTo = sync_param("dateTo", dateTo, obtainedParams)
+
     allParams = {
-        "deviceCategoryCode": deviceCategoryCode, 
-        "locationCode": locationCode, 
-        "dataProductCode": dataProductCode, 
-        "extension": extension, 
-        "dateFrom": dateFrom, 
-        "dateTo": dateTo
-    }
-    neededParams = []
-    obtainedParams = {}
-    for param, value in allParams.items():
-        if value is None:
-            neededParams.append(param) #finding the parameters that are not set
-        else:
-            obtainedParams[param] = value #remaking the obtainedParams dict
-    if len(neededParams) > 0: #If need one or more parameters
-        return {
-            "status": "ParamsNeeded",
-            "message": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(obtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
-            "obtainedParams": obtainedParams,
-        }
-    params = {
-        "locationCode": locationCode,
-        "deviceCategoryCode": deviceCategoryCode,
         "dataProductCode": dataProductCode,
         "extension": extension,
         "dateFrom": dateFrom,
         "dateTo": dateTo,
-        "dpo_qualityControl": "1", #1 means to clean the data, 0 means to not clean the data. Cleaning the data will use qaqc flags 3,4 and 6 to be replaced with Nans when dpo)dataGaps is set to 1. If its set to 0, then the data will be removed.
-        "dpo_resample": "none",#No sampling done. If set to average, then the data will be averaged over the time period specified. This auto cleans the data. Same for minMax and minMaxAvg.
-        #If using dpo_resample then can use for example dpo_minMaxAvg = {0, 60, 600, 900, 3600, 86400} to get 1 min, 10 min, 10 min, 15 min, 1 hour, and 1 day min, max and averages.
-        "dpo_dataGaps": "1", #Fills missing/bad data with NaNs
+    }  # Only the necessary parameters for a data download request.
+    neededParams = []
+    obtainedParams = {}
+    for param, value in allParams.items():
+        if value is None:
+            neededParams.append(param)  # finding the parameters that are not set
+        else:
+            obtainedParams[param] = value  # remaking the obtainedParams dict
+    for param, value in obtainedParams.items():
+        if value is not None:
+            obtainedParams[param] = value
+    if len(neededParams) > 0:  # If need one or more parameters
+        return {
+            "status": StatusCode.PARAMS_NEEDED,
+            "response": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(obtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
+            "obtainedParams": obtainedParams,
+        }
+    params = {
+        "dataProductCode": dataProductCode,
+        "extension": extension,
+        "dateFrom": dateFrom,
+        "dateTo": dateTo,
     }
+
+    #  "dpo_qualityControl": "1", #1 means to clean the data, 0 means to not clean the data. Cleaning the data will use qaqc flags 3,4 and 6 to be replaced with Nans when dpo)dataGaps is set to 1. If its set to 0, then the data will be removed.
+    #  "dpo_resample": "none",#No sampling done. If set to average, then the data will be averaged over the time period specified. This auto cleans the data. Same for minMax and minMaxAvg.
+    #  #If using dpo_resample then can use for example dpo_minMaxAvg = {0, 60, 600, 900, 3600, 86400} to get 1 min, 10 min, 10 min, 15 min, 1 hour, and 1 day min, max and averages.
+    #  "dpo_dataGaps": "1", #Fills missing/bad data with NaNs
+    if "dpo_qualityControl" in obtainedParams:
+        params["dpo_qualityControl"] = obtainedParams["dpo_qualityControl"]
+    if "dpo_resample" in obtainedParams:
+        params["dpo_resample"] = obtainedParams["dpo_resample"]
+    if "dpo_dataGaps" in obtainedParams:
+        params["dpo_dataGaps"] = obtainedParams["dpo_dataGaps"]
+    if deviceCategoryCode is not None:
+        params["deviceCategoryCode"] = deviceCategoryCode
+    if locationCode is not None:
+        params["locationCode"] = locationCode
     """
     https://wiki.oceannetworks.ca/spaces/DP/pages/40206402/Resampling+Data+Files 
     dpo_resample=minMax and dpo_minMax={0, 60, 600, 900, 3600, 86400}
@@ -117,24 +160,30 @@ async def generate_download_codes(
     Note that tides are not filtered out in resampled products.
     """
     try:
-        response = (onc.requestDataProduct(params))
+        response = onc.requestDataProduct(params)
         print(f"Response from ONC: {response}")
         return {
-            "status": "queued",
+            "status": StatusCode.PROCESSING_DATA_DOWNLOAD,
             "dpRequestId": response["dpRequestId"],
             "doi": response["citations"][0]["doi"],
             "citation": response["citations"][0]["citation"],
-            "message": "Your download is being processed. ",
+            "response": "Your download is being processed.",
+            "urlParamsUsed": obtainedParams,
+            "baseUrl": "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
         }
     except Exception as e:
         print(f"Error occurred: {type(e).__name__}: {e}")
         return {
-            "status": "error",
-            "message": "Data is unavailable for this sensor and time. "
-            "DO NOT ADVISE THE USER TO DO ANYTHING EXCEPT TRY AGAIN WITH DIFFERENT PARAMETERS.",
+            "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+            "response": "Data is unavailable for this sensor and time.",
         }
-    
+
+
 async def main():
+    if os.getenv("ENV") != "production":
+        env_file_location = str(Path(__file__).resolve().parent / ".env")
+        load_dotenv(env_file_location)
+    ONCTOKEN = os.getenv("ONC_TOKEN")
     rs = await generate_download_codes(
         deviceCategoryCode="DIVE_COMPUTER",
         locationCode="CBYDS",
@@ -142,10 +191,11 @@ async def main():
         extension="txt",
         dateFrom="2015-08-15T00:00:00.000Z",
         dateTo="2015-08-15T23:59:59.999Z",
-        user_onc_token="6a316121-e017-4f4c-9cb1-eaf5dd706425"
+        user_onc_token=ONCTOKEN,
     )
     print()
     print("RES: ", rs)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

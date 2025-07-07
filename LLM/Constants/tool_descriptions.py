@@ -146,7 +146,7 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "generate_download_codes",
-            "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to pass in only the parameters that the user has explicitly provided. Do not guess, assume, or invent any missing parameters. If dateFrom or dateTo are not mentioned by the user, do not include them. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in the response handling or in checking the status of the download. You do not need to explain the result to the user. ",
+            "description": "Call this function ONLY when the user has explicitly requested to download or retrieve data from Ocean Networks Canada (ONC). Pass only the parameters that the user has explicitly provided. Do NOT guess, assume, or add any missing parameters. If the user has not provided dateFrom or dateTo, do NOT include them. The function will handle missing parameters appropriately. After calling this function, you are NOT responsible for generating any response related to the download result — your task ends here. You should only call this function when you are certain the user wants data downloaded. Otherwise, do NOT call it.",
             "parameters": {
                 "type": "object",
                 "properties": {
