@@ -6,6 +6,7 @@ from typing import Optional
 import jwt  # JSON Web Token for creating and decoding tokens
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from httpx import AsyncClient
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext  # For password hashing and verification
 from sqlalchemy import select
@@ -34,6 +35,27 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+async def validate_onc_token(token: str):
+    """Verify the ONC token by making a request to the ONC API"""
+
+    # call the ONC api to verify the token
+    # call an endpoint with missing parameters so that it returns quickly in both valid and invalid token cases
+
+    async with AsyncClient(timeout=5) as client:
+        response = await client.get(
+            f"https://data.oceannetworks.ca/api/locations?locationCode=INVALID&token={token}"
+        )
+        data = response.json()
+        if "errors" not in data:
+            raise RuntimeError("ONC changed the API, update the validation logic")
+        for error in data["errors"]:
+            if error["parameter"] == "token":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid ONC token",
+                )
+
+
 def create_access_token(
     username: str,
     expires_delta: timedelta,
@@ -56,6 +78,8 @@ async def create_new_user(
     user_data: CreateUserRequest, db: AsyncSession, is_admin: bool = False
 ) -> UserModel:
     """Create a new user and add to db"""
+
+    await validate_onc_token(user_data.onc_token)
 
     # Check if existing user with same username exists in db
     existing_user = await get_user(user_data.username, db)
@@ -154,6 +178,7 @@ async def update_user_info(
         updated = True
 
     if updated_user.onc_token:
+        await validate_onc_token(updated_user.onc_token)
         user.onc_token = updated_user.onc_token
         updated = True
 
@@ -243,17 +268,3 @@ async def guest_login(settings: Settings, db: AsyncSession) -> Token:
         username=guest_username, password=guest_password, onc_token=onc_token
     )
     return await register_user(create_user_request, settings, db)
-
-
-async def update_onc_token(
-    user: UserModel, new_onc_token: str, db: AsyncSession
-) -> UserModel:
-    """Update the ONC token for the given user"""
-
-    user.onc_token = new_onc_token
-
-    # Update DB
-    await db.commit()
-    await db.refresh(user)
-
-    return user
