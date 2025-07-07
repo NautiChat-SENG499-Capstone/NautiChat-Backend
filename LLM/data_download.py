@@ -1,6 +1,6 @@
-from Constants.status_codes import StatusCode
 from onc import ONC
 
+from LLM.Constants.status_codes import StatusCode
 from LLM.schemas import ObtainedParamsDictionary
 
 
