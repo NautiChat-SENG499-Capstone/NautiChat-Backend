@@ -92,3 +92,14 @@ async def pdf_data_upload(
     pdf_bytes = await file.read()
     await service.pdf_upload_to_vdb(source, pdf_bytes, request)
 
+@router.post("/source-remove", status_code=204)
+async def source_remove(
+    source: str,
+    request: Request,
+    _: Annotated[UserOut, Depends(get_admin_user)],
+    
+):
+    """
+    Endpoint for admins to delete all information with a specific source name from vector db.
+    """
+    await service.source_remove_from_vdb(source, request)

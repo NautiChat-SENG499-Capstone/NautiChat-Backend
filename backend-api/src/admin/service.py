@@ -1,5 +1,6 @@
 from fastapi import HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from qdrant_client.http.models import Filter, FieldCondition, MatchValue, UpdateStatus
 
 from LLM.vectorDBUpload import prepare_embedding_input_from_preformatted, upload_to_vector_db, process_pdf, prepare_embedding_input
 
@@ -34,3 +35,35 @@ async def pdf_upload_to_vdb(
 
     upload_to_vector_db(prepared_input, state.rag.qdrant_client_wrapper)
     #Need an upload to standard db of source
+
+async def source_remove_from_vdb(
+    source_to_remove: str,
+    request: Request
+    ) -> None:
+    """Filter vector db for points with provided source and remove them"""
+
+    state = request.app.state
+    if not state.llm or not state.rag:
+        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
+    
+    # Define a filter on the "source" field in the payload
+    filter_condition = Filter(
+        must=[
+            FieldCondition(
+                key="source",
+                match=MatchValue(value=source_to_remove)
+            )
+        ]
+    )
+
+    # Delete matching points from the collection
+    result = state.rag.qdrant_client.delete(
+        state.rag.collection_name, 
+        points_selector=filter_condition
+    )
+
+    if result.status != UpdateStatus.COMPLETED:
+        raise HTTPException(status_code=500, detail="Deletion from vector database failed")
+
+    #Need a remove from standard db of source
+        
