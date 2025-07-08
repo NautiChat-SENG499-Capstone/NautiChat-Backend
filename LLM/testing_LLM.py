@@ -252,6 +252,13 @@ class LLM:
                                     dpRequestId=dpRequestId,
                                     doi=doi,
                                     citation=citation,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
+                                    ),
                                 )
                             elif (
                                 function_response.get("status")
@@ -271,7 +278,9 @@ class LLM:
                                 "tool_call_id": tool_call.id,
                                 "role": "tool",  # Indicates this message is from tool use
                                 "name": function_name,
-                                "content": json.dumps(function_response),
+                                "content": json.dumps(
+                                    function_response.get("response", "")
+                                ),
                             }
                         )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
@@ -286,7 +295,13 @@ class LLM:
                 print("Second response: ", second_response.choices[0].message)
                 response = second_response.choices[0].message.content
                 return RunConversationResponse(
-                    status=StatusCode.REGULAR_MESSAGE, response=response
+                    status=StatusCode.REGULAR_MESSAGE,
+                    response=response,
+                    urlParamsUsed=function_response.get("urlParamsUsed", {}),
+                    baseUrl=function_response.get(
+                        "baseUrl",
+                        "",
+                    ),
                 )
             else:
                 print(response_message)
