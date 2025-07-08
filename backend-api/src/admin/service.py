@@ -1,7 +1,7 @@
 from fastapi import HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from LLM.vectorDBUpload import prepare_embedding_input_from_preformatted, upload_to_vector_db
+from LLM.vectorDBUpload import prepare_embedding_input_from_preformatted, upload_to_vector_db, process_pdf, prepare_embedding_input
 
 async def raw_text_upload_to_vdb(
     source: str, 
@@ -16,4 +16,21 @@ async def raw_text_upload_to_vdb(
     
     input_raw_text = [{'paragraphs': [information], 'page': [], 'source': source}]
     upload_to_vector_db(prepare_embedding_input_from_preformatted(input_raw_text, state.rag.embedding), state.rag.qdrant_client_wrapper)
+    #Need an upload to standard db of source
         
+async def pdf_upload_to_vdb(
+    source: str, 
+    pdf_bytes: bytes, 
+    request: Request
+    ) -> None:
+    """Preprocess a pdf file, embed, and upload to vector db"""
+    # Create a new DB object with the text
+    state = request.app.state
+    if not state.llm or not state.rag:
+        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
+    
+    processed_pdf = process_pdf(True, pdf_bytes, source = source) 
+    prepared_input = prepare_embedding_input(processed_pdf, embedding_model=state.rag.embedding)
+
+    upload_to_vector_db(prepared_input, state.rag.qdrant_client_wrapper)
+    #Need an upload to standard db of source

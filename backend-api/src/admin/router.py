@@ -1,6 +1,6 @@
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, UploadFile
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -77,4 +77,18 @@ async def raw_text_upload(
     Endpoint for admins to submit raw text to be uploaded to vector database.
     """
     await service.raw_text_upload_to_vdb(input.source, input.information, request)
+
+@router.post("/pdf-upload", status_code=201)
+async def pdf_data_upload(
+    file: UploadFile,
+    source: str,
+    request: Request,
+    _: Annotated[UserOut, Depends(get_admin_user)],
+    
+):
+    """
+    Endpoint for admins to submit pdf files to be uploaded to vector database.
+    """
+    pdf_bytes = await file.read()
+    await service.pdf_upload_to_vdb(source, pdf_bytes, request)
 
