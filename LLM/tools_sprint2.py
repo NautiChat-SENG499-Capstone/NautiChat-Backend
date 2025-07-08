@@ -64,6 +64,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(
                 "deviceCategoryCode": "METSTN",
                 "dateFrom": date_from_str,
                 "dateTo": date_to_str,
+                "user_onc_token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }
@@ -86,6 +87,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(
             "deviceCategoryCode": "METSTN",
             "dateFrom": date_from_str,
             "dateTo": date_to_str,
+            "user_onc_token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
@@ -134,6 +136,7 @@ async def get_oxygen_data_24h(
                 "dateFrom": date_from_str,
                 "dateTo": date_to_str,
                 "resamplePeriod": "3600",
+                "user_onc_token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }
@@ -151,6 +154,7 @@ async def get_oxygen_data_24h(
             "deviceCategoryCode": "METSTN",
             "dateFrom": date_from_str,
             "dateTo": date_to_str,
+            "user_onc_token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
@@ -235,6 +239,7 @@ async def get_wind_speed_at_timestamp(
                 "propertyCode": "windspeed",
                 "dateFrom": date_from_str,
                 "dateTo": date_to_str,
+                "user_onc_token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }
@@ -263,6 +268,7 @@ async def get_wind_speed_at_timestamp(
             "propertyCode": "windspeed",
             "dateFrom": date_from_str,
             "dateTo": date_to_str,
+            "user_onc_token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
@@ -312,6 +318,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
                 "sensorCategoryCodes": "ice_thickness_corrected",
                 "dateFrom": date_from_str,
                 "dateTo": date_to_str,
+                "user_onc_token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }  # No data available for the given date
@@ -333,6 +340,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
             "sensorCategoryCodes": "ice_thickness_corrected",
             "dateFrom": date_from_str,
             "dateTo": date_to_str,
+            "user_onc_token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }

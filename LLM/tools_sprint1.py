@@ -7,8 +7,6 @@ import httpx
 from dotenv import load_dotenv
 from onc import ONC
 
-from LLM.Constants.status_codes import StatusCode
-
 # Load location code from .env (fallback)
 env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path)

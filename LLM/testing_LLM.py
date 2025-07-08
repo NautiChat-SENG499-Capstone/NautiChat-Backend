@@ -356,6 +356,8 @@ async def main():
                 print("Obtained parameters:", obtainedParams)
             else:
                 print("Response:", response.response)
+            print("URL Params Used:", response.urlParamsUsed)
+            print("Base URL:", response.baseUrl)
             response = {"role": "assistant", "content": response.response}
             chatHistory.append({"role": "user", "content": user_prompt})
             chatHistory.append(response)
