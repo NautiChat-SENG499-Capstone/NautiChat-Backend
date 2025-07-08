@@ -235,7 +235,9 @@ class LLM:
                     user_onc_token=user_onc_token,
                 )
             except Exception as retry_error:
-                logger.error(f"Retry after cycling tokens failed: {retry_error}", exc_info=True)
+                logger.error(
+                    f"Retry after cycling tokens failed: {retry_error}", exc_info=True
+                )
                 return {
                     "status": 400,
                     "response": "Sorry, your request failed. Please try again.",
