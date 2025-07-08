@@ -263,7 +263,7 @@ toolDescriptions = [
                     "dpo_resample": {
                         "type": "string",
                         "enum": ["none", "average", "minMax", "minMaxAvg"],
-                        "description": "The resampling type for the data. Allowed values: none, average, minMax and minMaxAvg. If 'none', no resampling is applied; if 'average', the data is resampled to the average value over the specified period in dpo_average (the average value can be NaN if there is less than 70percent data available after cleaning); if 'minMax', the data is resampled to the minimum and maximum values over the specified period in dpo_minMax; if 'minMaxAvg', the data is resampled to the minimum, maximum, and average values over the specified period in dpo_minMaxAvg.",
+                        "description": "The resampling type to apply to the data. Must be one of: 'none', 'average', 'minMax', or 'minMaxAvg'. Use 'average' to return average values per interval, 'minMax' for only minimum and maximum values, and 'minMaxAvg' for all three. Set to 'none' if no resampling is needed. Choose based on how the user describes the summary they want (e.g., average, min/max, or all three (min, max, and average)).",
                     },
                     "dpo_minMax": {
                         "type": "integer",

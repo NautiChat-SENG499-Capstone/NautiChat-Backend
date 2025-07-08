@@ -91,6 +91,13 @@ class LLM:
 
                 Do NOT use any data-fetching tools for general, conceptual, or sensor-related questions if relevant information has already been provided (e.g., from a vector search or assistant message).
 
+                When the user describes how the data should be summarized:
+                - If they say "average", "averages per minute", "mean values", or similar, set `dpo_resample` to `"average"`.
+                - If they say "min and max", "extremes", or "range values", set `dpo_resample` to `"minMax"`.
+                - If they say "min, max, and average", or ask for all three statistics per interval, set `dpo_resample` to `"minMaxAvg"`.
+
+                Do not guess. Only set `dpo_resample` if the user's language clearly matches one of these resampling strategies. Otherwise, omit it or use "none".
+
                 Listing or describing sensors is enough to answer most conceptual questions — you should NOT follow up by trying to download or offer data unless the user has clearly asked for it.
 
                 If the user wants an example of data, you should return the data retrieved from the relevant tools or APIs.
@@ -172,7 +179,7 @@ class LLM:
                 max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
                 temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
-            # print("Response from LLM:", response)
+            print("Response from LLM:", response)
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
             # print(tool_calls)
