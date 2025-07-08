@@ -8,6 +8,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+from src.settings import get_settings
 
 # Set up test DB URL
 # TODO: Create a Postgres Test DB for thorough testing
@@ -16,10 +17,9 @@ SUPABASE_DB_URL = os.environ["SUPABASE_DB_URL"]
 
 # Must be imported after setting SUPABASE_DB_URL
 from src.auth import models
-from src.auth.service import create_access_token
+from src.auth.service import create_access_token, get_password_hash
 from src.database import Base, get_db_session
 from src.main import create_app
-from src.settings import get_settings
 
 
 @pytest.fixture
@@ -77,8 +77,8 @@ async def user_headers(async_session: AsyncSession):
 
     test_user = models.User(
         username="testuser",
-        hashed_password="nothashedpassword",
-        onc_token="onctoken",
+        hashed_password=get_password_hash("hashedpassword"),
+        onc_token=get_settings().ONC_TOKEN,
         is_admin=False,
     )
 
@@ -103,7 +103,7 @@ async def admin_headers(async_session: AsyncSession):
     admin_user = models.User(
         username="admin",
         hashed_password="nothashedpassword",
-        onc_token="admintoken",
+        onc_token=get_settings().ONC_TOKEN,
         is_admin=True,
     )
 

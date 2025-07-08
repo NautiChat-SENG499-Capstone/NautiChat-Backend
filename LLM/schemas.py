@@ -1,4 +1,4 @@
-from typing import Optional  # ,List
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -14,9 +14,7 @@ class ObtainedParamsDictionary(BaseModel):
     extension: Optional[str] = None
     dateFrom: Optional[str] = None
     dateTo: Optional[str] = None
-    dpo_qualityControl: Optional[int] = (
-        0  # default is 0, which means no quality control
-    )
+    dpo_qualityControl: Optional[int] = 0  # default is 0, which means no qc
     dpo_resample: Optional[str] = "none"  # default is "none", which means no resampling
     dpo_dataGaps: Optional[int] = 1  # default is 1, which means data gaps are included
 
@@ -28,7 +26,6 @@ class RunConversationResponse(BaseModel):
     response: str
     obtainedParams: Optional[ObtainedParamsDictionary] = None
     dpRequestId: Optional[int] = None
-    doi: Optional[str] = (
-        None  # may need to switch to a list of strings if we go through citations and make a list of all of them
-    )
+    # may need to switch to a list of strings if we go through citations and make a list of all of them
+    doi: Optional[str] = None
     citation: Optional[str] = None  # may need to switch to a list of strings

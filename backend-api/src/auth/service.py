@@ -1,16 +1,24 @@
+import random
+import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt  # JSON Web Token for creating and decoding tokens
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from httpx import AsyncClient
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext  # For password hashing and verification
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.models import User as UserModel
-from src.auth.schemas import CreateUserRequest, Token
+from src.auth.schemas import (
+    ChangePasswordRequest,
+    CreateUserRequest,
+    Token,
+    UpdateUserRequest,
+)
 from src.settings import Settings
 
 # Create a password context using bycrypt
@@ -25,6 +33,27 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt"""
     return pwd_context.hash(password)
+
+
+async def validate_onc_token(token: str):
+    """Verify the ONC token by making a request to the ONC API"""
+
+    # call the ONC api to verify the token
+    # call an endpoint with missing parameters so that it returns quickly in both valid and invalid token cases
+
+    async with AsyncClient(timeout=5) as client:
+        response = await client.get(
+            f"https://data.oceannetworks.ca/api/locations?locationCode=INVALID&token={token}"
+        )
+        data = response.json()
+        if "errors" not in data:
+            raise RuntimeError("ONC changed the API, update the validation logic")
+        for error in data["errors"]:
+            if error["parameter"] == "token":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid ONC token",
+                )
 
 
 def create_access_token(
@@ -43,6 +72,37 @@ def create_access_token(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
     return encoded_jwt
+
+
+async def create_new_user(
+    user_data: CreateUserRequest, db: AsyncSession, is_admin: bool = False
+) -> UserModel:
+    """Create a new user and add to db"""
+
+    await validate_onc_token(user_data.onc_token)
+
+    # Check if existing user with same username exists in db
+    existing_user = await get_user(user_data.username, db)
+
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists",
+        )
+
+    # Create the user
+    new_user = UserModel(
+        username=user_data.username,
+        hashed_password=get_password_hash(user_data.password),
+        onc_token=user_data.onc_token,
+        is_admin=is_admin,
+    )
+
+    # Add to db
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
 
 
 async def get_user(username: str, db: AsyncSession) -> Optional[UserModel]:
@@ -86,31 +146,88 @@ async def register_user(
 ) -> Token:
     """Register a new user and return a JWT token"""
 
-    # Check if the username is already taken
-    existing_user = await get_user(user_register.username, db)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already exists",
-        )
-
-    # create a new user (with hashed password)
-    new_user = UserModel(
-        username=user_register.username,
-        onc_token=user_register.onc_token,
-        hashed_password=get_password_hash(user_register.password),
-    )
-
-    # Add new user to DB
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
+    # create a new user
+    new_user = await create_new_user(user_register, db, is_admin=False)
 
     # Generate and return a JWT token for the new user
     token = create_access_token(
         new_user.username, timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS), settings
     )
+
     return Token(access_token=token, token_type="bearer")
+
+
+async def update_user_info(
+    updated_user: UpdateUserRequest,
+    user: UserModel,
+    db: AsyncSession,
+) -> UserModel:
+    """Update User Info for the Given User"""
+
+    # Make sure that a field IS updated to avoid unnecessary db calls
+    updated = False
+
+    if updated_user.username and updated_user.username != user.username:
+        existing_user = await get_user(updated_user.username, db)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists",
+            )
+        user.username = updated_user.username
+        updated = True
+
+    if updated_user.onc_token:
+        await validate_onc_token(updated_user.onc_token)
+        user.onc_token = updated_user.onc_token
+        updated = True
+
+    if updated:
+        await db.commit()
+        await db.refresh(user)
+
+    return user
+
+
+async def change_user_password(
+    request: ChangePasswordRequest,
+    user: UserModel,
+    db: AsyncSession,
+) -> UserModel:
+    """Change user passward by first confirming current password"""
+    # Check current password
+    if not verify_password(request.current_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect",
+        )
+
+    # If new password is empty
+    if not request.new_password.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password cannot be empty",
+        )
+
+    # Compare new password with confirmation password
+    if request.new_password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password and confirmation do not match",
+        )
+
+    # Check new password isn't the same as old one
+    if verify_password(request.new_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password",
+        )
+
+    user.hashed_password = get_password_hash(request.new_password)
+    await db.commit()
+    await db.refresh(user)
+
+    return user
 
 
 async def login_user(
@@ -138,15 +255,16 @@ async def login_user(
     return Token(access_token=token, token_type="bearer")
 
 
-async def update_onc_token(
-    user: UserModel, new_onc_token: str, db: AsyncSession
-) -> UserModel:
-    """Update the ONC token for the given user"""
+# Create an actual user entry in db for each guest. No current method for deleting guests.
+async def guest_login(settings: Settings, db: AsyncSession) -> Token:
+    """Authenticate guest user"""
+    chars = string.ascii_letters + string.digits
 
-    user.onc_token = new_onc_token
+    guest_username = "guest_" + "".join(random.choice(chars) for _ in range(8))
+    guest_password = "".join(random.choice(chars) for _ in range(12))
+    onc_token = settings.ONC_TOKEN  # use global ONC token for guests
 
-    # Update DB
-    await db.commit()
-    await db.refresh(user)
-
-    return user
+    create_user_request = CreateUserRequest(
+        username=guest_username, password=guest_password, onc_token=onc_token
+    )
+    return await register_user(create_user_request, settings, db)
