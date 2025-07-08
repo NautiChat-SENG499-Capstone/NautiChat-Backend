@@ -54,15 +54,15 @@ class LLM:
         self.RAG_instance = RAG_instance if RAG_instance else RAG(env)  # Use provided RAG instance or create a new one
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
-            "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
+            # "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
             "get_active_instruments_at_cambridge_bay": get_active_instruments_at_cambridge_bay,
             "generate_download_codes": generate_download_codes,
-            "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
-            "get_oxygen_data_24h": get_oxygen_data_24h,
+            # "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
+            # "get_oxygen_data_24h": get_oxygen_data_24h,
             # "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
-            "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
-            "get_ice_thickness": get_ice_thickness,
+            # "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
+            # "get_ice_thickness": get_ice_thickness,
         }
 
     async def run_conversation(

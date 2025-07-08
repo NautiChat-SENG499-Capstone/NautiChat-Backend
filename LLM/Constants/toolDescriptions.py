@@ -71,27 +71,27 @@ toolDescriptions = [
     #         }
     #     }
     # },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_daily_sea_temperature_stats_cambridge_bay",
-            "description": "Get daily sea temperature statistics for Cambridge Bay\nArgs:\n    day_str (str): Date in YYYY-MM-DD format",
-            "parameters": {
-                "properties": {
-                    "day_str": {
-                        "type": "string",
-                        "description": "Date in YYYY-MM-DD format for when daily sea temperature is wanted for",
-                    },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
-                },
-                "required": ["day_str"],
-                "type": "object",
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "get_daily_sea_temperature_stats_cambridge_bay",
+    #         "description": "Get daily sea temperature statistics for Cambridge Bay\nArgs:\n    day_str (str): Date in YYYY-MM-DD format",
+    #         "parameters": {
+    #             "properties": {
+    #                 "day_str": {
+    #                     "type": "string",
+    #                     "description": "Date in YYYY-MM-DD format for when daily sea temperature is wanted for",
+    #                 },
+    #                 # "user_onc_token": {
+    #                 #     "type": "string",
+    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
+    #                 # }
+    #             },
+    #             "required": ["day_str"],
+    #             "type": "object",
+    #         },
+    #     },
+    # },
     {
         "type": "function",
         "function": {
@@ -143,41 +143,86 @@ toolDescriptions = [
     #         },
     #     },
     {
-    "type": "function",
+        "type": "function",
         "function": {
             "name": "generate_download_codes",
             "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to pass in only the parameters that the user has explicitly provided. Do not guess, assume, or invent any missing parameters. If dateFrom or dateTo are not mentioned by the user, do not include them. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in the response handling or in checking the status of the download. You do not need to explain the result to the user.",
             "parameters": {
-            "type": "object",
-            "properties": {
-                "deviceCategoryCode": {
-                "type": "string",
-                "description": "The ONC-defined code representing the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ)."
+                "type": "object",
+                "properties": {
+                    "deviceCategoryCode": {
+                        "type": "string",
+                        "description": "The ONC-defined code representing the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ).",
+                    },
+                    "locationCode": {
+                        "type": "string",
+                        "description": "The ONC-defined location code where the device is deployed (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, or 'CBYSS' for the Cambridge Bay Shore Station).",
+                    },
+                    "dataProductCode": {
+                        "type": "string",
+                        "description": "The ONC-defined code for the data product requested (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data).",
+                    },
+                    "extension": {
+                        "type": "string",
+                        "description": "The file format in which the data product should be delivered (e.g., 'txt', 'json', 'mat', 'png', 'zip', 'mp4', 'vrl', 'nc', 'fft', 'flac', 'wav', 'an', 'csv', 'pdf', 'jpg').",
+                    },
+                    "dateFrom": {
+                        "type": "string",
+                        "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
+                    },
+                    "dateTo": {
+                        "type": "string",
+                        "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
+                    },
                 },
-                "locationCode": {
-                "type": "string",
-                "description": "The ONC-defined location code where the device is deployed (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, or 'CBYSS' for the Cambridge Bay Shore Station)."
-                },
-                "dataProductCode": {
-                "type": "string",
-                "description": "The ONC-defined code for the data product requested (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)."
-                },
-                "extension": {
-                "type": "string",
-                "description": "The file format in which the data product should be delivered (e.g., 'txt', 'json', 'mat', 'png', 'zip', 'mp4', 'vrl', 'nc', 'fft', 'flac', 'wav', 'an', 'csv', 'pdf', 'jpg')."
-                },
-                "dateFrom": {
-                "type": "string",
-                "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
-                },
-                "dateTo": {
-                "type": "string",
-                "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
-                }
+                "required": [],
             },
-            "required": []
-            }
-        }
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_data",
+            "description": "Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode with a resamplePeriod and resampleType, so that users can request scalar data, over a specified time period. Returns a result of a scalar data request. This function performs a data request to the ONC API, then returns the data to the LLM. If this function is called, the LLM will only provide the parameters the user has explicitly given. Do not guess, assume, or invent any missing parameters. If parameters are missing, the function will handle asking the user for them. If the request is successful, it means the data will be returned. The LLM should deliver the data to the user in an easy to interpret manner.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "deviceCategoryCode": {
+                        "type": "string",
+                        "description": "An ONC-defined code identifying the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ).",
+                    },
+                    "locationCode": {
+                        "type": "string",
+                        "description": "An ONC-defined code identifying the location of the device (e.g., 'CBYDS' for the Cambridge Bay Diver data or 'CBYIP' for the Cambridge Bay Underwater Network or 'CBYSP' for the Cambridge Bay Safe Passage Buoy or 'CBYSS' for the Cambridge Bay Shore Station).",
+                    },
+                    "propertyCode": {
+                        "type": "string",
+                        "description": "An ONC-defined code identifying the type of data being requested (e.g., 'oxygen' for oxygen data, 'temperature' for temperature data).",
+                    },
+                    "dateFrom": {
+                        "type": "string",
+                        "description": "The start date of the data request in ISO 8601 format (e.g., '2016-06-01T00:00:00.000Z'). (YYYY-MM-DDTHH:MM:SS.sssZ)",
+                    },
+                    "dateTo": {
+                        "type": "string",
+                        "description": "The end date of the data request in ISO 8601 format (e.g., '2016-09-30T23:59:59.999Z'). (YYYY-MM-DDTHH:MM:SS.sssZ)",
+                    },
+                    "resamplePeriod": {
+                        "type": "string",
+                        "description": "The rate at which the data should be sampled (e.g., '1' for every second, '3600' for hourly).",
+                    },
+                    "resampleType": {
+                        "type": "string",
+                        "description": "How the data is sampled ('avg' for just averages, 'avgMinMax' to get all three of average, minimum and maximum, 'minMax' for minimum and maximum).",
+                    },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "An ONC authentication token provided by the user, if available.",
+                    },
+                },
+                "required": [],
+            },
+        },
     },
     # {
     # "type": "function",
@@ -214,9 +259,8 @@ toolDescriptions = [
     #         },
     #         "required": []
     #         },
-    #     }  
+    #     }
     # },
-
     # {
     #     "type": "function",
     #     "function": {
@@ -267,48 +311,48 @@ toolDescriptions = [
     #         },
     #     },
     # },
-   {
-        "type": "function",
-        "function": {
-            "name": "get_daily_air_temperature_stats_cambridge_bay",
-            "description": "Get daily air temperature statistics (date, min, max, average, sample count) for Cambridge Bay on a given date. Temperature should be expressed in degrees Celsius. If no data exists for that time range then tell the user that no data exists for that time range.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "date_from_str": {
-                        "type": "string",
-                        "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-23").',
-                    },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
-                },
-                "required": ["date_from_str"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_oxygen_data_24h",
-            "description": "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals. The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of '2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user that no data exists for that time range. ",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # },
-                    "date_from_str": {
-                        "type": "string",
-                        "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-24").',
-                    }
-                },
-                "required": [],
-            },
-        },
-    },
+    #    {
+    #         "type": "function",
+    #         "function": {
+    #             "name": "get_daily_air_temperature_stats_cambridge_bay",
+    #             "description": "Get daily air temperature statistics (date, min, max, average, sample count) for Cambridge Bay on a given date. Temperature should be expressed in degrees Celsius. If no data exists for that time range then tell the user that no data exists for that time range.",
+    #             "parameters": {
+    #                 "type": "object",
+    #                 "properties": {
+    #                     "date_from_str": {
+    #                         "type": "string",
+    #                         "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-23").',
+    #                     },
+    #                     # "user_onc_token": {
+    #                     #     "type": "string",
+    #                     #     "description": "User's ONC token for API access. This is required to access the data.",
+    #                     # }
+    #                 },
+    #                 "required": ["date_from_str"],
+    #             },
+    #         },
+    #     },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "get_oxygen_data_24h",
+    #         "description": "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals. The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of '2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user that no data exists for that time range. ",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 # "user_onc_token": {
+    #                 #     "type": "string",
+    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
+    #                 # },
+    #                 "date_from_str": {
+    #                     "type": "string",
+    #                     "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-24").',
+    #                 }
+    #             },
+    #             "required": [],
+    #         },
+    #     },
+    # },
     # {
     #     "type": "function",
     #     "function": {
@@ -330,54 +374,54 @@ toolDescriptions = [
     #         },
     #     },
     # },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_wind_speed_at_timestamp",
-            "description": "Get wind speed (m/s) at Cambridge Bay for a given day and Hour of that day, returning the exact or nearest sample. Wind speed is expressed in meters per second (m/s). If no data exists for that time range then tell the user that no data exists for that time range.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "date_from_str": {
-                        "type": "string",
-                        "description": 'Date to get wind speed in YYYY-MM-DD format, (e.g. "2024-06-24").',
-                    },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # },
-                    "hourInterval": {
-                        "type": "integer",
-                        "description": "Hour of the day wanted for windspeed, default is 12 (noon)",
-                    },
-                },
-                "required": ["date_from_str"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_ice_thickness",
-            "description": "Get the average daily sea-ice thickness the days provided (inclusive) for Cambridge Bay. Returns the average ice thickness representing the mean ice thickness (in meters) for the days given (inclusive), or -1 if no data is found. If you get the -1 value returned tell the user that no data exists for that time range.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "date_from_str": {
-                        "type": "string",
-                        "description": 'Start date in YYYY-MM-DD format (e.g. "2024-02-01").',
-                    },
-                    "date_to_str": {
-                        "type": "string",
-                        "description": 'End date in YYYY-MM-DD format (e.g. "2024-02-01").',
-                    },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
-                },
-                "required": ["date_from_str", "date_to_str"],
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "get_wind_speed_at_timestamp",
+    #         "description": "Get wind speed (m/s) at Cambridge Bay for a given day and Hour of that day, returning the exact or nearest sample. Wind speed is expressed in meters per second (m/s). If no data exists for that time range then tell the user that no data exists for that time range.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "date_from_str": {
+    #                     "type": "string",
+    #                     "description": 'Date to get wind speed in YYYY-MM-DD format, (e.g. "2024-06-24").',
+    #                 },
+    #                 # "user_onc_token": {
+    #                 #     "type": "string",
+    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
+    #                 # },
+    #                 "hourInterval": {
+    #                     "type": "integer",
+    #                     "description": "Hour of the day wanted for windspeed, default is 12 (noon)",
+    #                 },
+    #             },
+    #             "required": ["date_from_str"],
+    #         },
+    #     },
+    # },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "get_ice_thickness",
+    #         "description": "Get the average daily sea-ice thickness the days provided (inclusive) for Cambridge Bay. Returns the average ice thickness representing the mean ice thickness (in meters) for the days given (inclusive), or -1 if no data is found. If you get the -1 value returned tell the user that no data exists for that time range.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "date_from_str": {
+    #                     "type": "string",
+    #                     "description": 'Start date in YYYY-MM-DD format (e.g. "2024-02-01").',
+    #                 },
+    #                 "date_to_str": {
+    #                     "type": "string",
+    #                     "description": 'End date in YYYY-MM-DD format (e.g. "2024-02-01").',
+    #                 },
+    #                 # "user_onc_token": {
+    #                 #     "type": "string",
+    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
+    #                 # }
+    #             },
+    #             "required": ["date_from_str", "date_to_str"],
+    #         },
+    #     },
+    # },
 ]
