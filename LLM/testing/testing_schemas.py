@@ -15,9 +15,20 @@ class ObtainedParamsDictionary(BaseModel):
     extension: Optional[str] = None
     dateFrom: Optional[str] = None
     dateTo: Optional[str] = None
-    dpo_qualityControl: Optional[int] = 0  # default is 0, which means no qc
-    dpo_resample: Optional[str] = "none"  # default is "none", which means no resampling
+    dpo_qualityControl: Optional[int] = (
+        1  # default is 1, which means data points with qc failures are removed
+    )
     dpo_dataGaps: Optional[int] = 1  # default is 1, which means data gaps are included
+    dpo_resample: Optional[str] = "none"  # default is "none", which means no resampling
+    dpo_minMax: Optional[int] = (
+        None  # default is None, which means n period set foro min/max resampling
+    )
+    dpo_average: Optional[int] = (
+        None  # default is None, which means no period set for average resampling
+    )
+    dpo_minMaxAvg: Optional[int] = (
+        None  # default is None, which means no period set for min/max/average resampling (Default is 60)
+    )
 
 
 class RunConversationResponse(BaseModel):

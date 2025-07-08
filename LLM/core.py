@@ -96,7 +96,7 @@ class LLM:
 
                 If the user wants an example of data, you should return the data retrieved from the relevant tools or APIs.
 
-               You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
+                You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
 
                 | Time                      | [Measurement Name] (units) |
                 |---------------------------|----------------------------|
@@ -136,7 +136,10 @@ class LLM:
                 DO NOT try to reason about data availability.
 
                 If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
+
             """
+
+            # print("Messages: ", messages)
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
             print("Vector DB Response:", vectorDBResponse)
@@ -170,10 +173,14 @@ class LLM:
                 max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
                 temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
+            # print("Response from LLM:", response)
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
+            # print(tool_calls)
             doing_data_download = False
             if tool_calls:
+                # print("Tool calls detected, processing...")
+                # print("tools calls:", tool_calls)
                 tool_calls = list(
                     OrderedDict(
                         ((call.id, call.function.name, call.function.arguments), call)
@@ -208,6 +215,7 @@ class LLM:
                             function_args or {},
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
+                        print("Function response:", function_response)
                         if doing_data_download:
                             DataDownloadStatus = function_response.get("status")
                             if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
@@ -257,12 +265,23 @@ class LLM:
                                 == StatusCode.ERROR_WITH_DATA_DOWNLOAD
                             ):
                                 print("Download error so returning response now")
+                                obtainedParams: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
                                 # Return a response indicating that there was an error with the download
                                 return RunConversationResponse(
                                     status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
                                     response=function_response.get(
                                         "response",
                                         "An error occurred while processing your download request.",
+                                    ),
+                                    obtainedParams=obtainedParams,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
                                 )
 

@@ -95,7 +95,7 @@ class LLM:
 
                 If the user wants an example of data, you should return the data retrieved from the relevant tools or APIs.
 
-               You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
+                You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
 
                 | Time                      | [Measurement Name] (units) |
                 |---------------------------|----------------------------|
@@ -264,12 +264,23 @@ class LLM:
                                 == StatusCode.ERROR_WITH_DATA_DOWNLOAD
                             ):
                                 print("Download error so returning response now")
+                                obtainedParams: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
                                 # Return a response indicating that there was an error with the download
                                 return RunConversationResponse(
                                     status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
                                     response=function_response.get(
                                         "response",
                                         "An error occurred while processing your download request.",
+                                    ),
+                                    obtainedParams=obtainedParams,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
                                 )
 
