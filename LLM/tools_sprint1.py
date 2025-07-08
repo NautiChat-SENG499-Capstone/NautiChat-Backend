@@ -53,23 +53,37 @@ async def get_properties_at_cambridge_bay(user_onc_token: str):
                 }
                 for item in raw_data
             ]
-            return {"response": json.dumps(list_of_dicts)}
+            return {
+                "response": list_of_dicts,
+                "urlParamsUsed": {},
+                "baseUrl": property_API,
+            }
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 401:
             return {
-                "response": "Error: Invalid ONC token. Please check your token and try again."
+                "response": "Error: Invalid ONC token. Please check your token and try again.",
+                "urlParamsUsed": {},
+                "baseUrl": property_API,
             }
 
         elif e.response.status_code == 403:
             return {
-                "response": "Error: Access denied. Your ONC token may not have permission for this data."
+                "response": "Error: Access denied. Your ONC token may not have permission for this data.",
+                "urlParamsUsed": {},
+                "baseUrl": property_API,
             }
         else:
             return {
-                "response": f"Error: API request failed with status {e.response.status_code}"
+                "response": f"Error: API request failed with status {e.response.status_code}",
+                "urlParamsUsed": {},
+                "baseUrl": property_API,
             }
     except Exception as e:
-        return {"response": f"Error: Failed to fetch properties: {str(e)}"}
+        return {
+            "response": f"Error: Failed to fetch properties: {str(e)}",
+            "urlParamsUsed": {},
+            "baseUrl": property_API,
+        }
 
 
 async def get_daily_sea_temperature_stats_cambridge_bay(
@@ -95,35 +109,47 @@ async def get_daily_sea_temperature_stats_cambridge_bay(
             response = response.json()
 
         if response["sensorData"] is None:
-            return json.dumps({"result": "No data available for the given date."})
+            return {
+                "response": "Error: No data available for the given date.",
+                "urlParamsUsed": {},
+                "baseUrl": temp_api,
+            }
 
         data = response["sensorData"][0]["data"][0]
 
         # Get min, max, and average and store in dictionary
         return {
-            "response": json.dumps(
-                {
-                    "daily_min": round(data["minimum"], 2),
-                    "daily_max": round(data["maximum"], 2),
-                    "daily_avg": round(data["value"], 2),
-                }
-            )
+            "response": {
+                "daily_min": round(data["minimum"], 2),
+                "daily_max": round(data["maximum"], 2),
+                "daily_avg": round(data["value"], 2),
+            }
         }
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 401:
             return {
-                "response": "Error: Invalid ONC token. Please check your token and try again."
+                "response": "Error: Invalid ONC token. Please check your token and try again.",
+                "urlParamsUsed": {},
+                "baseUrl": temp_api,
             }
         elif e.response.status_code == 403:
             return {
-                "response": "Error: Access denied. Your ONC token may not have permission for this data."
+                "response": "Error: Access denied. Your ONC token may not have permission for this data.",
+                "urlParamsUsed": {},
+                "baseUrl": temp_api,
             }
         else:
             return {
-                "response": f"Error: API request failed with status {e.response.status_code}"
+                "response": f"Error: API request failed with status {e.response.status_code}",
+                "urlParamsUsed": {},
+                "baseUrl": temp_api,
             }
     except Exception as e:
-        return {"response": f"Error: Failed to fetch temperature data: {str(e)}"}
+        return {
+            "response": f"Error: Failed to fetch temperature data: {str(e)}",
+            "urlParamsUsed": {},
+            "baseUrl": temp_api,
+        }
 
 
 async def get_deployed_devices_over_time_interval(
@@ -162,14 +188,40 @@ async def get_deployed_devices_over_time_interval(
                 continue
             elif hasattr(e, "response") and e.response.status_code == 401:
                 return {
-                    "response": "Error: Invalid ONC token. Please check your token and try again."
+                    "response": "Error: Invalid ONC token. Please check your token and try again.",
+                    "urlParamsUsed": {
+                        "locationCode": CAMBRIDGE_LOCATION_CODE,
+                        "locationCode": locationCode,
+                        "dateFrom": dateFrom,
+                        "dateTo": dateTo,
+                        "user_onc_token": user_onc_token,
+                    },
+                    "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
                 }
             elif hasattr(e, "response") and e.response.status_code == 403:
                 return {
-                    "response": "Error: Access denied. Your ONC token may not have permission for this data."
+                    "response": "Error: Access denied. Your ONC token may not have permission for this data.",
+                    "urlParamsUsed": {
+                        "locationCode": CAMBRIDGE_LOCATION_CODE,
+                        "locationCode": locationCode,
+                        "dateFrom": dateFrom,
+                        "dateTo": dateTo,
+                        "user_onc_token": user_onc_token,
+                    },
+                    "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
                 }
             else:
-                return {"response": f"Error: Failed to fetch deployment data: {str(e)}"}
+                return {
+                    "response": f"Error: Failed to fetch deployment data: {str(e)}",
+                    "urlParamsUsed": {
+                        "locationCode": CAMBRIDGE_LOCATION_CODE,
+                        "locationCode": locationCode,
+                        "dateFrom": dateFrom,
+                        "dateTo": dateTo,
+                        "user_onc_token": user_onc_token,
+                    },
+                    "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
+                }
 
         for deployment in response:
             if deployment is None:
@@ -185,9 +237,29 @@ async def get_deployed_devices_over_time_interval(
             deployedDevices.append(device_info)
 
     if deployedDevices == []:
-        return {"response": "No data available for the given date."}
+        return {
+            "response": "No data available for the given date.",
+            "urlParamsUsed": {
+                "locationCode": CAMBRIDGE_LOCATION_CODE,
+                "locationCode": locationCode,
+                "dateFrom": dateFrom,
+                "dateTo": dateTo,
+                "user_onc_token": user_onc_token,
+            },
+            "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
+        }
 
-    return {"response": json.dumps(deployedDevices)}
+    return {
+        "response": deployedDevices,
+        "urlParamsUsed": {
+            "locationCode": CAMBRIDGE_LOCATION_CODE,
+            "locationCode": locationCode,
+            "dateFrom": dateFrom,
+            "dateTo": dateTo,
+            "user_onc_token": user_onc_token,
+        },
+        "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
+    }
 
 
 async def get_active_instruments_at_cambridge_bay(user_onc_token: str):
@@ -228,7 +300,14 @@ async def get_active_instruments_at_cambridge_bay(user_onc_token: str):
         "activeInstrumentCount": deployed_device_count,
         "details": active_instruments,
     }
-    return {"response": json.dumps(result)}
+    return {
+        "response": result,
+        "urlParamsUsed": {
+            "locationCode": locationCode,
+            "user_onc_token": user_onc_token,
+        },
+        "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
+    }
 
 
 # async def get_time_range_of_available_data(deviceCategoryCode: str):
@@ -237,6 +316,7 @@ async def get_active_instruments_at_cambridge_bay(user_onc_token: str):
 #     Returns:
 #         JSON string: Sorted list of (begin, end) tuples as ISO strings.
 #     """
+#     onc = ONC(user_onc_token)
 #     time_ranges = []
 
 #     for locationCode in cambridgeBayLocations:
@@ -256,4 +336,4 @@ async def get_active_instruments_at_cambridge_bay(user_onc_token: str):
 #                 time_ranges.append((begin, end))
 
 #     time_ranges.sort(key=lambda x: datetime.fromisoformat(x[0].replace("Z", "+00:00")))
-#     return json.dumps(time_ranges)
+#     return {"response": time_ranges}

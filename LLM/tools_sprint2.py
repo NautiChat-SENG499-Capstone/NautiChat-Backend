@@ -48,15 +48,24 @@ async def get_daily_air_temperature_stats_cambridge_bay(
         "dateTo": date_to_str,
     }
 
-    data = onc.getScalardata(params)
+    data = onc.getScalardataByLocation(params)
     sensorData = data.get("sensorData", [])
     if not sensorData:
         return {
-            "date": date_from_str,
-            "min_temp": None,
-            "max_temp": None,
-            "mean": None,
-            "samples": 0,
+            "response": {
+                "date": date_from_str,
+                "min_temp": None,
+                "max_temp": None,
+                "mean": None,
+                "samples": 0,
+            },
+            "urlParamsUsed": {
+                "locationCode": "CBYSS.M2",
+                "deviceCategoryCode": "METSTN",
+                "dateFrom": date_from_str,
+                "dateTo": date_to_str,
+            },
+            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }
     temps = sensorData[0]["data"]["values"]
     mean = sum(temps) / len(temps)
@@ -70,7 +79,16 @@ async def get_daily_air_temperature_stats_cambridge_bay(
         "samples": len(temps),
     }
     # print(stats)
-    return stats
+    return {
+        "response": stats,
+        "urlParamsUsed": {
+            "locationCode": "CBYSS.M2",
+            "deviceCategoryCode": "METSTN",
+            "dateFrom": date_from_str,
+            "dateTo": date_to_str,
+        },
+        "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
+    }
 
 
 # Can you give me an example of 24 hours of oxygen data?
@@ -107,7 +125,18 @@ async def get_oxygen_data_24h(
     # Pick the first sensor (usually the “corrected” series)
     sensorData = raw["sensorData"]
     if not sensorData:
-        return {"datetime": [], "oxygen_ml_per_l": []}
+        return {
+            "response": "Error: No oxygen data available for the given date.",
+            "urlParamsUsed": {
+                "locationCode": "CBYIP",
+                "deviceCategoryCode": "OXYSENSOR",
+                "propertyCode": "oxygen",
+                "dateFrom": date_from_str,
+                "dateTo": date_to_str,
+                "resamplePeriod": "3600",
+            },
+            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
+        }
     sensor = sensorData[0]["data"]
     times = sensor["sampleTimes"]
     values = sensor["values"]
@@ -115,7 +144,16 @@ async def get_oxygen_data_24h(
     # Build DataFrame
     oxygenData = {"datetime": times, "oxygen_ml_per_l": values}
     # print(oxygenData)
-    return oxygenData
+    return {
+        "response": oxygenData,
+        "urlParamsUsed": {
+            "locationCode": "CBYSS.M2",
+            "deviceCategoryCode": "METSTN",
+            "dateFrom": date_from_str,
+            "dateTo": date_to_str,
+        },
+        "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
+    }
 
 
 # I’m interested in data on ship noise for July 31, 2024 / Get me the acoustic data for the last day in July of 2024
@@ -146,7 +184,7 @@ async def get_oxygen_data_24h(
 #     }
 #     data = onc.getScalardata(params)
 
-#     return data
+#     return {"response": data}
 
 
 # Can I see the noise data for July 31, 2024 as a spectogram?
@@ -187,8 +225,18 @@ async def get_wind_speed_at_timestamp(
     sensorData = raw["sensorData"]
     if not sensorData:
         return {
-            "datetime": time_to_find.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "wind_speed_m_s": None,
+            "response": {
+                "datetime": time_to_find.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "wind_speed_m_s": None,
+            },
+            "urlParamsUsed": {
+                "locationCode": "CBYSS.M2",
+                "deviceCategoryCode": "METSTN",
+                "propertyCode": "windspeed",
+                "dateFrom": date_from_str,
+                "dateTo": date_to_str,
+            },
+            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }
 
     block = sensorData[0]["data"]
@@ -207,7 +255,17 @@ async def get_wind_speed_at_timestamp(
         "wind_speed_m_s": wind_speed_at_time,
     }
     # print(data)
-    return data
+    return {
+        "response": data,
+        "urlParamsUsed": {
+            "locationCode": "CBYSS.M2",
+            "deviceCategoryCode": "METSTN",
+            "propertyCode": "windspeed",
+            "dateFrom": date_from_str,
+            "dateTo": date_to_str,
+        },
+        "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
+    }
 
 
 # I’m doing a school project on Arctic fish. Does the platform have any underwater
@@ -238,15 +296,25 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
         "locationCode": "CBYIP",
         "deviceCategoryCode": "ICEPROFILER",
         "sensorCategoryCodes": "ice_thickness_corrected",
-        "dateFrom": {date_from_str},
-        "dateTo": {date_to_str},
+        "dateFrom": date_from_str,
+        "dateTo": date_to_str,
     }
 
     # Fetch all records in the range
     response = onc.getScalardata(params)
     records = response["sensorData"]
     if not records:
-        return {"average_ice_thickness": -1}  # No data available for the given date
+        return {
+            "response": {"average_ice_thickness": -1},
+            "urlParamsUsed": {
+                "locationCode": "CBYIP",
+                "deviceCategoryCode": "ICEPROFILER",
+                "sensorCategoryCodes": "ice_thickness_corrected",
+                "dateFrom": date_from_str,
+                "dateTo": date_to_str,
+            },
+            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
+        }  # No data available for the given date
     values = records[0]["data"]["values"]
     flags = records[0]["data"]["qaqcFlags"]
     data = [
@@ -257,7 +325,17 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
     average_ice_thickness = sum(data) / len(data) if data else None
     # Return the average of those daily means
     # print(f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m")
-    return f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m"
+    return {
+        "response": f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m",
+        "urlParamsUsed": {
+            "locationCode": "CBYIP",
+            "deviceCategoryCode": "ICEPROFILER",
+            "sensorCategoryCodes": "ice_thickness_corrected",
+            "dateFrom": date_from_str,
+            "dateTo": date_to_str,
+        },
+        "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
+    }
 
 
 # I would like a plot which shows the water depth so I can get an idea of tides in the Arctic for July 2023

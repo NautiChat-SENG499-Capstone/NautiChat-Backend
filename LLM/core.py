@@ -170,14 +170,10 @@ class LLM:
                 max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
                 temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
-            # print("Response from LLM:", response)
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
-            # print(tool_calls)
             doing_data_download = False
             if tool_calls:
-                # print("Tool calls detected, processing...")
-                # print("tools calls:", tool_calls)
                 tool_calls = list(
                     OrderedDict(
                         ((call.id, call.function.name, call.function.arguments), call)
@@ -213,27 +209,24 @@ class LLM:
                             user_onc_token=user_onc_token or self.env.get_onc_token(),
                         )
                         if doing_data_download:
-                            if (
-                                function_response.get("status")
-                                == StatusCode.PARAMS_NEEDED
-                            ):
+                            DataDownloadStatus = function_response.get("status")
+                            if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
                                 print(
                                     "Download parameters needed, returning response now"
                                 )
-                                print("Function response:", function_response)
                                 obtainedParams: ObtainedParamsDictionary = (
                                     function_response.get("obtainedParams", {})
                                 )
                                 print("Obtained parameters:", obtainedParams)
                                 print("Obtained parameters:", type(obtainedParams))
-                                # Return a response indicating that
+                                # Return a response indicating that Paramaters are needed
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
                                     obtainedParams=obtainedParams,
                                 )
                             elif (
-                                function_response.get("status")
+                                DataDownloadStatus
                                 == StatusCode.PROCESSING_DATA_DOWNLOAD
                             ):
                                 print("download done so returning response now")
@@ -242,6 +235,7 @@ class LLM:
                                 citation = function_response.get(
                                     "citation", "No citation available"
                                 )
+                                # Return a response indicating that the download is being processed
                                 return RunConversationResponse(
                                     status=StatusCode.PROCESSING_DATA_DOWNLOAD,
                                     response=function_response.get(
@@ -259,10 +253,11 @@ class LLM:
                                     ),
                                 )
                             elif (
-                                function_response.get("status")
+                                DataDownloadStatus
                                 == StatusCode.ERROR_WITH_DATA_DOWNLOAD
                             ):
                                 print("Download error so returning response now")
+                                # Return a response indicating that there was an error with the download
                                 return RunConversationResponse(
                                     status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
                                     response=function_response.get(

@@ -216,10 +216,8 @@ class LLM:
                         )
                         print("Function response:", function_response)
                         if doing_data_download:
-                            if (
-                                function_response.get("status")
-                                == StatusCode.PARAMS_NEEDED
-                            ):
+                            DataDownloadStatus = function_response.get("status")
+                            if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
                                 print(
                                     "Download parameters needed, returning response now"
                                 )
@@ -228,14 +226,14 @@ class LLM:
                                 )
                                 print("Obtained parameters:", obtainedParams)
                                 print("Obtained parameters:", type(obtainedParams))
-                                # Return a response indicating that
+                                # Return a response indicating that Paramaters are needed
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
                                     obtainedParams=obtainedParams,
                                 )
                             elif (
-                                function_response.get("status")
+                                DataDownloadStatus
                                 == StatusCode.PROCESSING_DATA_DOWNLOAD
                             ):
                                 print("download done so returning response now")
@@ -244,6 +242,7 @@ class LLM:
                                 citation = function_response.get(
                                     "citation", "No citation available"
                                 )
+                                # Return a response indicating that the download is being processed
                                 return RunConversationResponse(
                                     status=StatusCode.PROCESSING_DATA_DOWNLOAD,
                                     response=function_response.get(
@@ -261,10 +260,11 @@ class LLM:
                                     ),
                                 )
                             elif (
-                                function_response.get("status")
+                                DataDownloadStatus
                                 == StatusCode.ERROR_WITH_DATA_DOWNLOAD
                             ):
                                 print("Download error so returning response now")
+                                # Return a response indicating that there was an error with the download
                                 return RunConversationResponse(
                                     status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
                                     response=function_response.get(
