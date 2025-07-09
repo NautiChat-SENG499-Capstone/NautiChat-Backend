@@ -9,7 +9,6 @@ from sentence_transformers import SentenceTransformer
 import hdbscan
 import numpy as np
 from collections import defaultdict
-from pydantic import BaseModel
 
 # Dependencies
 from src.database import get_db_session
@@ -20,10 +19,6 @@ from src.llm import models, schemas
 from . import service
 
 router = APIRouter()
-
-class TextInput(BaseModel):
-    source: str
-    information: str
 
 @router.get("/messages")
 async def get_all_messages(
@@ -66,9 +61,10 @@ async def get_clustered_messages(
 
     return dict(clusters)
     
-@router.post("/data-upload", status_code=201)
+@router.post("/documents/raw-data", status_code=201)
 async def raw_text_upload(
-    input: TextInput,
+    input_text: str,
+    source: str,
     request: Request,
     _: Annotated[UserOut, Depends(get_admin_user)],
     
@@ -76,9 +72,9 @@ async def raw_text_upload(
     """
     Endpoint for admins to submit raw text to be uploaded to vector database.
     """
-    await service.raw_text_upload_to_vdb(input.source, input.information, request)
+    await service.raw_text_upload_to_vdb(source, input_text, request)
 
-@router.post("/pdf-upload", status_code=201)
+@router.post("/documents/pdf", status_code=201)
 async def pdf_data_upload(
     file: UploadFile,
     source: str,
@@ -92,9 +88,9 @@ async def pdf_data_upload(
     pdf_bytes = await file.read()
     await service.pdf_upload_to_vdb(source, pdf_bytes, request)
 
-@router.post("/source-remove", status_code=204)
+@router.delete("/documents/{document_source}", status_code=204)
 async def source_remove(
-    source: str,
+    document_source: str,
     request: Request,
     _: Annotated[UserOut, Depends(get_admin_user)],
     
@@ -102,4 +98,4 @@ async def source_remove(
     """
     Endpoint for admins to delete all information with a specific source name from vector db.
     """
-    await service.source_remove_from_vdb(source, request)
+    await service.source_remove_from_vdb(document_source, request)
