@@ -5,6 +5,7 @@ from collections import OrderedDict
 from datetime import datetime
 
 import pandas as pd
+from groq import APIStatusError
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 
 from LLM.codes import generate_download_codes
@@ -225,23 +226,34 @@ class LLM:
                 return {"status": 200, "response": response_message.content}
         except Exception as e:
             logger.info(f"LLM failed on first attempt: {e}", exc_info=True)
-            try:
-                self.env.cycle_new_groq_api_key()
-                logger.info("Cycled tokens, retrying run_conversation...")
-                return await self.run_conversation(
-                    user_prompt,
-                    startingPrompt=startingPrompt,
-                    chatHistory=chatHistory,
-                    user_onc_token=user_onc_token,
-                )
-            except Exception as retry_error:
-                logger.error(
-                    f"Retry after cycling tokens failed: {retry_error}", exc_info=True
-                )
-                return {
-                    "status": 400,
-                    "response": "Sorry, your request failed. Please try again.",
-                }
+
+            self.env.cycle_new_groq_api_key()
+
+            if isinstance(e, APIStatusError):
+                try:
+                    logger.info("Cycled tokens, retrying run_conversation...")
+                    return await self.run_conversation(
+                        user_prompt,
+                        startingPrompt=startingPrompt,
+                        chatHistory=chatHistory,
+                        user_onc_token=user_onc_token,
+                    )
+                except Exception as retry_error:
+                    logger.error(
+                        f"Retry after cycling tokens failed: {retry_error}",
+                        exc_info=True,
+                    )
+                    return {
+                        "status": 400,
+                        "response": "Sorry, your request failed. Please try again.",
+                    }
+            logger.error(
+                f"LLM failed to generate a response, cycling token: {e}", exc_info=True
+            )
+            return {
+                "status": 400,
+                "response": "Sorry, your request failed. Please try again.",
+            }
 
     async def call_tool(self, fn, args, user_onc_token):
         try:
