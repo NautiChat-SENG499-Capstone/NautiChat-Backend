@@ -1,4 +1,5 @@
 from typing import Annotated, List, Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -20,6 +21,8 @@ class Message(BaseModel):
     user_id: int
     input: str
     response: str
+    download_link: Optional[str] = None
+    request_id: Optional[int] = None
     feedback: Optional[Feedback] = None
 
 

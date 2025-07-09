@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 class User(Base):
     """User Table in SQL DB"""
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -22,4 +23,6 @@ class User(Base):
 
     # one-to-many: a user can have many conversations
     # Ensures deleting a user also deletes all their conversations
-    conversations: Mapped[List["Conversation"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    conversations: Mapped[List["Conversation"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )

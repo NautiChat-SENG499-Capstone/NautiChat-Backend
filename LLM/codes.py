@@ -1,4 +1,5 @@
 from onc import ONC
+
 from .Environment import Environment
 
 
@@ -11,7 +12,7 @@ async def generate_download_codes(
     dateTo: str,
     user_onc_token: str,
 ):
-    from LLM import set_request_id, get_request_id
+    from LLM import get_request_id, set_request_id
 
     env = Environment()
     onc = ONC(user_onc_token) if user_onc_token else ONC(env.get_onc_token())

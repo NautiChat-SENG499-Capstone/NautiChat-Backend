@@ -4,26 +4,43 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Dependencies
 from src.database import get_db_session
-from .dependencies import get_current_user, get_settings
-from src.settings import Settings
+from src.middleware import limiter
+from src.settings import Settings, get_settings
 
-from .models import User
-from .schemas import Token, CreateUserRequest, UserOut
 from . import service
+from .dependencies import get_current_user
+from .models import User
+from .schemas import (
+    ChangePasswordRequest,
+    CreateUserRequest,
+    Token,
+    UpdateUserRequest,
+    UserOut,
+)
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("6/minute")
 async def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     settings: Annotated[Settings, Depends(get_settings)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> Token:
     """Authenticate user trying to login"""
     return await service.login_user(form_data, settings, db)
+
+
+@router.post("/guest-login", response_model=Token)
+async def guest_login(
+    settings: Annotated[Settings, Depends(get_settings)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> Token:
+    """Authenticate guest user"""
+    return await service.guest_login(settings, db)
 
 
 @router.post("/register", status_code=201, response_model=Token)
@@ -46,11 +63,21 @@ async def get_me(
     return user
 
 
-@router.put("/me/onc-token", response_model=UserOut)
-async def update_onc_token(
+@router.put("/me", response_model=UserOut)
+async def update_user_info(
+    updated_user: UpdateUserRequest,
     user: Annotated[User, Depends(get_current_user)],
-    onc_token: str,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> UserOut:
-    """Update the ONC token for the current user"""
-    return await service.update_onc_token(user, onc_token, db)
+    """Update current user's profile info"""
+    return await service.update_user_info(updated_user, user, db)
+
+
+@router.put("/me/password", response_model=UserOut)
+async def change_password(
+    request: ChangePasswordRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserOut:
+    """Change the password for the user"""
+    return await service.change_user_password(request, user, db)

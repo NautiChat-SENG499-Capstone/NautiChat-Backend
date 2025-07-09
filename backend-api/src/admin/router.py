@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Request, UploadFile
@@ -5,35 +6,50 @@ from fastapi import APIRouter, Depends, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from sentence_transformers import SentenceTransformer
 import hdbscan
-import numpy as np
-from collections import defaultdict
+from sentence_transformers import SentenceTransformer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# Dependencies
-from src.database import get_db_session
+from src.auth import models as auth_models
+from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
-
 from src.auth.schemas import UserOut
+from src.auth.service import create_new_user
+from src.database import get_db_session
 from src.llm import models, schemas
 from . import service
 
 router = APIRouter()
 
+@router.post("/create", status_code=201, response_model=UserOut)
+async def create_admin_user(
+    _: Annotated[auth_models.User, Depends(get_admin_user)],
+    new_admin: auth_schemas.CreateUserRequest,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserOut:
+    """Create new admin"""
+    return await create_new_user(new_admin, db, is_admin=True)
+
+
 @router.get("/messages")
 async def get_all_messages(
-    _: Annotated[UserOut, Depends(get_admin_user)], db: Annotated[AsyncSession, Depends(get_db_session)]
+    _: Annotated[UserOut, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> List[schemas.Message]:
     """Get all messages"""
     # TODO: add pagination to this in case there are tons of messages
 
-    result = await db.execute(select(models.Message).order_by(models.Message.message_id.desc()))
+    result = await db.execute(
+        select(models.Message).order_by(models.Message.message_id.desc())
+    )
     return result.scalars().all()  # type: ignore
+
 
 @router.get("/messages/clustered")
 async def get_clustered_messages(
-        _: Annotated[UserOut, Depends(get_admin_user)],
-        db: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[UserOut, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ):
     """Cluster all message inputs using HDBSCAN"""
     # fetch messages
@@ -47,11 +63,11 @@ async def get_clustered_messages(
     inputs = [m.input for m in messages]
 
     # embed inputs
-    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     embeddings = model.encode(inputs, convert_to_numpy=True, show_progress_bar=False)
 
     # cluster with hdbscan
-    clusterer = hdbscan.HDBSCAN(min_cluster_size=3, min_samples=2, metric='euclidean')
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=3, min_samples=2, metric="euclidean")
     labels = clusterer.fit_predict(embeddings)
 
     # organize clusters into json and output
@@ -99,3 +115,4 @@ async def source_remove(
     Endpoint for admins to delete all information with a specific source name from vector db.
     """
     await service.source_remove_from_vdb(document_source, request)
+

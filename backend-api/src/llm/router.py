@@ -1,16 +1,22 @@
-from typing import List, Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Dependencies
 from src.auth.dependencies import get_current_user
-from src.database import get_db_session
-
 from src.auth.schemas import UserOut
-from .schemas import Conversation, Message, Feedback, CreateLLMQuery, CreateConversationBody
-from . import service
+from src.database import get_db_session
+from src.middleware import limiter
 
+from . import service
+from .schemas import (
+    Conversation,
+    CreateConversationBody,
+    CreateLLMQuery,
+    Feedback,
+    Message,
+)
 
 router = APIRouter()
 
@@ -44,7 +50,18 @@ async def get_conversation(
     return await service.get_conversation(conversation_id, current_user, db)
 
 
+@router.delete("/conversations/{conversation_id}", status_code=204)
+async def delete_converstation(
+    conversation_id: int,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    """Delete specific conversation"""
+    return await service.delete_conversation(conversation_id, current_user, db)
+
+
 @router.post("/messages", status_code=201, response_model=Message)
+@limiter.limit("6/minute")
 async def generate_response(
     llm_query: CreateLLMQuery,
     current_user: Annotated[UserOut, Depends(get_current_user)],

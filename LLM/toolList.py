@@ -8,12 +8,12 @@ tools = [
                 "properties": {
                     "json_response": {
                         "type": "object",
-                        "description": "The JSON/dict response directly from the /scalardata endpoint. Expected to contain a \"sensorData\" key."
-                    } 
+                        "description": 'The JSON/dict response directly from the /scalardata endpoint. Expected to contain a "sensorData" key.',
+                    }
                 },
                 "required": ["json_response"],
                 "type": "object",
             },
-        }
+        },
     }
 ]

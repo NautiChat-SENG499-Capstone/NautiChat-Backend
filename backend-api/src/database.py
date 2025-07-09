@@ -1,15 +1,9 @@
 import contextlib
-import logging
 from typing import Any, AsyncIterator
 from uuid import uuid4
 
 from fastapi import Request
-from redis.asyncio import Redis
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.pool import AsyncAdaptedQueuePool
-from sqlalchemy.orm import DeclarativeBase
-
-from .settings import get_settings
 
 # Building async engine & sessionmaker
 from sqlalchemy.ext.asyncio import (
@@ -19,8 +13,10 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import AsyncAdaptedQueuePool
 
-logger = logging.getLogger("uvicorn.error")
+from src.logger import logger
 
 
 # Base class for all ORM models (Helps with Lazy Loading)
@@ -50,7 +46,7 @@ class DatabaseSessionManager:
 
             connect_args = {
                 "ssl": False,
-                "statement_cache_size": 0, #Disable asyncpg prepared statement cache
+                "statement_cache_size": 0,  # Disable asyncpg prepared statement cache
                 "prepared_statement_cache_size": 0,
                 "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
                 "timeout": 5,  # seconds
@@ -113,24 +109,9 @@ class DatabaseSessionManager:
         finally:
             await session.close()
 
+
 # FastAPI dependency for Endpoints
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Dependency that yields a database session"""
     async with request.app.state.session_manager.session() as session:
         yield session
-
-
-# Creates an async Redis Client
-async def init_redis():
-    redis = await Redis(
-        host="redis-13649.crce199.us-west-2-2.ec2.redns.redis-cloud.com",
-        port=13649,
-        decode_responses=True,
-        username="default",
-        password=get_settings().REDIS_PASSWORD,
-        socket_timeout=5,  # Prevents hanging forever
-        socket_connect_timeout=5,
-    )
-    await redis.ping()
-
-    return redis

@@ -1,5 +1,6 @@
-from onc import ONC
 from datetime import datetime, timedelta
+
+from onc import ONC
 
 # import os
 # from dotenv import load_dotenv
@@ -17,7 +18,9 @@ from datetime import datetime, timedelta
 
 
 # What was the air temperature in Cambridge Bay on this day last year?
-async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user_onc_token: str):
+async def get_daily_air_temperature_stats_cambridge_bay(
+    date_from_str: str, user_onc_token: str
+):
     """
     Get daily air temperature statistics for Cambridge Bay.
     Args:
@@ -35,15 +38,14 @@ async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user
     onc = ONC(user_onc_token)
     # Build 24-hour window
     date_to_str = (
-        datetime.strptime(date_from_str, "%Y-%m-%d")
-        + timedelta(days=1)
+        datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
     ).strftime("%Y-%m-%d")
 
     params = {
         "locationCode": "CBYSS.M2",
         "deviceCategoryCode": "METSTN",
-        "dateFrom":           date_from_str,
-        "dateTo":             date_to_str,
+        "dateFrom": date_from_str,
+        "dateTo": date_to_str,
     }
 
     data = onc.getScalardata(params)
@@ -54,7 +56,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user
             "min_temp": None,
             "max_temp": None,
             "mean": None,
-            "samples": 0
+            "samples": 0,
         }
     temps = sensorData[0]["data"]["values"]
     mean = sum(temps) / len(temps)
@@ -65,14 +67,16 @@ async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user
         "min_temp": min_temp,
         "max_temp": max_temp,
         "mean": mean,
-        "samples": len(temps),  
+        "samples": len(temps),
     }
-    #print(stats)
+    # print(stats)
     return stats
 
 
 # Can you give me an example of 24 hours of oxygen data?
-async def get_oxygen_data_24h(user_onc_token: str, date_from_str: str = "2024-06-24"):#Date guaranteed to have data
+async def get_oxygen_data_24h(
+    user_onc_token: str, date_from_str: str = "2024-06-24"
+):  # Date guaranteed to have data
     """
     Get 24 hours of dissolved oxygen data for Cambridge Bay.
     Args:
@@ -84,18 +88,17 @@ async def get_oxygen_data_24h(user_onc_token: str, date_from_str: str = "2024-06
     # Build 24-hour window
     onc = ONC(user_onc_token)
     date_to_str = (
-        datetime.strptime(date_from_str, "%Y-%m-%d")
-        + timedelta(days=1)
+        datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
     ).strftime("%Y-%m-%d")
 
     params = {
-        "locationCode":         "CBYIP",
-        "deviceCategoryCode":   "OXYSENSOR",
-        "propertyCode":         "oxygen",
-        "dateFrom":             date_from_str,
-        "dateTo":               date_to_str,
-        #"metadata":           "Full", #If want metadata
-        "resamplePeriod":       3600,        # In one hour intervals
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "OXYSENSOR",
+        "propertyCode": "oxygen",
+        "dateFrom": date_from_str,
+        "dateTo": date_to_str,
+        # "metadata":           "Full", #If want metadata
+        "resamplePeriod": 3600,  # In one hour intervals
     }
 
     # Fetch raw JSON
@@ -110,11 +113,8 @@ async def get_oxygen_data_24h(user_onc_token: str, date_from_str: str = "2024-06
     values = sensor["values"]
 
     # Build DataFrame
-    oxygenData ={
-        "datetime": times,
-        "oxygen_ml_per_l": values
-    }
-    #print(oxygenData)
+    oxygenData = {"datetime": times, "oxygen_ml_per_l": values}
+    # print(oxygenData)
     return oxygenData
 
 
@@ -154,7 +154,9 @@ async def get_oxygen_data_24h(user_onc_token: str, date_from_str: str = "2024-06
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
-async def get_wind_speed_at_timestamp(date_from_str: str,  user_onc_token: str, hourInterval: int = 12):
+async def get_wind_speed_at_timestamp(
+    date_from_str: str, user_onc_token: str, hourInterval: int = 12
+):
     """
     Get wind speed at Cambridge Bay (in m/s) at the specified timestamp.
     Args:
@@ -167,42 +169,46 @@ async def get_wind_speed_at_timestamp(date_from_str: str,  user_onc_token: str, 
     # Parse into datetime and get the date
     date_time_date_from_str = datetime.strptime(date_from_str, "%Y-%m-%d")
     # Parse into datetime object to add 1 day (accounts for 24-hour period)
-    date_to = date_time_date_from_str + timedelta(days = 1)
+    date_to = date_time_date_from_str + timedelta(days=1)
     date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
-    time_to_find =  (date_time_date_from_str
-                + timedelta(hours=hourInterval, minutes=0, seconds=0)
-            )
-    #print(date_from_str, date_to_str, time_to_find)
+    time_to_find = date_time_date_from_str + timedelta(
+        hours=hourInterval, minutes=0, seconds=0
+    )
+    # print(date_from_str, date_to_str, time_to_find)
     # Fetch relevant data through API request
     params = {
-        "locationCode":       "CBYSS.M2",
+        "locationCode": "CBYSS.M2",
         "deviceCategoryCode": "METSTN",
-        "propertyCode":       "windspeed",
-        "dateFrom":           date_from_str,
-        "dateTo":             date_to_str,     
+        "propertyCode": "windspeed",
+        "dateFrom": date_from_str,
+        "dateTo": date_to_str,
     }
     raw = onc.getScalardata(params)
     sensorData = raw["sensorData"]
     if not sensorData:
         return {
             "datetime": time_to_find.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "wind_speed_m_s": None
+            "wind_speed_m_s": None,
         }
-    
+
     block = sensorData[0]["data"]
     threshold = timedelta(seconds=30)
     matching_indices = [
-        i for i, ts in enumerate(block["sampleTimes"])
-        if abs(datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%fZ") - time_to_find) <= threshold
+        i
+        for i, ts in enumerate(block["sampleTimes"])
+        if abs(datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%fZ") - time_to_find)
+        <= threshold
     ]
-    wind_speed_at_time = block["values"][matching_indices[0]] if matching_indices else None
+    wind_speed_at_time = (
+        block["values"][matching_indices[0]] if matching_indices else None
+    )
     data = {
         "datetime": time_to_find.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "wind_speed_m_s": wind_speed_at_time
+        "wind_speed_m_s": wind_speed_at_time,
     }
-    #print(data)
+    # print(data)
     return data
-    
+
 
 # I’m doing a school project on Arctic fish. Does the platform have any underwater
 # imagery and could I see an example?
@@ -210,7 +216,7 @@ async def get_wind_speed_at_timestamp(date_from_str: str,  user_onc_token: str, 
 
 
 # How thick was the ice in February this year?
-async def get_ice_thickness(date_from_str: str, date_to_str: str,  user_onc_token: str):
+async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token: str):
     """
     Get sea-ice thickness for a range of time in Cambridge Bay.
     Args:
@@ -224,10 +230,9 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str,  user_onc_toke
     #     datetime.strptime(date_from_str, "%Y-%m-%d")
     #     + timedelta(month=1)
     # ).strftime("%Y-%m-%d")
-    if (date_from_str == date_to_str): # One day interval
+    if date_from_str == date_to_str:  # One day interval
         date_to_str = (
-            datetime.strptime(date_from_str, "%Y-%m-%d")
-            + timedelta(days=1)
+            datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
         ).strftime("%Y-%m-%d")
     params = {
         "locationCode": "CBYIP",
@@ -244,10 +249,14 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str,  user_onc_toke
         return {"average_ice_thickness": -1}  # No data available for the given date
     values = records[0]["data"]["values"]
     flags = records[0]["data"]["qaqcFlags"]
-    data = [val for index, val in enumerate(values) if (val is not None and flags[index] <3)]
+    data = [
+        val
+        for index, val in enumerate(values)
+        if (val is not None and flags[index] < 3)
+    ]
     average_ice_thickness = sum(data) / len(data) if data else None
     # Return the average of those daily means
-    #print(f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m")
+    # print(f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m")
     return f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m"
 
 
