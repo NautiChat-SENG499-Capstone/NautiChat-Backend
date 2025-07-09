@@ -291,6 +291,11 @@ class LLM:
                                         "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
                                 )
+                        else:
+                            # Not doing data download so clearing the obtainedParams
+                            obtainedParams: ObtainedParamsDictionary = (
+                                ObtainedParamsDictionary(),
+                            )
 
                         messages.append(
                             {
