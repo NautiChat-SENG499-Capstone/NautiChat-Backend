@@ -68,7 +68,7 @@ class LLM:
 
     async def run_conversation(
         self,
-        user_prompt,
+        user_prompt: str,
         user_onc_token: str,
         chatHistory: list[dict] = [],
         obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
