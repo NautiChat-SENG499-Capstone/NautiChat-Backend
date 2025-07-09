@@ -41,7 +41,7 @@ async def validate_onc_token(token: str):
     # call the ONC api to verify the token
     # call an endpoint with missing parameters so that it returns quickly in both valid and invalid token cases
 
-    async with AsyncClient(timeout=5) as client:
+    async with AsyncClient() as client:
         response = await client.get(
             f"https://data.oceannetworks.ca/api/locations?locationCode=INVALID&token={token}"
         )
