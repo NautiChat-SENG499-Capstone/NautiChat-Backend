@@ -83,6 +83,7 @@ class LLM:
         startingPrompt: str = None,
         chatHistory: list[dict] = [],
         user_onc_token: str = None,
+        has_retried_conversation: bool = False,  # This default parameter is set to true if a token limit is reached and the function is called a second time
     ) -> dict:
         try:
             set_request_id("")
@@ -227,16 +228,17 @@ class LLM:
         except Exception as e:
             logger.info(f"LLM failed on first attempt: {e}", exc_info=True)
 
-            self.env.cycle_new_groq_api_key()
-
-            if isinstance(e, APIStatusError):
+            # check if the error was a groq API limit and we have not retried the conversation already
+            if isinstance(e, APIStatusError) and not has_retried_conversation:
                 try:
-                    logger.info("Cycled tokens, retrying run_conversation...")
+                    self.env.cycle_new_groq_api_key()
+                    logger.info("Cycled tokens, retrying run_conversation once.")
                     return await self.run_conversation(
                         user_prompt,
                         startingPrompt=startingPrompt,
                         chatHistory=chatHistory,
                         user_onc_token=user_onc_token,
+                        has_retried_conversation=True,
                     )
                 except Exception as retry_error:
                     logger.error(
@@ -247,6 +249,8 @@ class LLM:
                         "status": 400,
                         "response": "Sorry, your request failed. Please try again.",
                     }
+
+            # LLM failed for reasons unrelated to token limits or conversation was run twice
             logger.error(
                 f"LLM failed to generate a response, cycling token: {e}", exc_info=True
             )
