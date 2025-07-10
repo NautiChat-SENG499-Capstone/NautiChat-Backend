@@ -70,4 +70,3 @@ async def test_clustered_messages_returns_valid_json(
     assert response.status_code == 200
     clusters = response.json()
     assert isinstance(clusters, dict)
-

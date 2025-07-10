@@ -1,16 +1,9 @@
-import os
 import io
-from LLM.RAG import JinaEmbeddings
-from LLM.RAG import QdrantClientWrapper
-from uuid import uuid4
-from qdrant_client.models import PointStruct
-from onc import ONC
-from dotenv import load_dotenv
+import os
 from collections import Counter
 from pathlib import Path
 from uuid import uuid4
 
-# For Deprecated
 import fitz  # PyMuPDF
 import nltk
 import requests
@@ -198,18 +191,14 @@ def deprecated_prepare_embedding_input(
 def process_pdf(use_pdf_bytes: bool, input_file, source: str = ""):
     if use_pdf_bytes:
         elements = partition_pdf(
-            file= io.BytesIO(input_file),
-            strategy="fast",
-            infer_table_structure=True
+            file=io.BytesIO(input_file), strategy="fast", infer_table_structure=True
         )
     else:
         elements = partition_pdf(
-            filename=input_file,
-            strategy="fast",
-            infer_table_structure=True
+            filename=input_file, strategy="fast", infer_table_structure=True
         )
-    
-    #for i, el in enumerate(elements):
+
+    # for i, el in enumerate(elements):
     #  print(f"{i:>2} | category: {getattr(el, 'category', None)} | text: {el.text}")
 
     # Clean up text
@@ -233,26 +222,31 @@ def process_pdf(use_pdf_bytes: bool, input_file, source: str = ""):
     )
     results = []
     for chunk in chunks:
-        results.append({
-            "text": chunk.text.strip(),
-            "metadata": {
-                "source": source,
-                "page_number": getattr(chunk.metadata, "page_number", None),
-                "category": chunk.category
+        results.append(
+            {
+                "text": chunk.text.strip(),
+                "metadata": {
+                    "source": source,
+                    "page_number": getattr(chunk.metadata, "page_number", None),
+                    "category": chunk.category,
+                },
             }
         )
     return results
+
 
 def chunk_text(text, max_characters=1024, overlap=150):
     chunks = []
     while len(text) > max_characters:
         chunks.append(text[:max_characters])
-        text = text[max_characters-overlap:]
+        text = text[max_characters - overlap :]
     chunks.append(text)
     return chunks
-    
 
-def prepare_embedding_input(processing_results: list, embedding_model: JinaEmbeddings = None):
+
+def prepare_embedding_input(
+    processing_results: list, embedding_model: JinaEmbeddings = None
+):
     if embedding_model is None:
         embedding_model = JinaEmbeddings()
 
