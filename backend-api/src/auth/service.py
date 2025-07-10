@@ -124,7 +124,7 @@ async def delete_user(
             status_code=403, detail="Not authorized to delete this user"
         )
 
-    await db.delete(target_user)  # Uses ORM cascade
+    await db.delete(target_user)
     await db.commit()
 
 
