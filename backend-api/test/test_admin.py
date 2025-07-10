@@ -62,6 +62,29 @@ async def test_create_admin_as_normal_user(client: AsyncClient, user_headers):
 
 
 @pytest.mark.asyncio
+async def test_delete_admin_user_success(
+    client: AsyncClient, async_session, admin_headers
+):
+    target_admin_data = {
+        "username": "deleteadmin",
+        "password": "deletepass",
+        "onc_token": get_settings().ONC_TOKEN,
+    }
+
+    create_response = await client.post(
+        "/admin/create", json=target_admin_data, headers=admin_headers
+    )
+    assert create_response.status_code == status.HTTP_201_CREATED
+
+    target_id = create_response.json()["id"]
+
+    delete_response = await client.delete(
+        f"/admin/delete/{target_id}", headers=admin_headers
+    )
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+
+@pytest.mark.asyncio
 async def test_clustered_messages_returns_valid_json(
     client: AsyncClient, admin_headers
 ):
