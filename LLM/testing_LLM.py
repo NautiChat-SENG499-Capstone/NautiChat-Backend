@@ -102,22 +102,13 @@ class LLM:
 
                 If the user wants an example of data, you should return the data retrieved from the relevant tools or APIs.
 
-                You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
-
-                | Time                      | [Measurement Name] (units) |
-                |---------------------------|----------------------------|
-                |    YYYY-MM-DD HH:MM:SS    | [value1]                   |
-                |    YYYY-MM-DD HH:MM:SS    | [value2]                   |
-
-                Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
-
                 Convert Time fields to the following format: `YYYY-MM-DD HH:MM:SS` (e.g., from `2023-10-01T12:00:00.000Z` To `2023-10-01 12:00:00` ).
                 
                 You must not speculate, infer unavailable values, or offer additional analysis unless explicitly asked.
 
                 Do not summarize or interpret data unless explicitly asked.
 
-                If the user asks whether a type of data or measurement is available at a given observatory or location, respond with a simple yes or no based on your knowledge or the vector search information. Do NOT call data retrieval functions in response to such questions.
+                If the user asks whether a type of data or measurement is available at a given observatory or location, respond with a simple yes or no based on your knowledge of the vector search information. Do NOT call data retrieval functions in response to such questions.
 
                 After every answer you give—no matter what the topic is—you MUST end your response with a warm, natural follow-up like:
                 “Is there anything else I can help you with?” or “Let me know if you have any other questions!”
@@ -142,7 +133,6 @@ class LLM:
                 DO NOT try to reason about data availability.
 
                 If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
-
             """
 
             # print("Messages: ", messages)
@@ -170,18 +160,20 @@ class LLM:
                     "content": user_prompt,
                 },
             ]
+
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
-                messages=messages,  # Conversation history
+                messages=messages,  # Includes Conversation history
                 stream=False,
                 tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
                 tool_choice="auto",  # Let our LLM decide when to use tools
                 max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
                 temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
-            print("Response from LLM:", response)
+
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
+            print("First Response from LLM:", response_message.content)
             # print(tool_calls)
             doing_data_download = False
             if tool_calls:
@@ -194,6 +186,7 @@ class LLM:
                     ).values()
                 )
                 print("Unique tool calls:", tool_calls)
+                toolMessages = []
                 for tool_call in tool_calls:
                     # print(tool_call)
                     # print()
@@ -296,7 +289,7 @@ class LLM:
                                 ObtainedParamsDictionary()
                             )
 
-                        messages.append(
+                        toolMessages.append(
                             {
                                 "tool_call_id": tool_call.id,
                                 "role": "tool",  # Indicates this message is from tool use
@@ -307,9 +300,64 @@ class LLM:
                             }
                         )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
+                secondLLMCallStartingPrompt = f"""
+                    You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed.
+
+                    Today’s date is {CurrentDate}. GIVEN the tools responses create a valuable response based on the users input.
+
+                    Do NOT use any data-fetching tools for general, conceptual, or sensor-related questions if relevant information has already been provided (e.g., from a vector search or assistant message).
+
+                    You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
+
+                    | Time                      | [Measurement Name] (units) |
+                    |---------------------------|----------------------------|
+                    |    YYYY-MM-DD HH:MM:SS    | [value1]                   |
+                    |    YYYY-MM-DD HH:MM:SS    | [value2]                   |
+
+                    Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
+
+                    Convert Time fields to the following format: `YYYY-MM-DD HH:MM:SS` (e.g., from `2023-10-01T12:00:00.000Z` To `2023-10-01 12:00:00` ).
+                    
+                    You must not speculate, infer unavailable values, or offer additional analysis unless explicitly asked.
+
+                    Do not summarize or interpret data unless explicitly asked.
+
+                    If the user asks whether a type of data or measurement is available at a given observatory or location, respond with a simple yes or no based on the given message context.
+
+                    After every answer you give—no matter what the topic is—you MUST end your response with a warm, natural follow-up like:
+                    “Is there anything else I can help you with?” or “Let me know if you have any other questions!”
+
+                    This closing line is required even if the user just says “thanks” or ends the conversation.
+
+                    If the user says something like “thanks” or “goodbye”, you should still respond with a friendly closing line like:
+                    “You’re welcome! If you have any more questions in the future, feel free to ask. Have a great day!” or “Goodbye! If you need anything else, just let me know!”
+
+                    When a tool is used, do not guess or assume what it might return. Do not speculate or reason beyond the returned result. However, you may output the tool’s result in your response and format it clearly for the user, as long as you do not add new interpretations or steps.
+
+                    You are NEVER required to generate code in any language.
+
+                    Do NOT add follow-up suggestions, guesses, or recommendations.
+
+                    DO NOT guess what parameters the user might want to use for data download requests.
+
+                    DO NOT say "I will now use the tool."  
+                    DO NOT try to reason about data availability.
+                """
+                messagesNoContext = [
+                    {
+                        "role": "system",
+                        "content": secondLLMCallStartingPrompt,
+                    },
+                    {"role": "assistant", "content": vector_content},
+                    {
+                        "role": "user",
+                        "content": user_prompt,
+                    },
+                    *toolMessages,  # Add tool messages to the conversation
+                ]
                 second_response = self.client.chat.completions.create(
                     model=self.model,
-                    messages=messages,
+                    messages=messagesNoContext,  # Conversation history without context and different starting system prompt
                     max_completion_tokens=4096,
                     temperature=0,
                     stream=False,
