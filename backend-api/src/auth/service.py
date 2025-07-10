@@ -105,6 +105,29 @@ async def create_new_user(
     return new_user
 
 
+async def delete_user(
+    target_id: int,
+    user: UserModel,
+    db: AsyncSession,
+):
+    """Deletes a user account"""
+
+    result = await db.execute(select(UserModel).where(UserModel.id == target_id))
+    target_user = result.scalar_one_or_none()
+
+    # User getting deleted does not exist
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.id != target_id and not user.is_admin:
+        raise HTTPException(
+            status_code=403, detail="Not authorized to delete this user"
+        )
+
+    await db.delete(target_user)  # Uses ORM cascade
+    await db.commit()
+
+
 async def get_user(username: str, db: AsyncSession) -> Optional[UserModel]:
     """Look up a user by their username in the DB"""
     user = select(UserModel).where(UserModel.username == username)

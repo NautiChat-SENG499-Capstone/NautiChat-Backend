@@ -11,7 +11,7 @@ from src.auth import models as auth_models
 from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
 from src.auth.schemas import UserOut
-from src.auth.service import create_new_user
+from src.auth.service import create_new_user, delete_user
 from src.database import get_db_session
 from src.llm import models, schemas
 
@@ -26,6 +26,16 @@ async def create_admin_user(
 ) -> UserOut:
     """Create new admin"""
     return await create_new_user(new_admin, db, is_admin=True)
+
+
+@router.delete("/delete/{id}", status_code=204)
+async def delete_admin(
+    id: int,
+    user: Annotated[auth_models.User, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    """Delete a user"""
+    return await delete_user(id, user, db)
 
 
 @router.get("/messages")
