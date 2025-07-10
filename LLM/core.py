@@ -294,7 +294,7 @@ class LLM:
                         else:
                             # Not doing data download so clearing the obtainedParams
                             obtainedParams: ObtainedParamsDictionary = (
-                                ObtainedParamsDictionary(),
+                                ObtainedParamsDictionary()
                             )
 
                         messages.append(
