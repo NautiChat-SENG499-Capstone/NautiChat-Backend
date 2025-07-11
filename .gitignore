@@ -187,3 +187,6 @@ cython_debug/
 
 alembic
 alembic.ini
+
+# LLM gitignores
+/LLM/testing/*
