@@ -69,7 +69,7 @@ class LLM:
 
     async def run_conversation(
         self,
-        user_prompt: str,
+        userPrompt: str,
         user_onc_token: str,
         chatHistory: list[dict] = [],
         obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
@@ -138,7 +138,7 @@ class LLM:
 
             # print("Messages: ", messages)
 
-            vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
+            vectorDBResponse = self.RAG_instance.get_documents(userPrompt)
             print("Vector DB Response:", vectorDBResponse)
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
@@ -158,7 +158,7 @@ class LLM:
                 *chatHistory,
                 {
                     "role": "user",
-                    "content": user_prompt,
+                    "content": userPrompt,
                 },
             ]
 
@@ -352,7 +352,7 @@ class LLM:
                     {"role": "assistant", "content": vector_content},
                     {
                         "role": "user",
-                        "content": user_prompt,
+                        "content": userPrompt,
                     },
                     *toolMessages,  # Add tool messages to the conversation
                 ]
