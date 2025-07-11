@@ -5,6 +5,7 @@ from typing import AsyncIterator
 
 import pytest
 import pytest_asyncio
+from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -66,9 +67,15 @@ async def client(async_session: AsyncSession, request) -> AsyncIterator[AsyncCli
 
     test_app.dependency_overrides[get_db_session] = override_get_db_session
 
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
-        yield c
+    if request.node.get_closest_marker("use_lifespan"):
+        async with LifespanManager(test_app):
+            transport = ASGITransport(app=test_app)
+            async with AsyncClient(transport=transport, base_url="http://test") as c:
+                yield c
+    else:
+        transport = ASGITransport(app=test_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            yield c
 
 
 @pytest_asyncio.fixture()
