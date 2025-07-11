@@ -1,0 +1,8 @@
+# Alembic
+
+
+[Alembic tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html)
+- create auto migration like `alembic revision --autogenerate -m "Added account table"`
+- verify the migration file created in alembic/versions
+- push migration with `alembic upgrade head`
+- verify in supabase

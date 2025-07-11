@@ -186,6 +186,3 @@ cython_debug/
 .vscode/launch.json
 
 .vscode/settings.json
-
-alembic
-alembic.ini
