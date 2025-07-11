@@ -185,5 +185,5 @@ cython_debug/
 
 .vscode/launch.json
 
-alembic
-alembic.ini
+# LLM gitignores
+/LLM/testing/*

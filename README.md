@@ -19,3 +19,8 @@ uvicorn src.main:app --reload
 
 # 5. (Alternative) Run with Docker Compose
 docker compose up --build
+```
+
+## Pre-commit
+
+The project uses pre-commit to run actions before a commit. To get pre-commit set up locally to run before a commit run `pre-commit install`. The pre-commit hook can also be run manually with `pre-commit run --all-files`.

@@ -1,9 +1,9 @@
+import io
 import os
 from collections import Counter
 from pathlib import Path
 from uuid import uuid4
 
-# For Deprecated
 import fitz  # PyMuPDF
 import nltk
 import requests
@@ -23,7 +23,7 @@ Series of functions to preprocess PDF files, extract structured text chunks,
 and embeds them using a Jina Model. Includes handler to upload embedded data to a vector database.
 
 Usage for pdfs:
-1. Call `process_pdf(file_path)` with the path to the PDF file.
+1. Call `process_pdf(use_pdf_bytes, file_path)` with the path to the PDF file and use_pdf_bytes False. use_pdf_bytes = True is for api route. Optionally source can be passed otherwise the file name is used.
 2. Call `prepare_embedding_input(processing_results)` with a list of results from process_pdf. Optionally, you can pass a `JinaEmbeddings` instance to use a specific embedding model. If no embedding model is provided, a default instance will be created.
 3. This function will return a list of dictionaries, each containing:
     - `embedding`: The embedding vector for the chunk.
@@ -188,12 +188,18 @@ def deprecated_prepare_embedding_input(
 # Updated Preprocessing of PDFs functionality
 
 
-def process_pdf(file_path: str):
-    elements = partition_pdf(
-        filename=file_path, strategy="fast", infer_table_structure=True
-    )
-    for i, el in enumerate(elements):
-        print(f"{i:>2} | category: {getattr(el, 'category', None)} | text: {el.text}")
+def process_pdf(use_pdf_bytes: bool, input_file, source: str = ""):
+    if use_pdf_bytes:
+        elements = partition_pdf(
+            file=io.BytesIO(input_file), strategy="fast", infer_table_structure=True
+        )
+    else:
+        elements = partition_pdf(
+            filename=input_file, strategy="fast", infer_table_structure=True
+        )
+
+    # for i, el in enumerate(elements):
+    #  print(f"{i:>2} | category: {getattr(el, 'category', None)} | text: {el.text}")
 
     # Clean up text
     for el in elements:
@@ -201,6 +207,10 @@ def process_pdf(file_path: str):
             el.text = clean(el.text, extra_whitespace=True, dashes=True)
     # Filter out empty elements
     elements = [el for el in elements if el.text and len(el.text.strip()) > 1]
+
+    # Get source name
+    if source == "":
+        source = os.path.basename(input_file)
 
     # Chunk by semantic structure (titles, etc.)
     chunks = chunk_by_title(
@@ -216,13 +226,22 @@ def process_pdf(file_path: str):
             {
                 "text": chunk.text.strip(),
                 "metadata": {
-                    "source": os.path.basename(file_path),
+                    "source": source,
                     "page_number": getattr(chunk.metadata, "page_number", None),
                     "category": chunk.category,
                 },
             }
         )
     return results
+
+
+def chunk_text(text, max_characters=1024, overlap=150):
+    chunks = []
+    while len(text) > max_characters:
+        chunks.append(text[:max_characters])
+        text = text[max_characters - overlap :]
+    chunks.append(text)
+    return chunks
 
 
 def prepare_embedding_input(
@@ -234,7 +253,7 @@ def prepare_embedding_input(
     task = "retrieval.passage"
     embedding_results = []
     chunks = [result["text"] for result in processing_results]
-    embeddings = embedding_model.encode(chunks, task=task, prompt_name=task)
+    embeddings = embedding_model.embed_documents(chunks)
 
     for embedding, result in zip(embeddings, processing_results):
         embedding_results.append(
@@ -262,7 +281,7 @@ def prepare_embedding_input_from_preformatted(
 
     for section in input:
         full_text = " ".join(section["paragraphs"])
-        chunks = deprecated_chunk_text_with_heading(full_text, section["heading"])
+        chunks = chunk_text(full_text)
 
         if embedding_model is None:
             embedding_model = JinaEmbeddings()
