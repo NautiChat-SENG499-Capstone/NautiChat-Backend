@@ -1,5 +1,14 @@
 import asyncio
 import logging
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+if os.getenv("ENV") != "production":
+    env_file_location = str(Path(__file__).resolve().parent / ".env")
+    load_dotenv(env_file_location)
+onc_token = os.getenv("ONC_TOKEN")
 
 from LLM.Constants.status_codes import StatusCode
 from LLM.core import LLM
@@ -23,8 +32,8 @@ async def main():
         obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
         while user_prompt not in ["exit", "quit"]:
             response = await LLM_Instance.run_conversation(
-                user_prompt=user_prompt,
-                user_onc_token="6a316121-e017-4f4c-9cb1-eaf5dd706425",
+                userPrompt=user_prompt,
+                user_onc_token=onc_token,
                 chatHistory=chatHistory,
                 obtainedParams=obtainedParams,
             )
