@@ -10,18 +10,24 @@ if os.getenv("ENV") != "production":
     load_dotenv(env_file_location)
 onc_token = os.getenv("ONC_TOKEN")
 
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+
 from LLM.Constants.status_codes import StatusCode
-from LLM.core import LLM
 from LLM.Environment import Environment
-from LLM.RAG import RAG
+from LLM.RAG import RAG, JinaEmbeddings
 from LLM.schemas import ObtainedParamsDictionary
+from LLM.ThreeLLMs import LLM
 
 logger = logging.getLogger(__name__)
 
 
 async def main():
     env = Environment()
-    RAG_instance = RAG(env)
+    RAG_instance = RAG(
+        env,
+        JinaEmbeddings(),
+        HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
+    )
     print("RAG instance created successfully.")
     try:
         LLM_Instance = LLM(
