@@ -78,6 +78,7 @@ async def submit_feedback(
     feedback: Feedback,
     current_user: Annotated[UserOut, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    request:Request,
 ) -> Message:
     """Update the feedback in the Message model"""
-    return await service.submit_feedback(message_id, feedback, current_user, db)
+    return await service.submit_feedback(message_id, feedback, current_user, db,request)

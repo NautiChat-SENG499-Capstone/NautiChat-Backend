@@ -3,7 +3,8 @@ import logging
 import sys
 from collections import OrderedDict
 from datetime import datetime
-
+import asyncio
+from LLM.Environment import Environment
 import pandas as pd
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 
@@ -116,13 +117,13 @@ class LLM:
                     "role": "system",
                     "content": startingPrompt,
                 },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
+                # {
+                #     "role": "user",
+                #     "content": user_prompt,
+                # },
             ]
 
-            vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
+            vectorDBResponse, qa_docs = self.RAG_instance.get_documents(user_prompt)
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -131,8 +132,33 @@ class LLM:
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
-            # print("Vector DB Response:", vector_content)
+
+            if isinstance(qa_docs, pd.DataFrame):
+                if qa_docs.empty:
+                    qa_reference = "" 
+                else:
+                    qa_reference = qa_docs.to_string(index=False)
+            else:
+                qa_reference = str(qa_docs)
+
+            if qa_reference:
+                styling_prompt = f"""
+                The following are examples of question-answer pairs that represent the desired style, tone, and preferred phrasing for your responses.
+                Do NOT use these as factual context or directly answer from them.
+                Instead, analyze them to understand the preferred phrasing, level of detail, and overall stylistic conventions
+                when formulating your own answers based on other retrieved information and tool outputs.
+
+                Examples for styling guidance:
+                {qa_reference}
+                """
+                messages.append({"role": "system", "content": styling_prompt})
+
             messages.append({"role": "system", "content": vector_content})
+
+            messages.append({
+                "role": "user",
+                "content": user_prompt,
+            })
 
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
@@ -146,10 +172,8 @@ class LLM:
             print("Response from LLM:", response)
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
-            # print(tool_calls)
             DownloadDone = False
             if tool_calls:
-                # print("Tool calls detected, processing...")
                 print("tools calls:", tool_calls)
                 tool_calls = list(
                     OrderedDict(
@@ -159,13 +183,10 @@ class LLM:
                 )
                 print("Unique tool calls:", tool_calls)
                 for tool_call in tool_calls:
-                    # print(tool_call)
-                    # print()
                     function_name = tool_call.function.name
 
                     if function_name in self.available_functions:
                         if function_name == "generate_download_codes":
-                            # Special case for download codes
                             print("Generating download codes...")
                             set_request_id("")
                             DownloadDone = True
