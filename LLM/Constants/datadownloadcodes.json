@@ -65,7 +65,7 @@
       "possibleDataProducts": [
         {
           "dataProduct": "MP4 Video",
-          "dataProductCode": "MP4",
+          "dataProductCode": "MP4V",
           "availableExtensions": ["mp4"]
         }
       ]
@@ -590,7 +590,7 @@
         },
         {
           "dataProduct": "MP4 Video",
-          "dataProductCode": "MP4",
+          "dataProductCode": "MP4V",
           "availableExtensions": ["mp4"]
         },
         {
@@ -819,7 +819,7 @@
         },
         {
           "dataProduct": "MP4 Video",
-          "dataProductCode": "MP4",
+          "dataProductCode": "MP4V",
           "availableExtensions": ["mp4"]
         },
         {

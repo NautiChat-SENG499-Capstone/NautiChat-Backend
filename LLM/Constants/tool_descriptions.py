@@ -191,7 +191,7 @@ toolDescriptions = [
                         "enum": [
                             "LF",
                             "MSQAQCR",
-                            "MP4",
+                            "MP4V",
                             "TSSD",
                             "TSSP",
                             "TSSCP",
