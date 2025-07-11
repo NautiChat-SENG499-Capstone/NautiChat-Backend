@@ -42,7 +42,6 @@ class RAG:
         env: Environment,
         *,
         embedder: Embeddings | None = None,
-        cross_encoder: HuggingFaceCrossEncoder | None = None,
         qdrant_client: QdrantClient | None = None,
     ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)

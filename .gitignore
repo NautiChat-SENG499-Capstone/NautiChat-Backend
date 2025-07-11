@@ -185,4 +185,5 @@ cython_debug/
 
 .vscode/launch.json
 
-.vscode/settings.json
+# LLM gitignores
+/LLM/testing/*
