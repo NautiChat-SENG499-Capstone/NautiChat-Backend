@@ -254,3 +254,18 @@ async def test_change_password_wrong_current(client: AsyncClient, user_headers):
     resp = await client.put("/auth/me/password", json=body, headers=user_headers)
     assert resp.status_code == status.HTTP_401_UNAUTHORIZED
     assert resp.json()["detail"] == "Current password is incorrect"
+
+
+@pytest.mark.asyncio
+async def test_delete_me(
+    client: AsyncClient, async_session: AsyncSession, user_headers
+):
+    delete_response = await client.delete("/auth/me/delete", headers=user_headers)
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+    # Confirm the user is gone
+    query = await async_session.execute(
+        select(models.User).where(models.User.username == "testuser")
+    )
+    user = query.scalar_one_or_none()
+    assert user is None, "User was not deleted from the database"

@@ -53,6 +53,15 @@ async def register_user(
     return await service.register_user(user_request, settings, db)
 
 
+@router.delete("/me/delete", status_code=204)
+async def delete_me(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    """Delete the current user's account"""
+    return await service.delete_user(user.id, user, db)
+
+
 @router.get("/me")
 async def get_me(
     user: Annotated[User, Depends(get_current_user)],
