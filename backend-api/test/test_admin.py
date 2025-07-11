@@ -1,6 +1,7 @@
 import pytest
 from fastapi import status
 from httpx import AsyncClient
+from src.auth.service import get_user_by_token
 from src.settings import get_settings
 
 
@@ -79,9 +80,27 @@ async def test_delete_admin_user_success(
     target_id = create_response.json()["id"]
 
     delete_response = await client.delete(
-        f"/admin/delete/{target_id}", headers=admin_headers
+        f"/admin/users/{target_id}", headers=admin_headers
     )
     assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_delete_self(
+    client: AsyncClient, async_session, admin_headers
+):
+    # Extract the token from headers
+    token = admin_headers["Authorization"].split("Bearer ")[1]
+
+    # Get user object
+    admin_user = await get_user_by_token(token, get_settings(), async_session)
+
+    response = await client.delete(
+        f"/admin/users/{admin_user.id}", headers=admin_headers
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.json()["detail"] == "Admins are not allowed to delete themselves"
 
 
 @pytest.mark.asyncio

@@ -102,7 +102,7 @@ async def admin_headers(async_session: AsyncSession):
 
     admin_user = models.User(
         username="admin",
-        hashed_password="nothashedpassword",
+        hashed_password=get_password_hash("hashedpassword"),
         onc_token=get_settings().ONC_TOKEN,
         is_admin=True,
     )

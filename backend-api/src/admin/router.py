@@ -28,8 +28,8 @@ async def create_admin_user(
     return await create_new_user(new_admin, db, is_admin=True)
 
 
-@router.delete("/delete/{id}", status_code=204)
-async def delete_admin(
+@router.delete("/users/{id}", status_code=204)
+async def delete_users(
     id: int,
     user: Annotated[auth_models.User, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
