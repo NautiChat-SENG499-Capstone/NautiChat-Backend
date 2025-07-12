@@ -125,7 +125,9 @@ async def get_daily_sea_temperature_stats_cambridge_bay(
                 "daily_min": round(data["minimum"], 2),
                 "daily_max": round(data["maximum"], 2),
                 "daily_avg": round(data["value"], 2),
-            }
+            },
+            "urlParamsUsed": {},
+            "baseUrl": temp_api,
         }
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 401:
