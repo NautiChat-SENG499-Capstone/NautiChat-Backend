@@ -40,14 +40,11 @@ class RAG:
     def __init__(
         self,
         env: Environment,
-        *,
-        embedder: Embeddings | None = None,
-        qdrant_client: QdrantClient | None = None,
     ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
-        self.qdrant_client = qdrant_client or self.qdrant_client_wrapper.qdrant_client
+        self.qdrant_client = self.qdrant_client_wrapper.qdrant_client
         self.collection_name = self.qdrant_client_wrapper.collection_name
-        self.embedding = embedder or JinaEmbeddings()
+        self.embedding = JinaEmbeddings()
 
         self.qdrant = Qdrant(
             client=self.qdrant_client,

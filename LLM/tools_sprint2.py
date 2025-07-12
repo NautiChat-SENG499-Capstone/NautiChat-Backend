@@ -53,11 +53,14 @@ async def get_daily_air_temperature_stats_cambridge_bay(
     if not sensorData:
         return {
             "response": {
-                "date": date_from_str,
-                "min_temp": None,
-                "max_temp": None,
-                "mean": None,
-                "samples": 0,
+                "stats": {
+                    "date": date_from_str,
+                    "min_temp": None,
+                    "max_temp": None,
+                    "mean": None,
+                    "samples": 0,
+                },
+                "description": f"Air temperature statistics for Cambridge Bay on day: {date_from_str} don't exist",
             },
             "urlParamsUsed": {
                 "locationCode": "CBYSS.M2",
@@ -81,7 +84,10 @@ async def get_daily_air_temperature_stats_cambridge_bay(
     }
     # print(stats)
     return {
-        "response": stats,
+        "response": {
+            "stats": stats,
+            "description": f"Air temperature statistics for Cambridge Bay on day: {date_from_str}",
+        },
         "urlParamsUsed": {
             "locationCode": "CBYSS.M2",
             "deviceCategoryCode": "METSTN",
@@ -148,7 +154,10 @@ async def get_oxygen_data_24h(
     oxygenData = {"datetime": times, "oxygen_ml_per_l": values}
     # print(oxygenData)
     return {
-        "response": oxygenData,
+        "response": {
+            "oxygenData": oxygenData,
+            "description": f"24 hours of dissolved oxygen data for Cambridge Bay on day: {date_from_str}",
+        },
         "urlParamsUsed": {
             "locationCode": "CBYSS.M2",
             "deviceCategoryCode": "METSTN",
@@ -216,6 +225,7 @@ async def get_wind_speed_at_timestamp(
     time_to_find = date_time_date_from_str + timedelta(
         hours=hourInterval, minutes=0, seconds=0
     )
+    time_to_find_str = time_to_find.strftime("%Y-%m-%dT%H:%M:%SZ")
     # print(date_from_str, date_to_str, time_to_find)
     # Fetch relevant data through API request
     params = {
@@ -230,8 +240,11 @@ async def get_wind_speed_at_timestamp(
     if not sensorData:
         return {
             "response": {
-                "datetime": time_to_find.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "wind_speed_m_s": None,
+                "result": {
+                    "datetime": time_to_find.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "wind_speed_m_s": None,
+                },
+                "description": f"Wind speed at Cambridge Bay (in m/s) at the specified timestamp: {time_to_find_str} don't exist",
             },
             "urlParamsUsed": {
                 "locationCode": "CBYSS.M2",
@@ -256,12 +269,15 @@ async def get_wind_speed_at_timestamp(
         block["values"][matching_indices[0]] if matching_indices else None
     )
     data = {
-        "datetime": time_to_find.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "datetime": time_to_find_str,
         "wind_speed_m_s": wind_speed_at_time,
     }
     # print(data)
     return {
-        "response": data,
+        "response": {
+            "data": data,
+            "description": f"Wind speed at Cambridge Bay (in m/s) at the specified timestamp: {time_to_find_str}",
+        },
         "urlParamsUsed": {
             "locationCode": "CBYSS.M2",
             "deviceCategoryCode": "METSTN",
@@ -311,7 +327,10 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
     records = response["sensorData"]
     if not records:
         return {
-            "response": {"average_ice_thickness": -1},
+            "response": {
+                "average_ice_thickness": -1,
+                "description": f"Average Sea-ice thickness in meters for over the time range: {date_from_str} to {date_to_str} don't exist",
+            },
             "urlParamsUsed": {
                 "locationCode": "CBYIP",
                 "deviceCategoryCode": "ICEPROFILER",
@@ -333,7 +352,10 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
     # Return the average of those daily means
     # print(f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m")
     return {
-        "response": f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m",
+        "response": {
+            "average_ice_thickness": average_ice_thickness,
+            "description": f"Average Sea-ice thickness in meters for over the time range: {date_from_str} to {date_to_str} is {average_ice_thickness} m",
+        },
         "urlParamsUsed": {
             "locationCode": "CBYIP",
             "deviceCategoryCode": "ICEPROFILER",
