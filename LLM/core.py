@@ -90,7 +90,7 @@ class LLM:
 
                 Do NOT use the data download tool/generate_download_codes tool if the user does not request to download data.
 
-                IGNORE messaging history about downloading data when the user is not explicitly asking to download data and the previous data download was succesful.
+                IGNORE messaging history about downloading data when the user is not explicitly asking to download data and the previous data download was successful.
 
                 Even if valid parameters (such as `deviceCategoryCode`, `dataProductCode`, or `locationCode`) are present in the conversation or from the vector search, do NOT assume the user wants data. The presence of these parameters is common and should be treated as context only.
 
