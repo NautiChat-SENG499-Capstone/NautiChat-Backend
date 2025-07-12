@@ -49,20 +49,11 @@ class RunConversationResponse(BaseModel):
     urlParamsUsed: Optional[dict] = Field(default_factory=dict)
 
 
-class ToolPlan(BaseModel):
-    tool_name: str = Field(..., description="The name of the tool to use")
-    inputs: Dict[str, Any] = Field(
-        ..., description="Input values or descriptions of what each input is"
+class PlanningResponse(BaseModel):
+    reasoning: str = Field(
+        ...,
+        description="Natural language explanation of which tools to use and what inputs are needed",
     )
-    missing_inputs: List[str] = Field(
-        ..., description="List of inputs that are missing and must be provided"
-    )
-
-
-class PlanningOutput(BaseModel):
-    tool_plan: List[ToolPlan] = Field(
-        ..., description="Tool usage plans including inputs and any missing fields"
-    )
-    required_inputs: Dict[str, str] = Field(
-        ..., description="Explanations for each missing input parameter"
+    inputs_needed: Dict[str, str] = Field(
+        ..., description="Input parameters needed, and why each is required"
     )

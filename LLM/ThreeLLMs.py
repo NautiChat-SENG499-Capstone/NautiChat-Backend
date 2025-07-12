@@ -6,15 +6,14 @@ from datetime import datetime
 
 import pandas as pd
 from langchain.output_parsers import PydanticOutputParser
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.tool_descriptions import toolDescriptions
 from LLM.data_download import generate_download_codes
-from LLM.RAG import RAG, JinaEmbeddings
+from LLM.RAG import RAG
 from LLM.schemas import (
     ObtainedParamsDictionary,
-    PlanningOutput,
+    PlanningResponse,
     RunConversationResponse,
 )
 from LLM.tools_sprint1 import (
@@ -35,7 +34,7 @@ from LLM.tools_sprint2 import (
 logger = logging.getLogger(__name__)
 
 sys.modules["LLM"] = sys.modules[__name__]
-parser = PydanticOutputParser(pydantic_object=PlanningOutput)
+parser = PydanticOutputParser(pydantic_object=PlanningResponse)
 format_instructions = parser.get_format_instructions()
 
 
@@ -44,7 +43,7 @@ class LLM:
         self.env = env
         self.client = env.get_client()
         self.model = env.get_model()
-        self.RAG_instance = RAG_instance
+        self.RAG_instance: RAG = RAG_instance or RAG(env=self.env)
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
@@ -67,105 +66,119 @@ class LLM:
     ) -> RunConversationResponse:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
-            startingPrompt = f"""
-                    You are a planning assistant that outputs structured reasoning for which tools to use and what inputs are needed for each tool.
+            # startingPrompt = f"""
+            #         You are a planning assistant that outputs structured reasoning for which tools to use and what inputs are needed for each tool.
 
-                    Today’s date is {CurrentDate}.
+            #         Today’s date is {CurrentDate}.
 
-                    You are given:
-                    - A list of available tools (functions) with their names, descriptions, and parameters.
-                    - A user message and the full conversation history.
+            #         You are given:
+            #         - A list of available tools (functions) with their names, descriptions, and parameters.
+            #         - A user message and the full conversation history.
 
-                    Your job is to:
-                    1. Identify if any of the tool(s) from the provided list are relevant for the user's request.
-                    2. For each tool you choose, determine the inputs it requires.
-                    3. Populate the inputs using only information explicitly provided by the user.
-                    4. Do NOT assume any missing inputs. If a required parameter is missing, note it and explain why it's required.
+            #         Your job is to:
+            #         1. Identify if any of the tool(s) from the provided list are relevant for the user's request.
+            #         2. For each tool you choose, determine the inputs it requires.
+            #         3. Populate the inputs using only information explicitly provided by the user.
+            #         4. Do NOT assume any missing inputs. If a required parameter is missing, note it and explain why it's required.
 
-                    Only use tools that are included in the tool definitions you were provided via the `tools` parameter.
-                    Only request parameters that the user explicitly asked for or that are required to fulfill their request. Do NOT assume defaults unless the user has given permission to do so.
+            #         Only use tools that are included in the tool definitions you were provided via the `tools` parameter.
+            #         Only request parameters that the user explicitly asked for or that are required to fulfill their request. Do NOT assume defaults unless the user has given permission to do so.
 
-                    Always output a structured JSON with the following format:
-                    {
-                "tool_plan": [
-                            {
-                    "tool_name": "<name_of_tool>",
-                            "inputs": {
-                        "<input_param1>": "<value_or_description>",
-                                "<input_param2>": "<value_or_description>"
-                            },
-                            "missing_inputs": ["<input_param_if_missing>", "..."]
-                            }
-                        ],
-                        "required_inputs": {
-                    "<missing_param>": "<reason_or explanation why it's needed>",
-                            ...
-                        }
-                        }
-                    Each tool in tool_plan includes:
-                    - the tool name
-                    - its inputs (with either values or descriptions)
-                    - any missing inputs that need to be resolved
-                    - The required_inputs field gives detailed reasoning for each missing input.
+            #         Always output a structured JSON with the following format:
+            #         {
+            #     "tool_plan": [
+            #                 {
+            #         "tool_name": "<name_of_tool>",
+            #                 "inputs": {
+            #             "<input_param1>": "<value_or_description>",
+            #                     "<input_param2>": "<value_or_description>"
+            #                 },
+            #                 "missing_inputs": ["<input_param_if_missing>", "..."]
+            #                 }
+            #             ],
+            #             "required_inputs": {
+            #         "<missing_param>": "<reason_or explanation why it's needed>",
+            #                 ...
+            #             }
+            #             }
+            #         Each tool in tool_plan includes:
+            #         - the tool name
+            #         - its inputs (with either values or descriptions)
+            #         - any missing inputs that need to be resolved
+            #         - The required_inputs field gives detailed reasoning for each missing input.
 
-                    You do NOT need to determine if the system can proceed — only describe what is missing and how to fulfill the user's intent.
-                    
-                    Guidelines:
-                    - Do not include tools that aren't in the tool list.
-                    - Do not fabricate values (e.g. timestamps, locations, etc.).
-                    - Use plain values or phrases like “user requested latest” if the intent is clear.
-                    - Be precise in identifying missing inputs so they can be retrieved from a knowledge base or asked from the user later.
-                """
+            #         You do NOT need to determine if the system can proceed — only describe what is missing and how to fulfill the user's intent.
+
+            #         Guidelines:
+            #         - Do not include tools that aren't in the tool list.
+            #         - Do not fabricate values (e.g. timestamps, locations, etc.).
+            #         - Use plain values or phrases like “user requested latest” if the intent is clear.
+            #         - Be precise in identifying missing inputs so they can be retrieved from a knowledge base or asked from the user later.
+            #     """
 
             system_prompt = f"""
-                You are a tool planning assistant.
+                You are a planning assistant responsible for deciding which tools should be called to fulfill a user's request.
+                Today’s date is {CurrentDate}.
+                
+                You are provided with:
+                - A user message and the conversation history
+                - A list of available tools (via the `tools` parameter), including their names, descriptions, and input parameters
 
-                You are given:
-                - A user request
-                - A list of available tools (functions), provided in the tools parameter
-                - The full conversation history
+                Your job is to reason about which tools are appropriate to use and what inputs those tools require to fulfill the user's request.
 
-                Your job is to:
-                1. Select the most appropriate tool(s) from the provided list to fulfill the user’s request.
-                2. For each tool, identify what inputs are required.
-                3. If any required inputs are missing from the user input, list them and explain what is missing.
-                4. Only use tools that are defined in the tool list.
-                5. Do not assume or invent values for any missing inputs. If a required field is missing (like a date or location), just state that it's missing.
-                6. Do not include tools that aren't listed.
+                Your output should be a clear and concise explanation in natural language, suitable for another system to understand what information is needed to execute the tools.
 
-                Your output must strictly follow this format:
+                Your task is to:
+                1. Determine which tool(s), if any, are relevant to the user's request.
+                2. Clearly describe which inputs are required to call each selected tool.
+                3. For each input, state whether the user already provided it. If not, explain why it is needed.
+                4. Explain your reasoning in fluent, natural language. Do not output structured formats like JSON or YAML.
 
+                Important guidelines:
+                - Use only tools that are explicitly listed in the provided tool definitions.
+                - Do not assume or fabricate input values the user did not mention.
+                - Do not use default values unless the user clearly requested them.
+                - Vary your language naturally — avoid repeating fixed sentence patterns.
+
+                Do not include any examples or code in your response. Only return a natural language explanation.
+
+                The inputs to the tools should be 
+
+                Available tools:
+                {json.dumps(toolDescriptions)}
+
+                Output your response in the following format:
                 {format_instructions}
             """
 
-            print("System Prompt:", system_prompt)
+            # print("System Prompt:", system_prompt)
 
             # print("Messages: ", messages)
-            messages = [
-                {
-                    "role": "system",
-                    "content": startingPrompt,
-                },
-                *chatHistory,
-                {
-                    "role": "user",
-                    "content": userPrompt,
-                },
-            ]
+            # messages = [
+            #     {
+            #         "role": "system",
+            #         "content": startingPrompt,
+            #     },
+            #     *chatHistory,
+            #     {
+            #         "role": "user",
+            #         "content": userPrompt,
+            #     },
+            # ]
 
-            response = self.client.chat.completions.create(
-                model=self.model,  # LLM to use
-                messages=messages,  # Includes Conversation history
-                stream=False,
-                tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
-                tool_choice="auto",  # Let our LLM decide when to use tools
-                max_completion_tokens=1024,  # Maximum number of tokens to allow in our response
-                temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
-            )
+            # response = self.client.chat.completions.create(
+            #     model=self.model,  # LLM to use
+            #     messages=messages,  # Includes Conversation history
+            #     stream=False,
+            #     tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
+            #     tool_choice="auto",  # Let our LLM decide when to use tools
+            #     max_completion_tokens=1024,  # Maximum number of tokens to allow in our response
+            #     temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
+            # )
 
-            response_message = response.choices[0].message
-            structured_output = parser.parse(response_message)
-            print("Structured Output:", structured_output)
+            # response_message = response.choices[0].message
+            # structured_output = parser.parse(response_message)
+            # print("Structured Output:", structured_output)
 
             messages = [
                 {
@@ -182,19 +195,27 @@ class LLM:
                 model=self.model,  # LLM to use
                 messages=messages,  # Includes Conversation history
                 stream=False,
-                tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
-                tool_choice="auto",  # Let our LLM decide when to use tools
                 max_completion_tokens=1024,  # Maximum number of tokens to allow in our response
                 temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
             )
 
-            response_message = response.choices[0].message
+            # print("Response from LLM:", response.choices[0].message)
+            response_message = response.choices[0].message.content
             structured_output = parser.parse(response_message)
             print("Structured Output:", structured_output)
-
+            print()
+            print()
+            print()
+            reasoning = structured_output.reasoning
+            inputs_needed = structured_output.inputs_needed
+            print("Reasoning:", reasoning)
+            print()
+            print()
+            print()
+            print("Inputs Needed:", inputs_needed)
             return RunConversationResponse(
                 status=StatusCode.REGULAR_MESSAGE,
-                response=response_message.content,
+                response="",
             )
             tool_calls = response_message.tool_calls
             print("First Response from LLM:", response_message.content)
