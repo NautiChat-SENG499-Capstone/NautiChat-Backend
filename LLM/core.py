@@ -5,6 +5,7 @@ from collections import OrderedDict
 from datetime import datetime
 
 import pandas as pd
+from groq import APIStatusError, RateLimitError
 
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.tool_descriptions import toolDescriptions
@@ -56,6 +57,7 @@ class LLM:
         user_onc_token: str,
         chatHistory: list[dict] = [],
         obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        hasRetriedConversation: bool = False,
     ) -> RunConversationResponse:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -377,6 +379,31 @@ class LLM:
                     status=StatusCode.REGULAR_MESSAGE, response=response_message.content
                 )
         except Exception as e:
+            logger.info(f"LLM failed on first attempt: {e}", exc_info=True)
+
+            # check if the error was a groq API limit and we have not retried the conversation already
+            if isinstance(e, APIStatusError) and not hasRetriedConversation:
+                try:
+                    self.env.cycle_new_groq_api_key()
+                    logger.info("Cycled tokens, retrying run_conversation once.")
+                    return await self.run_conversation(
+                        userPrompt,
+                        chatHistory=chatHistory,
+                        user_onc_token=user_onc_token,
+                        hasRetriedConversation=True,
+                    )
+                except Exception as retry_error:
+                    logger.error(
+                        f"Retry after cycling tokens failed: {retry_error}",
+                        exc_info=True,
+                    )
+                    return RunConversationResponse(
+                        status=StatusCode.LLM_ERROR,
+                        response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
+                    )
+
+            # LLM failed for reasons unrelated to token limits or conversation was run twice
+
             logger.error(f"LLM failed: {e}", exc_info=True)
             return RunConversationResponse(
                 status=StatusCode.LLM_ERROR,
