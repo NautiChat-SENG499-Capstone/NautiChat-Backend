@@ -58,6 +58,10 @@ async def main():
             chatHistory.append({"role": "user", "content": user_prompt})
             chatHistory.append(response)
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
+            if len(chatHistory) > 6:
+                chatHistory = chatHistory[
+                    -6:
+                ]  # reducing chat history to last 3 conversations
 
     except Exception as e:
         print("Error occurred:", e)

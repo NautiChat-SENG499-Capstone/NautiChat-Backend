@@ -52,7 +52,10 @@ async def get_properties_at_cambridge_bay(user_onc_token: str):
                 for item in raw_data
             ]
             return {
-                "response": list_of_dicts,
+                "response": {
+                    "list_of_dicts": list_of_dicts,
+                    "description": f"The List of properties of data available at Cambridge Bay ({CAMBRIDGE_LOCATION_CODE})",
+                },
                 "urlParamsUsed": {},
                 "baseUrl": property_API,
             }
@@ -118,6 +121,7 @@ async def get_daily_sea_temperature_stats_cambridge_bay(
         # Get min, max, and average and store in dictionary
         return {
             "response": {
+                "description": f"Daily sea temperature statistics for Cambridge Bay during day: {day_str}",
                 "daily_min": round(data["minimum"], 2),
                 "daily_max": round(data["maximum"], 2),
                 "daily_avg": round(data["value"], 2),
@@ -250,7 +254,10 @@ async def get_deployed_devices_over_time_interval(
         }
 
     return {
-        "response": deployedDevices,
+        "response": {
+            "deployedDevices": deployedDevices,
+            "description": f"Deployed devices at Cambridge Bay over the specified time interval ({dateFrom} to {dateTo}) including sublocations",
+        },
         "urlParamsUsed": {
             "locationCode": CAMBRIDGE_LOCATION_CODE,
             "locationCode": locationCode,
@@ -301,7 +308,10 @@ async def get_active_instruments_at_cambridge_bay(user_onc_token: str):
         "details": active_instruments,
     }
     return {
-        "response": result,
+        "response": {
+            "result": result,
+            "description": f"The number of instruments collecting data at Cambridge Bay and the active instruments",
+        },
         "urlParamsUsed": {
             "locationCode": locationCode,
             "user_onc_token": user_onc_token,
