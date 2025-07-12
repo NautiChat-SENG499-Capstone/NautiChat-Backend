@@ -83,10 +83,14 @@ class LLM:
 
                 You MUST prioritize information provided to you via previous assistant messages (such as search results or sensor descriptions) before using any tools.
 
-                You should ONLY use the data download tool or any other time-series-related tool when the user:
+                You should ONLY use the data download tool/generate_download_codes tool or any other time-series-related tool when the user:
                 - explicitly asks to download or retrieve data,
                 - requests measurements, time series, plots, or values over a date or time range,
                 - or provides specific parameters like `dateFrom`, `dateTo`, or timestamp values.
+
+                Do NOT use the data download tool/generate_download_codes tool if the user does not request to download data.
+
+                IGNORE messaging history about downloading data when the user is not explicitly asking to download data and the previous data download was successful.
 
                 Even if valid parameters (such as `deviceCategoryCode`, `dataProductCode`, or `locationCode`) are present in the conversation or from the vector search, do NOT assume the user wants data. The presence of these parameters is common and should be treated as context only.
 
@@ -308,6 +312,9 @@ class LLM:
 
                     Do NOT use any data-fetching tools for general, conceptual, or sensor-related questions if relevant information has already been provided (e.g., from a vector search or assistant message).
 
+                    ALWAYS tell the user what the data is about, what it represents, and how to interpret it.
+                    ALWAYS When responding, begin by restating or summarizing the user's request in your own words before providing the answer.
+
                     You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
 
                     | Time                      | [Measurement Name] (units) |
@@ -318,6 +325,8 @@ class LLM:
                     Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
 
                     Convert Time fields to the following format: `YYYY-MM-DD HH:MM:SS` (e.g., from `2023-10-01T12:00:00.000Z` To `2023-10-01 12:00:00` ).
+
+                    IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
                     
                     You must not speculate, infer unavailable values, or offer additional analysis unless explicitly asked.
 
@@ -350,11 +359,11 @@ class LLM:
                         "content": secondLLMCallStartingPrompt,
                     },
                     {"role": "assistant", "content": vector_content},
+                    *toolMessages,  # Add tool messages to the conversation
                     {
                         "role": "user",
                         "content": userPrompt,
                     },
-                    *toolMessages,  # Add tool messages to the conversation
                 ]
                 second_response = self.client.chat.completions.create(
                     model=self.model,
