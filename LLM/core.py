@@ -52,10 +52,10 @@ class LLM:
 
     async def run_conversation(
         self,
-        userPrompt: str,
+        user_prompt: str,
         user_onc_token: str,
-        chatHistory: list[dict] = [],
-        obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        chat_history: list[dict] = [],
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
     ) -> RunConversationResponse:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -125,7 +125,7 @@ class LLM:
 
             # print("Messages: ", messages)
 
-            vectorDBResponse = self.RAG_instance.get_documents(userPrompt)
+            vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
             print("Vector DB Response:", vectorDBResponse)
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
@@ -142,10 +142,10 @@ class LLM:
                     "content": startingPrompt,
                 },
                 {"role": "assistant", "content": vector_content},
-                *chatHistory,
+                *chat_history,
                 {
                     "role": "user",
-                    "content": userPrompt,
+                    "content": user_prompt,
                 },
             ]
 
@@ -195,7 +195,7 @@ class LLM:
                         if doing_data_download:
                             print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
-                            function_args["obtainedParams"] = obtainedParams
+                            function_args["obtainedParams"] = obtained_params
 
                         function_response = await self.call_tool(
                             self.available_functions[function_name],
@@ -209,16 +209,16 @@ class LLM:
                                 print(
                                     "Download parameters needed, returning response now"
                                 )
-                                obtainedParams: ObtainedParamsDictionary = (
+                                obtained_params: ObtainedParamsDictionary = (
                                     function_response.get("obtainedParams", {})
                                 )
-                                print("Obtained parameters:", obtainedParams)
-                                print("Obtained parameters:", type(obtainedParams))
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
                                 # Return a response indicating that Paramaters are needed
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
-                                    obtainedParams=obtainedParams,
+                                    obtainedParams=obtained_params,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -252,7 +252,7 @@ class LLM:
                                 == StatusCode.ERROR_WITH_DATA_DOWNLOAD
                             ):
                                 print("Download error so returning response now")
-                                obtainedParams: ObtainedParamsDictionary = (
+                                obtained_params: ObtainedParamsDictionary = (
                                     function_response.get("obtainedParams", {})
                                 )
                                 # Return a response indicating that there was an error with the download
@@ -262,7 +262,7 @@ class LLM:
                                         "response",
                                         "An error occurred while processing your download request.",
                                     ),
-                                    obtainedParams=obtainedParams,
+                                    obtainedParams=obtained_params,
                                     urlParamsUsed=function_response.get(
                                         "urlParamsUsed", {}
                                     ),
@@ -273,7 +273,7 @@ class LLM:
                                 )
                         else:
                             # Not doing data download so clearing the obtainedParams
-                            obtainedParams: ObtainedParamsDictionary = (
+                            obtained_params: ObtainedParamsDictionary = (
                                 ObtainedParamsDictionary()
                             )
 
@@ -349,7 +349,7 @@ class LLM:
                     *toolMessages,  # Add tool messages to the conversation
                     {
                         "role": "user",
-                        "content": userPrompt,
+                        "content": user_prompt,
                     },
                 ]
                 second_response = self.client.chat.completions.create(
