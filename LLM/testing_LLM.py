@@ -32,10 +32,10 @@ async def main():
         obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
         while user_prompt not in ["exit", "quit"]:
             response = await LLM_Instance.run_conversation(
-                userPrompt=user_prompt,
+                user_prompt=user_prompt,
                 user_onc_token=onc_token,
-                chatHistory=chatHistory,
-                obtainedParams=obtainedParams,
+                chat_history=chatHistory,
+                obtained_params=obtainedParams,
             )
             print()
             print()
