@@ -6,6 +6,7 @@ from LLM.vectorDBUpload import (
     prepare_embedding_input,
     prepare_embedding_input_from_preformatted,
     process_pdf,
+    process_json,
     upload_to_vector_db,
 )
 
@@ -42,6 +43,20 @@ async def pdf_upload_to_vdb(source: str, pdf_bytes: bytes, request: Request) -> 
     upload_to_vector_db(prepared_input, state.rag.qdrant_client_wrapper)
     # Need an upload to standard db of source
 
+async def json_upload_to_vdb(source: str, json_bytes: bytes, request: Request) -> None:
+    """Preprocess a json file, embed, and upload to vector db"""
+    # Create a new DB object with the text
+    state = request.app.state
+    if not state.llm or not state.rag:
+        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
+
+    processed_json = process_json(True, json_bytes, source=source)
+    prepared_input = prepare_embedding_input(
+        processed_json, embedding_model=state.rag.embedding
+    )
+
+    upload_to_vector_db(prepared_input, state.rag.qdrant_client_wrapper)
+    # Need an upload to standard db of source
 
 async def source_remove_from_vdb(source_to_remove: str, request: Request) -> None:
     """Filter vector db for points with provided source and remove them"""
