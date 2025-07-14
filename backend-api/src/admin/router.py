@@ -112,18 +112,20 @@ async def pdf_data_upload(
     pdf_bytes = await file.read()
     await service.pdf_upload_to_vdb(source, pdf_bytes, request)
 
+
 @router.post("/documents/json", status_code=201)
 async def json_data_upload(
-        file: UploadFile,
-        source: str,
-        request: Request,
-        _: Annotated[UserOut, Depends(get_admin_user)],
+    file: UploadFile,
+    source: str,
+    request: Request,
+    _: Annotated[UserOut, Depends(get_admin_user)],
 ):
     """
     Endpoint for admins to submit json files to be uploaded to vector database.
     """
     json_bytes = await file.read()
     await service.json_upload_to_vdb(source, json_bytes, request)
+
 
 @router.delete("/documents/{document_source}", status_code=204)
 async def source_remove(

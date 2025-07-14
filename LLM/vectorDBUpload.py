@@ -1,7 +1,9 @@
 import io
+import json
 import os
 from collections import Counter
 from pathlib import Path
+from typing import Any, Dict, List, Union
 from uuid import uuid4
 
 import fitz  # PyMuPDF
@@ -17,10 +19,6 @@ from unstructured.cleaners.core import clean
 from unstructured.partition.pdf import partition_pdf
 
 from LLM.RAG import JinaEmbeddings, QdrantClientWrapper
-
-import json
-from typing import Union, List, Dict, Any
-
 
 """
 Series of functions to preprocess PDF files + json files, extract structured text chunks,
@@ -250,7 +248,9 @@ def chunk_text(text, max_characters=1024, overlap=150):
 
 
 def prepare_embedding_input(
-    processing_results: list, embedding_model: JinaEmbeddings = None, embedding_field = "text"
+    processing_results: list,
+    embedding_model: JinaEmbeddings = None,
+    embedding_field="text",
 ):
     if embedding_model is None:
         embedding_model = JinaEmbeddings()
@@ -382,7 +382,9 @@ def format_value(value: Any) -> str:
     return str(value)
 
 
-def process_dict(d: Dict, prefix: str = "", exclude_fields: List[str] = None) -> List[str]:
+def process_dict(
+    d: Dict, prefix: str = "", exclude_fields: List[str] = None
+) -> List[str]:
     """Process a dictionary into field: value lines."""
     exclude_fields = exclude_fields or []
     lines = []
@@ -427,7 +429,9 @@ def json_to_text(data: Union[Dict, List, Any], exclude_fields: List[str] = None)
         return str(data)
 
 
-def process_json(use_json_bytes: bool, input_file, source: str = "", exclude_fields: List[str] = None):
+def process_json(
+    use_json_bytes: bool, input_file, source: str = "", exclude_fields: List[str] = None
+):
     """
     Process JSON file/data into structured text chunks for embedding.
 
@@ -445,12 +449,12 @@ def process_json(use_json_bytes: bool, input_file, source: str = "", exclude_fie
     # Load JSON data
     if use_json_bytes:
         if isinstance(input_file, bytes):
-            json_data = json.loads(input_file.decode('utf-8'))
+            json_data = json.loads(input_file.decode("utf-8"))
         else:
             json_data = json.loads(input_file)
         source = source or "uploaded_json"
     else:
-        with open(input_file, 'r', encoding='utf-8') as f:
+        with open(input_file, "r", encoding="utf-8") as f:
             json_data = json.load(f)
         source = source or os.path.basename(input_file)
 
@@ -462,26 +466,26 @@ def process_json(use_json_bytes: bool, input_file, source: str = "", exclude_fie
             full_json_as_text = json.dumps(item, indent=2)
             text = json_to_text(item, exclude_fields)
             if text.strip():  # Only add non-empty text
-                results.append({
-                    "embedding_text": text,
-                    "text" : full_json_as_text,
-                    "metadata": {
-                        "source": source,
-                        "page_number": i,
-                        "total_pages": len(json_data)
+                results.append(
+                    {
+                        "embedding_text": text,
+                        "text": full_json_as_text,
+                        "metadata": {
+                            "source": source,
+                            "page_number": i,
+                            "total_pages": len(json_data),
+                        },
                     }
-                })
+                )
     else:
         full_json_as_text = json.dumps(json_data, indent=2)
         text = json_to_text(json_data, exclude_fields)
         if text.strip():  # Only add non-empty text
-            results.append({
-                "embedding_text": text,
-                "text": full_json_as_text,
-                "metadata": {
-                    "source": source,
-                    "page_number": 0,
-                    "total_pages": 1
+            results.append(
+                {
+                    "embedding_text": text,
+                    "text": full_json_as_text,
+                    "metadata": {"source": source, "page_number": 0, "total_pages": 1},
                 }
-            })
+            )
     return results

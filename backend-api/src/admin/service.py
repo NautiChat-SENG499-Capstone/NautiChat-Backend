@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from LLM.vectorDBUpload import (
     prepare_embedding_input,
     prepare_embedding_input_from_preformatted,
-    process_pdf,
     process_json,
+    process_pdf,
     upload_to_vector_db,
 )
 
@@ -43,6 +43,7 @@ async def pdf_upload_to_vdb(source: str, pdf_bytes: bytes, request: Request) -> 
     upload_to_vector_db(prepared_input, state.rag.qdrant_client_wrapper)
     # Need an upload to standard db of source
 
+
 async def json_upload_to_vdb(source: str, json_bytes: bytes, request: Request) -> None:
     """Preprocess a json file, embed, and upload to vector db"""
     # Create a new DB object with the text
@@ -57,6 +58,7 @@ async def json_upload_to_vdb(source: str, json_bytes: bytes, request: Request) -
 
     upload_to_vector_db(prepared_input, state.rag.qdrant_client_wrapper)
     # Need an upload to standard db of source
+
 
 async def source_remove_from_vdb(source_to_remove: str, request: Request) -> None:
     """Filter vector db for points with provided source and remove them"""
