@@ -131,11 +131,14 @@ class LLM:
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
+                    vector_list = []
                 else:
-                    # Convert DataFrame to a more readable format
                     vector_content = vectorDBResponse.to_string(index=False)
+                    vector_list = vectorDBResponse.values.flatten().tolist()
             else:
                 vector_content = str(vectorDBResponse)
+                vector_list = [str(vectorDBResponse)]
+
             # print("Vector DB Response:", vector_content)
             messages = [
                 {
@@ -219,7 +222,7 @@ class LLM:
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
-                                    vdb_response=vector_content,
+                                    vdb_response=vector_list,
                                     obtainedParams=obtained_params,
                                 )
                             elif (
@@ -238,7 +241,7 @@ class LLM:
                                     response=function_response.get(
                                         "response", "Your download is being processed."
                                     ),
-                                    vdb_response=vector_content,
+                                    vdb_response=vector_list,
                                     dpRequestId=dpRequestId,
                                     doi=doi,
                                     citation=citation,
@@ -265,7 +268,7 @@ class LLM:
                                         "response",
                                         "An error occurred while processing your download request.",
                                     ),
-                                    vdb_response=vector_content,
+                                    vdb_response=vector_list,
                                     obtainedParams=obtained_params,
                                     urlParamsUsed=function_response.get(
                                         "urlParamsUsed", {}
@@ -349,7 +352,7 @@ class LLM:
                         "role": "system",
                         "content": secondLLMCallStartingPrompt,
                     },
-                    {"role": "assistant", "content": vector_content},
+                    {"role": "assistant", "content": vector_list},
                     *toolMessages,  # Add tool messages to the conversation
                     {
                         "role": "user",
@@ -369,7 +372,7 @@ class LLM:
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response,
-                    vdb_response=vector_content,
+                    vdb_response=vector_list,
                     urlParamsUsed=function_response.get("urlParamsUsed", {}),
                     baseUrl=function_response.get(
                         "baseUrl",
@@ -381,7 +384,7 @@ class LLM:
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response_message.content,
-                    vdb_response=vector_content,
+                    vdb_response=vector_list,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
