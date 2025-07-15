@@ -12,6 +12,7 @@ from src.llm.models import Conversation, Message
 class Role(str, Enum):
     user = "user"
     system = "system"
+    vdb = "vdb"
 
 
 class MessageContext(BaseModel):
@@ -21,9 +22,10 @@ class MessageContext(BaseModel):
 
 async def get_context(
     conversation_id: int, max_words: int, db: AsyncSession
-) -> List[dict]:
+) -> (List[dict], List[List[str]]):
     """Return a list of messages for the LLM to use as context"""
 
+    # Need no change db to hold vector db response
     conversation_result = await db.execute(
         select(Conversation).filter(Conversation.conversation_id == conversation_id)
     )

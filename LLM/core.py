@@ -55,6 +55,7 @@ class LLM:
         user_prompt: str,
         user_onc_token: str,
         chat_history: list[dict] = [],
+        vdb_history: list[list[str]] = [[]],
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
     ) -> RunConversationResponse:
         try:
@@ -125,7 +126,7 @@ class LLM:
 
             # print("Messages: ", messages)
 
-            vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
+            vectorDBResponse = self.RAG_instance.get_documents(user_prompt, vdb_history)
             print("Vector DB Response:", vectorDBResponse)
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
@@ -218,6 +219,7 @@ class LLM:
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
+                                    vdb_response=vector_content,
                                     obtainedParams=obtained_params,
                                 )
                             elif (
@@ -236,6 +238,7 @@ class LLM:
                                     response=function_response.get(
                                         "response", "Your download is being processed."
                                     ),
+                                    vdb_response=vector_content,
                                     dpRequestId=dpRequestId,
                                     doi=doi,
                                     citation=citation,
@@ -262,6 +265,7 @@ class LLM:
                                         "response",
                                         "An error occurred while processing your download request.",
                                     ),
+                                    vdb_response=vector_content,
                                     obtainedParams=obtained_params,
                                     urlParamsUsed=function_response.get(
                                         "urlParamsUsed", {}
@@ -365,6 +369,7 @@ class LLM:
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response,
+                    vdb_response=vector_content,
                     urlParamsUsed=function_response.get("urlParamsUsed", {}),
                     baseUrl=function_response.get(
                         "baseUrl",
@@ -374,7 +379,9 @@ class LLM:
             else:
                 print(response_message)
                 return RunConversationResponse(
-                    status=StatusCode.REGULAR_MESSAGE, response=response_message.content
+                    status=StatusCode.REGULAR_MESSAGE,
+                    response=response_message.content,
+                    vdb_response=vector_content,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)

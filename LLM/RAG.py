@@ -60,7 +60,7 @@ class RAG:
         self.model = HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base")
         self.compressor = CrossEncoderReranker(model=self.model, top_n=15)
 
-    def get_documents(self, question: str):
+    def get_documents(self, question: str, history: list[list[str]]):
         query_embedding = self.embedding.embed_query(question)
         search_results = self.qdrant_client.search(
             collection_name=self.collection_name,
@@ -73,10 +73,12 @@ class RAG:
         # Filter results by score threshold
         filtered_hits = [hit for hit in search_results if hit.score >= 0.4]
 
+        old_hits = [hit for responseList in history for hit in responseList]
+
         documents = [
-            Document(page_content=hit.payload["text"], metadata={"score": hit.score})
-            for hit in filtered_hits
+            Document(page_content=hit.payload["text"]) for hit in filtered_hits
         ]
+        documents.extend(Document(page_content=hit) for hit in old_hits)
 
         # No documents were above threshold
         if documents == []:

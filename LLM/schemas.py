@@ -37,6 +37,7 @@ class RunConversationResponse(BaseModel):
 
     status: StatusCode
     response: str
+    vdb_response: List[str]
     obtainedParams: Optional[ObtainedParamsDictionary] = Field(
         default_factory=ObtainedParamsDictionary
     )

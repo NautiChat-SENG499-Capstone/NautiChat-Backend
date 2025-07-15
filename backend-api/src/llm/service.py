@@ -128,7 +128,7 @@ async def generate_response(
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Fetch up to MAX_CONTEXT_WORDS of prior messages for context
-    chat_history = await get_context(
+    (chat_history, vdb_history) = await get_context(
         conversation_id=llm_query.conversation_id,
         max_words=MAX_CONTEXT_WORDS,
         db=db,
@@ -148,6 +148,7 @@ async def generate_response(
         llm_result: RunConversationResponse = await llm.run_conversation(
             user_prompt=llm_query.input,
             chat_history=chat_history,
+            vdb_history=vdb_history,
             user_onc_token=current_user.onc_token,
         )
 
