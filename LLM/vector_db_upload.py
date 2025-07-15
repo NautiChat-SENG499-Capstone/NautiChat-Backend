@@ -27,7 +27,7 @@ and embeds them using a Jina Model. Includes handler to upload embedded data to 
 Usage for pdfs (or json's):
 1a. Call `process_pdf(use_pdf_bytes, file_path)` with the path to the PDF file and use_pdf_bytes False. use_pdf_bytes = True is for api route. Optionally source can be passed otherwise the file name is used.
 1b. Call `process_json(use_json_bytes, file_path)` with the path to the json file and use_json_bytes False. use_json_bytes = True is for api route. Optionally source can be passed otherwise the file name is used. 
-2. Call `prepare_embedding_input(processing_results)` with a list of results from process_pdf. Optionally, you can pass a `JinaEmbeddings` instance to use a specific embedding model. If no embedding model is provided, a default instance will be created.
+2. Call `prepare_embedding_input(processing_results)` with a list of results from process_pdf. Optionally, you can pass a `JinaEmbeddings` instance to use a specific embedding model Optionally you can pass the embedding_field to specify the field name to embed and vectorize, the default is "text". If no embedding model is provided, a default instance will be created.
 3. This function will return a list of dictionaries, each containing:
     - `embedding`: The embedding vector for the chunk.
     - `text`: The text content of the chunk.
@@ -249,9 +249,12 @@ def chunk_text(text, max_characters=1024, overlap=150):
 
 def prepare_embedding_input(
     processing_results: list,
-    embedding_model: JinaEmbeddings = JinaEmbeddings(),
+    embedding_model: JinaEmbeddings = None,
     embedding_field="text",
 ):
+    if embedding_model is None:
+        embedding_model = JinaEmbeddings()
+
     task = "retrieval.passage"
     embedding_results = []
     chunks = [result[embedding_field] for result in processing_results]
