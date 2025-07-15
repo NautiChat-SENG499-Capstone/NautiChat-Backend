@@ -3,7 +3,7 @@ import json
 import os
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 from uuid import uuid4
 
 import fitz  # PyMuPDF
@@ -249,12 +249,9 @@ def chunk_text(text, max_characters=1024, overlap=150):
 
 def prepare_embedding_input(
     processing_results: list,
-    embedding_model: JinaEmbeddings = None,
+    embedding_model: JinaEmbeddings = JinaEmbeddings(),
     embedding_field="text",
 ):
-    if embedding_model is None:
-        embedding_model = JinaEmbeddings()
-
     task = "retrieval.passage"
     embedding_results = []
     chunks = [result[embedding_field] for result in processing_results]
@@ -383,8 +380,8 @@ def format_value(value: Any) -> str:
 
 
 def process_dict(
-    d: Dict, prefix: str = "", exclude_fields: List[str] = None
-) -> List[str]:
+    d: dict, prefix: str = "", exclude_fields: list[str] = None
+) -> list[str]:
     """Process a dictionary into field: value lines."""
     exclude_fields = exclude_fields or []
     lines = []
@@ -409,7 +406,7 @@ def process_dict(
     return lines
 
 
-def json_to_text(data: Union[Dict, List, Any], exclude_fields: List[str] = None) -> str:
+def json_to_text(data: Union[dict, list, Any], exclude_fields: list[str] = None) -> str:
     """Convert any JSON data to simple 'field: value' text format."""
     exclude_fields = exclude_fields or []
 
@@ -430,7 +427,7 @@ def json_to_text(data: Union[Dict, List, Any], exclude_fields: List[str] = None)
 
 
 def process_json(
-    use_json_bytes: bool, input_file, source: str = "", exclude_fields: List[str] = None
+    use_json_bytes: bool, input_file, source: str = "", exclude_fields: list[str] = []
 ):
     """
     Process JSON file/data into structured text chunks for embedding.
