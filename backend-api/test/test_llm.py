@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -10,259 +9,235 @@ from src.llm.utils import get_context
 from src.settings import get_settings
 
 
-class DummyLLM:
-    async def run_conversation(self, user_prompt, *_, **__):
-        return {"response": f"LLM Response for {user_prompt}"}
-
-        async def _noop(*_args, **_kwargs):
-            return ""
-
-        return _noop
-
-    def __getattr__(self, _):
-        async def _noop(*args, **kwargs):
-            return ""
-
-        return _noop
-
-
-class DummyRAG:
-    """Returns an empty result for whatever method is called."""
-
-    def __getattr__(self, _):
-        async def _noop(*args, **kwargs):
-            return ""
-
-        return _noop
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def _stub_llm_and_rag(client: AsyncClient):
-    asgi_app = getattr(client, "app", None)
-    if asgi_app is None:
-        transport = getattr(client, "_transport", None)
-        asgi_app = getattr(transport, "app", None) or getattr(transport, "_app", None)
-    assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
-
-    asgi_app.state.llm = DummyLLM()
-    asgi_app.state.rag = DummyRAG()
-    yield
-    del asgi_app.state.llm
-    del asgi_app.state.rag
-
-
-@pytest.mark.asyncio
-async def test_create_conversation(client: AsyncClient, user_headers):
-    resp = await client.post(
-        "/llm/conversations", json={"title": "Test"}, headers=user_headers
-    )
-    assert resp.status_code == status.HTTP_201_CREATED
-    body = resp.json()
-    assert body["title"] == "Test" and isinstance(body["conversation_id"], int)
-
-
-@pytest.mark.asyncio
-async def test_get_conversations_empty(client: AsyncClient, user_headers):
-    resp = await client.get("/llm/conversations", headers=user_headers)
-    assert resp.status_code == status.HTTP_200_OK and resp.json() == []
-
-
-@pytest.mark.asyncio
-async def test_get_conversation_success(client: AsyncClient, user_headers):
-    conv_id = (
-        await client.post(
-            "/llm/conversations", json={"title": "C1"}, headers=user_headers
+class TestConversationEndpoints:
+    async def _create_conversation(
+        self, client: AsyncClient, headers: dict, title: str = "Test"
+    ):
+        resp = await client.post(
+            "/llm/conversations", json={"title": title}, headers=headers
         )
-    ).json()["conversation_id"]
-    resp = await client.get(f"/llm/conversations/{conv_id}", headers=user_headers)
-    assert (
-        resp.status_code == status.HTTP_200_OK
-        and resp.json()["conversation_id"] == conv_id
-    )
 
+        assert resp.status_code == status.HTTP_201_CREATED
+        return resp.json()
 
-@pytest.mark.asyncio
-async def test_get_conversation_not_found(client: AsyncClient, user_headers):
-    assert (
-        await client.get("/llm/conversations/9999", headers=user_headers)
-    ).status_code == status.HTTP_404_NOT_FOUND
+    @pytest.mark.asyncio
+    async def test_create_conversation(self, client, user_headers):
+        body = await self._create_conversation(client, user_headers)
 
+        assert body["title"] == "Test"
+        assert isinstance(body["conversation_id"], int)
 
-@pytest.mark.asyncio
-async def test_get_conversation_unauthorized(client: AsyncClient, user_headers):
-    conv_id = (
-        await client.post(
-            "/llm/conversations", json={"title": "Private"}, headers=user_headers
+    @pytest.mark.asyncio
+    async def test_get_conversations_empty(self, client, user_headers):
+        resp = await client.get("/llm/conversations", headers=user_headers)
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json() == []
+
+    @pytest.mark.asyncio
+    async def test_get_conversation_success(self, client, user_headers):
+        body = await self._create_conversation(client, user_headers, title="C1")
+        conv_id = body["conversation_id"]
+        resp = await client.get(f"/llm/conversations/{conv_id}", headers=user_headers)
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json()["conversation_id"] == conv_id
+
+    @pytest.mark.asyncio
+    async def test_get_conversation_not_found(self, client, user_headers):
+        resp = await client.get("/llm/conversations/9999", headers=user_headers)
+
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_get_conversation_unauthorized(self, client, user_headers):
+        body = await self._create_conversation(client, user_headers, title="Private")
+        conv_id = body["conversation_id"]
+
+        reg = await client.post(
+            "/auth/register",
+            json={
+                "username": "x",
+                "password": "p",
+                "onc_token": get_settings().ONC_TOKEN,
+            },
         )
-    ).json()["conversation_id"]
+        headers2 = {"Authorization": f"Bearer {reg.json()['access_token']}"}
 
-    reg = await client.post(
-        "/auth/register",
-        json={"username": "x", "password": "p", "onc_token": get_settings().ONC_TOKEN},
-    )
-    headers2 = {"Authorization": f"Bearer {reg.json()['access_token']}"}
-
-    assert (
-        await client.get(f"/llm/conversations/{conv_id}", headers=headers2)
-    ).status_code == status.HTTP_404_NOT_FOUND
+        resp = await client.get(f"/llm/conversations/{conv_id}", headers=headers2)
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
 
 
-@pytest.mark.asyncio
-async def test_delete_conversation_success(client: AsyncClient, user_headers):
-    response = await client.post(
-        "/llm/conversations", json={"title": "ToDelete"}, headers=user_headers
-    )
-    conv_id = response.json()["conversation_id"]
-
-    delete_resp = await client.delete(
-        f"/llm/conversations/{conv_id}", headers=user_headers
-    )
-    assert delete_resp.status_code == status.HTTP_204_NO_CONTENT
-
-    get_resp = await client.get(f"/llm/conversations/{conv_id}", headers=user_headers)
-    assert get_resp.status_code == status.HTTP_404_NOT_FOUND
-
-
-@pytest.mark.asyncio
-async def test_delete_conversation_unauthorized(client: AsyncClient, user_headers):
-    response = await client.post(
-        "/llm/conversations", json={"title": "PrivateDelete"}, headers=user_headers
-    )
-    conv_id = response.json()["conversation_id"]
-
-    reg = await client.post(
-        "/auth/register",
-        json={
-            "username": "someoneelse",
-            "password": "1234",
-            "onc_token": get_settings().ONC_TOKEN,
-        },
-    )
-
-    other_token = reg.json()["access_token"]
-    other_headers = {"Authorization": f"Bearer {other_token}"}
-
-    delete_resp = await client.delete(
-        f"/llm/conversations/{conv_id}", headers=other_headers
-    )
-    assert delete_resp.status_code == status.HTTP_404_NOT_FOUND
-
-
-@pytest.mark.asyncio
-async def test_delete_conversation_not_found(client: AsyncClient, user_headers):
-    resp = await client.delete("/llm/conversations/999999", headers=user_headers)
-    assert resp.status_code == status.HTTP_404_NOT_FOUND
-
-
-async def test_generate_and_retrieve_message(client: AsyncClient, user_headers):
-    conv_id = (
-        await client.post(
-            "/llm/conversations", json={"title": "Chat"}, headers=user_headers
+class TestDeleteConversation:
+    async def _create_conversation(
+        self, client: AsyncClient, headers: dict, title: str = "ToDelete"
+    ) -> int:
+        resp = await client.post(
+            "/llm/conversations", json={"title": title}, headers=headers
         )
-    ).json()["conversation_id"]
+        assert resp.status_code == status.HTTP_201_CREATED
+        return resp.json()["conversation_id"]
 
-    msg = (
-        await client.post(
+    @pytest.mark.asyncio
+    async def test_delete_conversation_success(self, client, user_headers):
+        conv_id = await self._create_conversation(client, user_headers)
+
+        delete_resp = await client.delete(
+            f"/llm/conversations/{conv_id}", headers=user_headers
+        )
+        assert delete_resp.status_code == status.HTTP_204_NO_CONTENT
+
+        get_resp = await client.get(
+            f"/llm/conversations/{conv_id}", headers=user_headers
+        )
+        assert get_resp.status_code == status.HTTP_404_NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_delete_conversation_unauthorized(self, client, user_headers):
+        conv_id = await self._create_conversation(client, user_headers)
+
+        reg = await client.post(
+            "/auth/register",
+            json={
+                "username": "someoneelse",
+                "password": "1234",
+                "onc_token": get_settings().ONC_TOKEN,
+            },
+        )
+
+        other_token = reg.json()["access_token"]
+        other_headers = {"Authorization": f"Bearer {other_token}"}
+
+        delete_resp = await client.delete(
+            f"/llm/conversations/{conv_id}", headers=other_headers
+        )
+        assert delete_resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestMessageEndpoints:
+    async def _create_conversation(self, client, headers):
+        body = await client.post(
+            "/llm/conversations", json={"title": "Chat"}, headers=headers
+        )
+        return body.json()["conversation_id"]
+
+    @pytest.mark.asyncio
+    async def test_generate_and_retrieve_message(self, client, user_headers):
+        conv_id = await self._create_conversation(client, user_headers)
+
+        msg = (
+            await client.post(
+                "/llm/messages",
+                json={"input": "Hi", "conversation_id": conv_id},
+                headers=user_headers,
+            )
+        ).json()
+        assert "LLM Response for" in msg["response"]
+
+        got = await client.get(
+            f"/llm/messages/{msg['message_id']}", headers=user_headers
+        )
+        assert got.status_code == status.HTTP_200_OK
+        assert got.json()["message_id"] == msg["message_id"]
+
+
+class TestFeedback:
+    async def _get_message_id(self, client, headers):
+        resp = await client.post(
+            "/llm/conversations", json={"title": "FB"}, headers=headers
+        )
+        conv_id = resp.json()["conversation_id"]
+
+        result = await client.post(
             "/llm/messages",
-            json={"input": "Hi", "conversation_id": conv_id},
-            headers=user_headers,
+            json={"input": "Feedback?", "conversation_id": conv_id},
+            headers=headers,
         )
-    ).json()
-    assert "LLM Response for" in msg["response"]
+        return result.json()["message_id"]
 
-    got = await client.get(f"/llm/messages/{msg['message_id']}", headers=user_headers)
-    assert got.status_code == status.HTTP_200_OK
-    assert got.json()["message_id"] == msg["message_id"]
+    @pytest.mark.asyncio
+    async def test_feedback_create_and_update(self, client, user_headers):
+        msg_id = await self._get_message_id(client, user_headers)
+
+        for rating in [5, 2]:
+            resp = await client.patch(
+                f"/llm/messages/{msg_id}/feedback",
+                json={"rating", rating},
+                headers=user_headers,
+            )
+            assert resp.status_code == status.HTTP_200_OK
 
 
-@pytest.mark.asyncio
-async def test_feedback_create_and_update(client: AsyncClient, user_headers):
-    conv_id = (
-        await client.post(
-            "/llm/conversations", json={"title": "FB"}, headers=user_headers
+class TestContextUtils:
+    @pytest.mark.asyncio
+    async def test_get_context_no_messages(
+        self, async_session: AsyncSession, _user_headers
+    ):
+        # When no messages in db, should return empty list
+
+        # Add conversation
+        users = await async_session.execute(select(User))
+        user_in_db = users.scalars().first()
+        assert user_in_db is not None
+
+        new_conversation = Conversation(user_id=user_in_db.id)
+        async_session.add(new_conversation)
+        await async_session.commit()
+        await async_session.refresh(new_conversation)
+
+        context = await get_context(
+            new_conversation.conversation_id, 500, async_session
         )
-    ).json()["conversation_id"]
+        assert context == []
+        await async_session.refresh(new_conversation)
 
-    result = await client.post(
-        "/llm/messages",
-        json={"input": "Feedback?", "conversation_id": conv_id},
-        headers=user_headers,
-    )
-    print(result.json())
-    msg_id = result.json()["message_id"]
+    @pytest.mark.asyncio
+    async def test_get_context(async_session: AsyncSession, _user_headers):
+        # Add conversation
+        users = await async_session.execute(select(User))
+        user_in_db = users.scalars().first()
+        assert user_in_db is not None
+        new_conversation = Conversation(user_id=user_in_db.id)
 
-    assert (
-        await client.patch(
-            f"/llm/messages/{msg_id}/feedback", json={"rating": 5}, headers=user_headers
+        async_session.add(new_conversation)
+        await async_session.commit()
+        await async_session.refresh(new_conversation)
+
+        content_8 = "one two three four five six seven eight"
+        content_3 = "one two three"
+
+        message_20 = Message(
+            conversation_id=new_conversation.conversation_id,
+            user_id=user_in_db.id,
+            input=content_8,
+            response=content_8,
+        )  # 4 + 8 + 8 = 20 words
+        message_15 = Message(
+            conversation_id=new_conversation.conversation_id,
+            user_id=user_in_db.id,
+            input=content_8,
+            response=content_3,
+        )  # 4 + 8 + 3 = 15 words
+
+        async_session.add(message_20)
+        async_session.add(message_15)
+        await async_session.commit()
+        await async_session.refresh(message_20)
+        await async_session.refresh(message_15)
+        await async_session.refresh(new_conversation)
+
+        context_1 = await get_context(
+            new_conversation.conversation_id, 30, async_session
         )
-    ).status_code == status.HTTP_200_OK
-    assert (
-        await client.patch(
-            f"/llm/messages/{msg_id}/feedback", json={"rating": 2}, headers=user_headers
+        assert len(context_1) == 2  # 1 for input and 1 for response
+
+        context_2 = await get_context(
+            new_conversation.conversation_id, 100, async_session
         )
-    ).status_code == status.HTTP_200_OK
-
-
-async def test_get_context_no_messages(async_session: AsyncSession, _user_headers):
-    # When no messages in db, should return empty list
-
-    # Add conversation
-    users = await async_session.execute(select(User))
-    user_in_db = users.scalars().first()
-    assert user_in_db is not None
-    new_conversation = Conversation(user_id=user_in_db.id)
-
-    async_session.add(new_conversation)
-    await async_session.commit()
-    await async_session.refresh(new_conversation)
-
-    context = await get_context(new_conversation.conversation_id, 500, async_session)
-    assert len(context) == 0
-    await async_session.refresh(new_conversation)
-
-
-async def test_get_context(async_session: AsyncSession, _user_headers):
-    # Add conversation
-    users = await async_session.execute(select(User))
-    user_in_db = users.scalars().first()
-    assert user_in_db is not None
-    new_conversation = Conversation(user_id=user_in_db.id)
-
-    async_session.add(new_conversation)
-    await async_session.commit()
-    await async_session.refresh(new_conversation)
-
-    content_8 = "one two three four five six seven eight"
-    content_3 = "one two three"
-
-    message_20 = Message(
-        conversation_id=new_conversation.conversation_id,
-        user_id=user_in_db.id,
-        input=content_8,
-        response=content_8,
-    )  # 4 + 8 + 8 = 20 words
-    message_15 = Message(
-        conversation_id=new_conversation.conversation_id,
-        user_id=user_in_db.id,
-        input=content_8,
-        response=content_3,
-    )  # 4 + 8 + 3 = 15 words
-
-    async_session.add(message_20)
-    async_session.add(message_15)
-    await async_session.commit()
-    await async_session.refresh(message_20)
-    await async_session.refresh(message_15)
-    await async_session.refresh(new_conversation)
-
-    context_1 = await get_context(new_conversation.conversation_id, 30, async_session)
-    assert len(context_1) == 2  # 1 for input and 1 for response
-
-    context_2 = await get_context(new_conversation.conversation_id, 100, async_session)
-    assert len(context_2) == 4
-    assert isinstance(context_2[0]["role"], str)
-    # most recent message should be returned first
-    assert context_2[0]["role"] == "user"
-    assert context_2[0]["content"] == message_15.input
-    assert context_2[1]["role"] == "system"
-    assert context_2[1]["content"] == message_15.response
+        assert len(context_2) == 4
+        assert isinstance(context_2[0]["role"], str)
+        # most recent message should be returned first
+        assert context_2[0]["role"] == "user"
+        assert context_2[0]["content"] == message_15.input
+        assert context_2[1]["role"] == "system"
+        assert context_2[1]["content"] == message_15.response

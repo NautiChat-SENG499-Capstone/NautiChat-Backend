@@ -126,3 +126,44 @@ async def admin_headers(async_session: AsyncSession):
     )
 
     return {"Authorization": f"Bearer {token}"}
+
+
+class DummyLLM:
+    async def run_conversation(self, user_prompt, *_, **__):
+        return {"response": f"LLM Response for {user_prompt}"}
+
+        async def _noop(*_args, **_kwargs):
+            return ""
+
+        return _noop
+
+    def __getattr__(self, _):
+        async def _noop(*args, **kwargs):
+            return ""
+
+        return _noop
+
+
+class DummyRAG:
+    """Returns an empty result for whatever method is called."""
+
+    def __getattr__(self, _):
+        async def _noop(*args, **kwargs):
+            return ""
+
+        return _noop
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _stub_llm_and_rag(client: AsyncClient):
+    asgi_app = getattr(client, "app", None)
+    if asgi_app is None:
+        transport = getattr(client, "_transport", None)
+        asgi_app = getattr(transport, "app", None) or getattr(transport, "_app", None)
+    assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
+
+    asgi_app.state.llm = DummyLLM()
+    asgi_app.state.rag = DummyRAG()
+    yield
+    del asgi_app.state.llm
+    del asgi_app.state.rag
