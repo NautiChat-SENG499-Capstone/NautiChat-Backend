@@ -9,10 +9,16 @@ from src.llm.models import Conversation, Message
 from src.llm.utils import get_context
 from src.settings import get_settings
 
+from LLM.Constants.status_codes import StatusCode
+from LLM.schemas import RunConversationResponse
+
 
 class DummyLLM:
     async def run_conversation(self, user_prompt, *_, **__):
-        return {"response": f"LLM Response for {user_prompt}"}
+        return RunConversationResponse(
+            status=StatusCode.REGULAR_MESSAGE,
+            response=f"LLM Response for {user_prompt}",
+        )
 
         async def _noop(*_args, **_kwargs):
             return ""

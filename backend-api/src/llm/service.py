@@ -1,10 +1,12 @@
 from typing import List
 
 from fastapi import HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from LLM.core import LLM
+from LLM.schemas import RunConversationResponse
 from src.auth.schemas import UserOut
 from src.logger import logger
 
@@ -114,26 +116,23 @@ async def generate_response(
         raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
 
     # Verify conversation exists
-    exists = await db.scalar(
-        select(ConversationModel.conversation_id)
-        .where(
-            ConversationModel.user_id == current_user.id,
-            ConversationModel.conversation_id == llm_query.conversation_id,
+    conversation_exists = await db.execute(
+        select(
+            exists().where(
+                ConversationModel.user_id == current_user.id,
+                ConversationModel.conversation_id == llm_query.conversation_id,
+            )
         )
-        .limit(1)
     )
-    if not exists:
+    if not conversation_exists:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Fetch up to MAX_CONTEXT_WORDS of prior messages for context
-    try:
-        chat_history = await get_context(
-            conversation_id=llm_query.conversation_id,
-            max_words=MAX_CONTEXT_WORDS,
-            db=db,
-        )
-    except AssertionError:
-        raise HTTPException(status_code=404, detail="Invalid conversation id")
+    chat_history = await get_context(
+        conversation_id=llm_query.conversation_id,
+        max_words=MAX_CONTEXT_WORDS,
+        db=db,
+    )
 
     # Create Message to send to LLM
     message = MessageModel(
@@ -145,21 +144,20 @@ async def generate_response(
 
     # Call LLM to generate response
     try:
-        response: dict = await state.llm.run_conversation(
+        llm: LLM = state.llm
+        llm_result: RunConversationResponse = await llm.run_conversation(
             user_prompt=llm_query.input,
-            startingPrompt=None,
-            chatHistory=chat_history,
+            chat_history=chat_history,
             user_onc_token=current_user.onc_token,
         )
 
-        message.response = response["response"]
+        message.response = llm_result.response
         # Handle queueing data download
-        if "dpRequestId" in response:
+        if llm_result.dpRequestId:
             logger.info(
-                f"Got a data product request id back from LLM {response['dpRequestId']['dpRequestId']}"
+                f"Got a data product request id back from LLM {llm_result.dpRequestId}"
             )
-            request_id = response["dpRequestId"]["dpRequestId"]
-            message.request_id = request_id
+            message.request_id = llm_result.dpRequestId
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error generating response from LLM: {str(e)}"
