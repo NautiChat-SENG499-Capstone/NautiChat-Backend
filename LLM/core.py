@@ -13,7 +13,6 @@ from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 from LLM.tools_sprint1 import (
     get_active_instruments_at_cambridge_bay,
-    # get_time_range_of_available_data,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_properties_at_cambridge_bay,
@@ -22,8 +21,10 @@ from LLM.tools_sprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_ice_thickness,
     get_oxygen_data_24h,
-    # get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
+)
+from LLM.general_data import (
+    get_scalar_data
 )
 
 logger = logging.getLogger(__name__)
@@ -45,9 +46,9 @@ class LLM:
             "generate_download_codes": generate_download_codes,
             "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
             "get_oxygen_data_24h": get_oxygen_data_24h,
-            # "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
+            "get_scalar_data": get_scalar_data
         }
 
     async def run_conversation(
@@ -126,7 +127,10 @@ class LLM:
             # print("Messages: ", messages)
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
-            print("Vector DB Response:", vectorDBResponse)
+            # pd.set_option("display.max_colwidth", None)      # Show full column contents
+            # pd.set_option("display.max_rows", None)          # Show all rows (optional)
+            # pd.set_option("display.width", 0)                # Auto-wrap instead of cutting off
+            # print("Vector DB Response:", vectorDBResponse)
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -164,6 +168,7 @@ class LLM:
             print("First Response from LLM:", response_message.content)
             # print(tool_calls)
             doing_data_download = False
+            doing_scalar_request = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 # print("tools calls:", tool_calls)
@@ -185,6 +190,9 @@ class LLM:
                             # Special case for download codes
                             print("Generating download codes...")
                             doing_data_download = True
+                        if function_name == "get_scalar_data":
+                            print("Doing Scalar request...")
+                            doing_scalar_request = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
                         except json.JSONDecodeError:
@@ -192,7 +200,7 @@ class LLM:
                         print(
                             f"Calling function: {function_name} with args: {function_args}"
                         )
-                        if doing_data_download:
+                        if doing_data_download or doing_scalar_request:
                             print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
                             function_args["obtainedParams"] = obtained_params
@@ -271,8 +279,56 @@ class LLM:
                                         "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
                                 )
+                        elif doing_scalar_request:
+                            scalarRequestStatus = function_response.get("status")
+                            if scalarRequestStatus == StatusCode.PARAMS_NEEDED:
+                                print(
+                                    "Scalar request parameters needed, returning response now"
+                                )
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.PARAMS_NEEDED,
+                                    response=function_response.get("response"),
+                                    obtainedParams=obtained_params,
+                                )
+                            elif scalarRequestStatus == StatusCode.DEPLOYMENT_ERROR:
+                                print(
+                                    "Scalar request parameters needed, returning response now"
+                                )
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
+                                print(function_response.get("result"))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.DEPLOYMENT_ERROR,
+                                    response=function_response.get("result"),
+                                    obtainedParams=obtained_params,
+                                )
+                            elif scalarRequestStatus == StatusCode.NO_DATA:
+                                print(
+                                    "Scalar request parameters needed, returning response now"
+                                )
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.DEPLOYMENT_ERROR,
+                                    response=function_response.get("description"),
+                                    obtainedParams=obtained_params,
+                                )
                         else:
-                            # Not doing data download so clearing the obtainedParams
+                            # Not doing data download or scalar request so clearing the obtainedParams
                             obtained_params: ObtainedParamsDictionary = (
                                 ObtainedParamsDictionary()
                             )
@@ -339,6 +395,8 @@ class LLM:
 
                     DO NOT say "I will now use the tool."  
                     DO NOT try to reason about data availability.
+
+                    DO NOT MAKE UP DATA. If a function tells you to do something, DO IT.
                 """
                 messagesNoContext = [
                     {
@@ -389,3 +447,4 @@ class LLM:
         except TypeError:
             # fallback if fn doesn't accept user_onc_token
             return await fn(**args)
+        
