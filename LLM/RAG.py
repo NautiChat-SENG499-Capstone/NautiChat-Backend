@@ -6,7 +6,7 @@ from langchain_community.vectorstores import Qdrant
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
-from qdrant_client.http.models import VectorParams, Distance, FieldCondition, Filter, MatchValue, PointStruct
+from qdrant_client.http.models import PointStruct
 
 from uuid import uuid4
 

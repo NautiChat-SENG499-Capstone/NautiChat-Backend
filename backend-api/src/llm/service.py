@@ -22,7 +22,6 @@ from .schemas import (
 )
 from .utils import get_context
 
-import os
 from LLM.RAG import RAG
 
 MAX_CONTEXT_WORDS = 200
