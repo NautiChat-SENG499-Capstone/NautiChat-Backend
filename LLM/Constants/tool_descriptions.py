@@ -3,18 +3,18 @@ toolDescriptions = [
     #     "type": "function",
     #     "function": {
     #         "name": "vectorDB",
-    #         "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
+    #         "description": "Retrieves relevant vector-embedded information related to Oceans Network Canada (ONC), including oceanographic terminology, sensor metadata, API-accessible data codes, and the time ranges for which data is available. Use this to extract semantic context or matching documents for user queries related to ONC sensor data and ocean observations.",
     #         "parameters": {
     #             "type": "object",
     #             "properties": {
     #                 "user_prompt": {
     #                     "type": "string",
-    #                     "description": "The user's query to retrieve relevant documents.",
+    #                     "description": "The user's natural language query for retrieving ONC-related documents, such as requests about specific sensors, oceanographic concepts, data variable codes, or available observation periods.",
     #                 }
     #             },
-    #             "required": ["user_prompt"],
-    #         },
-    #     },
+    #             "required": ["user_prompt"]
+    #         }
+    #     }
     # },
     {
         "type": "function",
@@ -42,12 +42,7 @@ toolDescriptions = [
             ),
             "parameters": {
                 "type": "object",
-                "properties": {
-                    # "user_onc_token": {
-                    #         "type": "string",
-                    #         "description": "User's ONC token for API access. This is required to access the data.",
-                    #     }
-                },
+                "properties": {},
                 "required": [],
             },
         },
@@ -82,10 +77,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format for when daily sea temperature is wanted for",
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
                 },
                 "required": ["day_str"],
                 "type": "object",
@@ -107,10 +98,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
                 },
                 "required": ["dateFrom", "dateTo"],
                 "type": "object",
@@ -285,93 +272,6 @@ toolDescriptions = [
             },
         },
     },
-    # {
-    # "type": "function",
-    #     "function": {
-    #         "name": "generate_download_codes",
-    #         "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to pass in only the parameters that the user has explicitly provided. Do not guess, assume, or invent any missing parameters. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in the response handling or in checking the status of the download. You do not need to explain the result to the user.",
-    #         "parameters": {
-    #         "type": "object",
-    #         "properties": {
-    #             "deviceCategoryCode": {
-    #             "type": "string",
-    #             "description": "The ONC-defined code representing the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ)."
-    #             },
-    #             "locationCode": {
-    #             "type": "string",
-    #             "description": "The ONC-defined location code where the device is deployed (e.g., 'CBYDS' for the Cambridge Bay Diver data or 'CBYIP' for the Cambridge Bay Underwater Network or 'CBYSP' for the Cambridge Bay Safe Passage Buoy or 'CBYSS' for the Cambridge Bay Shore Station)."
-    #             },
-    #             "dataProductCode": {
-    #             "type": "string",
-    #             "description": "The ONC-defined code for the data product requested (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)."
-    #             },
-    #             "extension": {
-    #             "type": "string",
-    #             "description": "The file format in which the data product should be delivered (e.g., 'txt', 'json', 'mat', 'png', 'zip', 'mp4', 'vrl', 'nc', 'fft', 'flac', 'wav', 'an', 'csv', 'pdf', 'jpg')."
-    #             },
-    #             "dateFrom": {
-    #             "type": "string",
-    #             "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
-    #             },
-    #             "dateTo": {
-    #             "type": "string",
-    #             "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
-    #             }
-    #         },
-    #         "required": []
-    #         },
-    #     }
-    # },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "generate_download_codes",
-    #         "description": "Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, so that users request to download data, over a specified time period. Returns a result of a data download request. This function simply queues a download from ONC, and gives no additional information to the LLM. If this function is called, the LLM will either tell the user that their download is queued, or that their download request was unsuccessful. If the request is successful, the download is not necessarily successful, so do not tell the user if the download is successful or not. Returns: result (str): The result of the download request. It will either signify that the download was successful, or that the download was unsuccessful, and you should inform the user of this result. Args: deviceCategoryCode (str): An ONC defined code identifying each device. locationCode (str): An ONC defined code identifying each device site. dataProductCode (str): AN ONC defined code identifying the data type being delivered. extension (str): The format of the dataProduct to be delivered. dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
-    #         "parameters": {
-    #             "properties": {
-    #                 "deviceCategoryCode": {
-    #                     "type": "string",
-    #                     "description": "The device category code for which scalar data is requested.",
-    #                 },
-    #                 "locationCode": {
-    #                     "type": "string",
-    #                     "description": "The location code for which the data is requested.",
-    #                 },
-    #                 "dataProductCode": {
-    #                     "type": "string",
-    #                     "description": "The type of data product requested.",
-    #                 },
-    #                 "extension": {
-    #                     "type": "string",
-    #                     "description": "The format in which the data product will be delivered.",
-    #                 },
-    #                 "dateFrom": {
-    #                     "type": "string",
-    #                     "description": "The starting date of the data request.",
-    #                 },
-    #                 "dateTo": {
-    #                     "type": "string",
-    #                     "description": "The end date of the data request.",
-    #                 },
-    #                 # "user_onc_token": {
-    #                 #     "type": "string",
-    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
-    #                 # },
-    #             },
-    #             "required": [], #"deviceCategoryCode", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"
-    #             "type": "object",
-    #         },
-    #         "returns": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "status": {"type": "string", "enum": ["queued", "error"]},
-    #                 "dpRequestId": {"type": "string"},
-    #                 "message": {"type": "string"},
-    #             },
-    #             "required": ["status", "message"],
-    #         },
-    #     },
-    # },
     {
         "type": "function",
         "function": {
@@ -384,10 +284,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-23").',
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
                 },
                 "required": ["date_from_str"],
             },
@@ -397,20 +293,16 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_oxygen_data_24h",
-            "description": "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals. The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of '2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user that no data exists for that time range. ",
+            "description": "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals. The function returns the oxygen levels with their corresponding dates. If no data exists for that time range then tell the user that no data exists for that time range. For most recent data, use the dateFrom field as one day before the most recent dateTo in the database.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # },
                     "date_from_str": {
                         "type": "string",
                         "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-24").',
                     }
                 },
-                "required": [],
+                "required": ["date_from_str"],
             },
         },
     },
@@ -447,10 +339,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": 'Date to get wind speed in YYYY-MM-DD format, (e.g. "2024-06-24").',
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # },
                     "hourInterval": {
                         "type": "integer",
                         "description": "Hour of the day wanted for windspeed, default is 12 (noon)",
@@ -476,10 +364,234 @@ toolDescriptions = [
                         "type": "string",
                         "description": 'End date in YYYY-MM-DD format (e.g. "2024-02-01").',
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
+                },
+                "required": ["date_from_str", "date_to_str"],
+            },
+        },
+    },
+]
+
+
+toolDescriptionsShort = [
+    {
+        "type": "function",
+        "function": {
+            "name": "vectorDB",
+            "description": "Retrieves relevant vector-embedded information related to Oceans Network Canada (ONC), including oceanographic terminology, sensor metadata, API-accessible data codes, and the time ranges for which data is available. Use this to extract semantic context or matching documents for user queries related to ONC sensor data and ocean observations.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_prompt": {
+                        "type": "string",
+                        "description": "The user's natural language query for retrieving ONC-related documents, such as requests about specific sensors, oceanographic concepts, data variable codes, or available observation periods.",
+                    }
+                },
+                "required": ["user_prompt"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_properties_at_cambridge_bay",
+            "description": "Get a list of properties available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+            "required": [],
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_active_instruments_at_cambridge_bay",
+            "description": (
+                'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n Note: This function does not take any parameters'
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_daily_sea_temperature_stats_cambridge_bay",
+            "description": "Get daily sea temperature statistics for Cambridge Bay\nArgs:\n    day_str (str): Date in YYYY-MM-DD format",
+            "parameters": {
+                "properties": {
+                    "day_str": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format for when daily sea temperature is wanted for",
+                    },
+                },
+                "required": ["day_str"],
+                "type": "object",
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_deployed_devices_over_time_interval",
+            "description": "Get the devices at cambridge bay deployed over the specified time interval including sublocations \nReturns: \nJSON string: List of deployed devices and their metadata Each item includes: \n- begin (str): deployment start time \n- end (str): deployment end time \n- deviceCode (str) \n- deviceCategoryCode (str) \n- locationCode (str) \n- citation (dict): citation metadata (includes description, doi, etc) \nArgs: \ndateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') \ndateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+            "parameters": {
+                "properties": {
+                    "dateFrom": {
+                        "type": "string",
+                        "description": "ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z')",
+                    },
+                    "dateTo": {
+                        "type": "string",
+                        "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+                    },
+                },
+                "required": ["dateFrom", "dateTo"],
+                "type": "object",
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_download_codes",
+            "description": "Call this function ONLY when the user has explicitly requested to download or retrieve or plot or graph data from Ocean Networks Canada (ONC). Pass only the parameters that the user has explicitly provided. Do NOT guess, assume, or add any missing parameters. If the user has not provided dateFrom or dateTo, do NOT include them. The function will handle missing parameters appropriately. After calling this function, you are NOT responsible for generating any response related to the download result — your task ends here. You should only call this function when you are certain the user wants data downloaded. Otherwise, do NOT call it.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "deviceCategoryCode": {
+                        "type": "string",
+                        "description": "The ONC-defined deviceCategoryCode representing the type of device.",
+                    },
+                    "locationCode": {
+                        "type": "string",
+                        "description": "The ONC-defined locationCode where the device is deployed. (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).",  # (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).
+                    },
+                    "dataProductCode": {
+                        "type": "string",
+                        "description": "The ONC-defined dataProductCode for the data product requested.",  # (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)
+                    },
+                    "extension": {
+                        "type": "string",
+                        "description": "The file format in which the data product should be delivered.",
+                    },
+                    "dateFrom": {
+                        "type": "string",
+                        "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
+                    },
+                    "dateTo": {
+                        "type": "string",
+                        "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
+                    },
+                    "dpo_qualityControl": {
+                        "type": "integer",
+                        "enum": [0, 1],
+                        "description": "Whether to apply quality control to the data. If 1, the function will apply quality control; if 0, it will not.",
+                    },
+                    "dpo_dataGaps": {
+                        "type": "integer",
+                        "enum": [0, 1],
+                        "description": "Whether to include data gaps in the response. If 1, the function will include data gaps; if 0, it will not and instead fill missing/bad data with NaNs (Not a number).",
+                    },
+                    "dpo_resample": {
+                        "type": "string",
+                        "enum": ["none", "average", "minMax", "minMaxAvg"],
+                        "description": "The resampling type to apply to the data. Must be one of: 'none', 'average', 'minMax', or 'minMaxAvg'. Use 'average' to return average values per interval, 'minMax' for only minimum and maximum values, and 'minMaxAvg' for all three. Set to 'none' if no resampling is needed. Choose based on how the user describes the summary they want (e.g., average, min/max, or all three (min, max, and average)).",
+                    },
+                    "dpo_minMax": {
+                        "type": "integer",
+                        "enum": [60, 300, 900, 3600, 86400],
+                        "description": "The specified resample interval seconds for the minimum and maximum resampling. Allowed values: 60=1Minute, 300=5Minutes, 900=15Minutes, 3600=1Hour, 86400=1Day.",
+                    },
+                    "dpo_average": {
+                        "type": "integer",
+                        "enum": [60, 300, 900, 3600, 86400],
+                        "description": "The specified resample interval seconds for the average resampling. Allowed values: 60=1Minute, 300=5Minutes, 900=15Minutes, 3600=1Hour, 86400=1Day.",
+                    },
+                    "dpo_minMaxAvg": {
+                        "type": "integer",
+                        "enum": [60, 300, 900, 3600, 86400],
+                        "description": "The specified resample interval in seconds for the minimum, maximum, and average. Allowed values: 60=1Minute, 300=5Minutes, 900=15Minutes, 3600=1Hour, 86400=1Day.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_daily_air_temperature_stats_cambridge_bay",
+            "description": "Get daily air temperature statistics (date, min, max, average, sample count) for Cambridge Bay on a given date. Temperature should be expressed in degrees Celsius. If no data exists for that time range then tell the user that no data exists for that time range.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date_from_str": {
+                        "type": "string",
+                        "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-23").',
+                    },
+                },
+                "required": ["date_from_str"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_oxygen_data_24h",
+            "description": "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals. The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of '2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user that no data exists for that time range. ",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date_from_str": {
+                        "type": "string",
+                        "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-24").',
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_wind_speed_at_timestamp",
+            "description": "Get wind speed (m/s) at Cambridge Bay for a given day and Hour of that day, returning the exact or nearest sample. Wind speed is expressed in meters per second (m/s). If no data exists for that time range then tell the user that no data exists for that time range.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date_from_str": {
+                        "type": "string",
+                        "description": 'Date to get wind speed in YYYY-MM-DD format, (e.g. "2024-06-24").',
+                    },
+                    "hourInterval": {
+                        "type": "integer",
+                        "description": "Hour of the day wanted for windspeed, default is 12 (noon)",
+                    },
+                },
+                "required": ["date_from_str"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ice_thickness",
+            "description": "Get the average daily sea-ice thickness the days provided (inclusive) for Cambridge Bay. Returns the average ice thickness representing the mean ice thickness (in meters) for the days given (inclusive), or -1 if no data is found. If you get the -1 value returned tell the user that no data exists for that time range.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date_from_str": {
+                        "type": "string",
+                        "description": 'Start date in YYYY-MM-DD format (e.g. "2024-02-01").',
+                    },
+                    "date_to_str": {
+                        "type": "string",
+                        "description": 'End date in YYYY-MM-DD format (e.g. "2024-02-01").',
+                    },
                 },
                 "required": ["date_from_str", "date_to_str"],
             },

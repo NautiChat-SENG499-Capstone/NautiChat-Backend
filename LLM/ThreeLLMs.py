@@ -8,8 +8,16 @@ import pandas as pd
 from langchain.output_parsers import PydanticOutputParser
 
 from LLM.Constants.status_codes import StatusCode
-from LLM.Constants.tool_descriptions import toolDescriptions
+from LLM.Constants.system_prompts import (
+    generate_system_prompt,
+    system_prompt1,
+    system_prompt2,
+    system_prompt3,
+)
+from LLM.Constants.tool_descriptions import toolDescriptions  # , toolDescriptionsShort
 from LLM.data_download import generate_download_codes
+
+# from LLM.utils import update_date_to
 from LLM.RAG import RAG
 from LLM.schemas import (
     ObtainedParamsDictionary,
@@ -35,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 sys.modules["LLM"] = sys.modules[__name__]
 parser = PydanticOutputParser(pydantic_object=PlanningResponse)
-format_instructions = parser.get_format_instructions()
+formatInstructions = parser.get_format_instructions()
 
 
 class LLM:
@@ -59,136 +67,30 @@ class LLM:
 
     async def run_conversation(
         self,
-        userPrompt: str,
+        user_prompt: str,
         user_onc_token: str,
-        chatHistory: list[dict] = [],
-        obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        chat_history: list[dict] = [],
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
     ) -> RunConversationResponse:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
-            # startingPrompt = f"""
-            #         You are a planning assistant that outputs structured reasoning for which tools to use and what inputs are needed for each tool.
-
-            #         Today’s date is {CurrentDate}.
-
-            #         You are given:
-            #         - A list of available tools (functions) with their names, descriptions, and parameters.
-            #         - A user message and the full conversation history.
-
-            #         Your job is to:
-            #         1. Identify if any of the tool(s) from the provided list are relevant for the user's request.
-            #         2. For each tool you choose, determine the inputs it requires.
-            #         3. Populate the inputs using only information explicitly provided by the user.
-            #         4. Do NOT assume any missing inputs. If a required parameter is missing, note it and explain why it's required.
-
-            #         Only use tools that are included in the tool definitions you were provided via the `tools` parameter.
-            #         Only request parameters that the user explicitly asked for or that are required to fulfill their request. Do NOT assume defaults unless the user has given permission to do so.
-
-            #         Always output a structured JSON with the following format:
-            #         {
-            #     "tool_plan": [
-            #                 {
-            #         "tool_name": "<name_of_tool>",
-            #                 "inputs": {
-            #             "<input_param1>": "<value_or_description>",
-            #                     "<input_param2>": "<value_or_description>"
-            #                 },
-            #                 "missing_inputs": ["<input_param_if_missing>", "..."]
-            #                 }
-            #             ],
-            #             "required_inputs": {
-            #         "<missing_param>": "<reason_or explanation why it's needed>",
-            #                 ...
-            #             }
-            #             }
-            #         Each tool in tool_plan includes:
-            #         - the tool name
-            #         - its inputs (with either values or descriptions)
-            #         - any missing inputs that need to be resolved
-            #         - The required_inputs field gives detailed reasoning for each missing input.
-
-            #         You do NOT need to determine if the system can proceed — only describe what is missing and how to fulfill the user's intent.
-
-            #         Guidelines:
-            #         - Do not include tools that aren't in the tool list.
-            #         - Do not fabricate values (e.g. timestamps, locations, etc.).
-            #         - Use plain values or phrases like “user requested latest” if the intent is clear.
-            #         - Be precise in identifying missing inputs so they can be retrieved from a knowledge base or asked from the user later.
-            #     """
-
-            system_prompt = f"""
-                You are a planning assistant responsible for deciding which tools should be called to fulfill a user's request.
-                Today’s date is {CurrentDate}.
-                
-                You are provided with:
-                - A user message and the conversation history
-                - A list of available tools (via the `tools` parameter), including their names, descriptions, and input parameters
-
-                Your job is to reason about which tools are appropriate to use and what inputs those tools require to fulfill the user's request.
-
-                Your output should be a clear and concise explanation in natural language, suitable for another system to understand what information is needed to execute the tools.
-
-                Your task is to:
-                1. Determine which tool(s), if any, are relevant to the user's request.
-                2. Clearly describe which inputs are required to call each selected tool.
-                3. For each input, state whether the user already provided it. If not, explain why it is needed.
-                4. Explain your reasoning in fluent, natural language. Do not output structured formats like JSON or YAML.
-
-                Important guidelines:
-                - Use only tools that are explicitly listed in the provided tool definitions.
-                - Do not assume or fabricate input values the user did not mention.
-                - Do not use default values unless the user clearly requested them.
-                - Vary your language naturally — avoid repeating fixed sentence patterns.
-
-                Do not include any examples or code in your response. Only return a natural language explanation.
-
-                The inputs to the tools should be 
-
-                Available tools:
-                {json.dumps(toolDescriptions)}
-
-                Output your response in the following format:
-                {format_instructions}
-            """
-
-            # print("System Prompt:", system_prompt)
-
-            # print("Messages: ", messages)
-            # messages = [
-            #     {
-            #         "role": "system",
-            #         "content": startingPrompt,
-            #     },
-            #     *chatHistory,
-            #     {
-            #         "role": "user",
-            #         "content": userPrompt,
-            #     },
-            # ]
-
-            # response = self.client.chat.completions.create(
-            #     model=self.model,  # LLM to use
-            #     messages=messages,  # Includes Conversation history
-            #     stream=False,
-            #     tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
-            #     tool_choice="auto",  # Let our LLM decide when to use tools
-            #     max_completion_tokens=1024,  # Maximum number of tokens to allow in our response
-            #     temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
-            # )
-
-            # response_message = response.choices[0].message
-            # structured_output = parser.parse(response_message)
-            # print("Structured Output:", structured_output)
-
+            systemPrompt1 = generate_system_prompt(
+                system_prompt1,
+                context={
+                    "current_date": CurrentDate,
+                    "tool_descriptions": json.dumps(toolDescriptions),
+                    "format_instructions": formatInstructions,
+                },
+            )
             messages = [
                 {
                     "role": "system",
-                    "content": system_prompt,
+                    "content": systemPrompt1,
                 },
-                *chatHistory,
+                *chat_history,
                 {
                     "role": "user",
-                    "content": userPrompt,
+                    "content": user_prompt,
                 },
             ]
             response = self.client.chat.completions.create(
@@ -208,57 +110,71 @@ class LLM:
             print()
             reasoning = structured_output.reasoning
             inputs_needed = structured_output.inputs_needed
-            print("Reasoning:", reasoning)
+            # print("Reasoning:", reasoning)
             print()
             print()
             print()
             print("Inputs Needed:", inputs_needed)
-            return RunConversationResponse(
-                status=StatusCode.REGULAR_MESSAGE,
-                response="",
-            )
-            tool_calls = response_message.tool_calls
-            print("First Response from LLM:", response_message.content)
-
-            vectorDBResponse = self.RAG_instance.get_documents(userPrompt)
+            VectorDBinput = "User: " + user_prompt + "Assistant: " + str(reasoning)
+            vectorDBResponse = self.RAG_instance.get_documents(VectorDBinput)
             print("Vector DB Response:", vectorDBResponse)
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
                 else:
                     # Convert DataFrame to a more readable format
+                    # vectorDBResponse['contents'] = vectorDBResponse['contents'].apply(lambda x: update_date_to(x, CurrentDate))
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
-            # print("Vector DB Response:", vector_content)
-            messages = [
-                {
-                    "role": "system",
-                    "content": startingPrompt,
-                },
-                {"role": "assistant", "content": vector_content},
-                *chatHistory,
-                {
-                    "role": "user",
-                    "content": userPrompt,
-                },
-            ]
+            print("Vector DB Response:", vector_content)
+            tool_calls = []
+            if inputs_needed:
+                print("NEED INPUTS")
+                systemPrompt2 = generate_system_prompt(
+                    system_prompt2,
+                    context={
+                        "current_date": CurrentDate,
+                    },
+                )
 
-            response = self.client.chat.completions.create(
-                model=self.model,  # LLM to use
-                messages=messages,  # Includes Conversation history
-                stream=False,
-                tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
-                tool_choice="auto",  # Let our LLM decide when to use tools
-                max_completion_tokens=4096,  # Maximum number of tokens to allow in our response
-                temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
-            )
+                messages = [
+                    {
+                        "role": "system",
+                        "content": systemPrompt2,
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "inputs needed: " + str(inputs_needed),
+                    },
+                    {"role": "user", "content": str(reasoning)},
+                    {"role": "assistant", "content": vector_content},
+                    # {
+                    #     "role": "user",
+                    #     "content": user_prompt,
+                    # },
+                ]
 
-            response_message = response.choices[0].message
-            tool_calls = response_message.tool_calls
-            print("First Response from LLM:", response_message.content)
-            # print(tool_calls)
-            doing_data_download = False
+                response = self.client.chat.completions.create(
+                    model=self.model,  # LLM to use
+                    messages=messages,  # Includes Conversation history
+                    stream=False,
+                    tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
+                    tool_choice="auto",  # Let our LLM decide when to use tools
+                    max_completion_tokens=512,  # Maximum number of tokens to allow in our response
+                    temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
+                )
+                response_message = response.choices[0].message
+                tool_calls = response_message.tool_calls
+                if response_message.content:
+                    print("response_message:", response_message.content)
+                print("Tool Calls:", tool_calls)
+
+                # return RunConversationResponse(
+                #     status=StatusCode.REGULAR_MESSAGE,
+                #     response="",
+                # )
+                doing_data_download = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 # print("tools calls:", tool_calls)
@@ -290,7 +206,7 @@ class LLM:
                         if doing_data_download:
                             print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
-                            function_args["obtainedParams"] = obtainedParams
+                            function_args["obtained_params"] = obtained_params
 
                         function_response = await self.call_tool(
                             self.available_functions[function_name],
@@ -304,16 +220,16 @@ class LLM:
                                 print(
                                     "Download parameters needed, returning response now"
                                 )
-                                obtainedParams: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtained_params", {})
                                 )
-                                print("Obtained parameters:", obtainedParams)
-                                print("Obtained parameters:", type(obtainedParams))
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
                                 # Return a response indicating that Paramaters are needed
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
-                                    obtainedParams=obtainedParams,
+                                    obtained_params=obtained_params,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -347,8 +263,8 @@ class LLM:
                                 == StatusCode.ERROR_WITH_DATA_DOWNLOAD
                             ):
                                 print("Download error so returning response now")
-                                obtainedParams: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtained_params", {})
                                 )
                                 # Return a response indicating that there was an error with the download
                                 return RunConversationResponse(
@@ -357,7 +273,7 @@ class LLM:
                                         "response",
                                         "An error occurred while processing your download request.",
                                     ),
-                                    obtainedParams=obtainedParams,
+                                    obtained_params=obtained_params,
                                     urlParamsUsed=function_response.get(
                                         "urlParamsUsed", {}
                                     ),
@@ -367,8 +283,8 @@ class LLM:
                                     ),
                                 )
                         else:
-                            # Not doing data download so clearing the obtainedParams
-                            obtainedParams: ObtainedParamsDictionary = (
+                            # Not doing data download so clearing the obtained_params
+                            obtained_params: ObtainedParamsDictionary = (
                                 ObtainedParamsDictionary()
                             )
 
@@ -383,71 +299,38 @@ class LLM:
                             }
                         )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
-                secondLLMCallStartingPrompt = f"""
-                    You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed.
-
-                    Today’s date is {CurrentDate}. GIVEN the tools responses create a valuable response based on the users input.
-
-                    Do NOT use any data-fetching tools for general, conceptual, or sensor-related questions if relevant information has already been provided (e.g., from a vector search or assistant message).
-
-                    You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
-
-                    | Time                      | [Measurement Name] (units) |
-                    |---------------------------|----------------------------|
-                    |    YYYY-MM-DD HH:MM:SS    | [value1]                   |
-                    |    YYYY-MM-DD HH:MM:SS    | [value2]                   |
-
-                    Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
-
-                    Convert Time fields to the following format: `YYYY-MM-DD HH:MM:SS` (e.g., from `2023-10-01T12:00:00.000Z` To `2023-10-01 12:00:00` ).
-                    
-                    You must not speculate, infer unavailable values, or offer additional analysis unless explicitly asked.
-
-                    Do not summarize or interpret data unless explicitly asked.
-
-                    If the user asks whether a type of data or measurement is available at a given observatory or location, respond with a simple yes or no based on the given message context.
-
-                    After every answer you give—no matter what the topic is—you MUST end your response with a warm, natural follow-up like:
-                    “Is there anything else I can help you with?” or “Let me know if you have any other questions!”
-
-                    This closing line is required even if the user just says “thanks” or ends the conversation.
-
-                    If the user says something like “thanks” or “goodbye”, you should still respond with a friendly closing line like:
-                    “You’re welcome! If you have any more questions in the future, feel free to ask. Have a great day!” or “Goodbye! If you need anything else, just let me know!”
-
-                    When a tool is used, do not guess or assume what it might return. Do not speculate or reason beyond the returned result. However, you may output the tool’s result in your response and format it clearly for the user, as long as you do not add new interpretations or steps.
-
-                    You are NEVER required to generate code in any language.
-
-                    Do NOT add follow-up suggestions, guesses, or recommendations.
-
-                    DO NOT guess what parameters the user might want to use for data download requests.
-
-                    DO NOT say "I will now use the tool."  
-                    DO NOT try to reason about data availability.
-                """
-                messagesNoContext = [
-                    {
-                        "role": "system",
-                        "content": secondLLMCallStartingPrompt,
-                    },
-                    {"role": "assistant", "content": vector_content},
-                    {
-                        "role": "user",
-                        "content": userPrompt,
-                    },
-                    *toolMessages,  # Add tool messages to the conversation
-                ]
-                second_response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messagesNoContext,  # Conversation history without context and different starting system prompt
-                    max_completion_tokens=4096,
-                    temperature=0,
-                    stream=False,
-                )  # Calls LLM again with all the data from all functions
-                # Return the final response
-                print("Second response: ", second_response.choices[0].message)
-                response = second_response.choices[0].message.content
+            systemPrompt3 = generate_system_prompt(
+                system_prompt3,
+                context={
+                    "current_date": CurrentDate,
+                },
+            )
+            messagesNoContext = [
+                {
+                    "role": "system",
+                    "content": systemPrompt3,
+                },
+                {"role": "assistant", "content": vector_content},
+                {
+                    "role": "user",
+                    "content": user_prompt,
+                },
+            ]
+            if tool_calls:
+                messagesNoContext.extend(
+                    toolMessages
+                )  # Add tool messages to the conversation
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messagesNoContext,  # Conversation history without context and different starting system prompt
+                max_completion_tokens=4096,
+                temperature=0,
+                stream=False,
+            )  # Calls LLM again with all the data from all functions
+            # Return the final response
+            print("final response: ", response.choices[0].message)
+            response = response.choices[0].message.content
+            if tool_calls:
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response,
@@ -460,7 +343,7 @@ class LLM:
             else:
                 print(response_message)
                 return RunConversationResponse(
-                    status=StatusCode.REGULAR_MESSAGE, response=response_message.content
+                    status=StatusCode.REGULAR_MESSAGE, response=response
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)

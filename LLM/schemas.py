@@ -37,7 +37,7 @@ class RunConversationResponse(BaseModel):
 
     status: StatusCode
     response: str
-    obtainedParams: Optional[ObtainedParamsDictionary] = Field(
+    obtained_params: Optional[ObtainedParamsDictionary] = Field(
         default_factory=ObtainedParamsDictionary
     )
     dpRequestId: Optional[int] = None
@@ -55,5 +55,6 @@ class PlanningResponse(BaseModel):
         description="Natural language explanation of which tools to use and what inputs are needed",
     )
     inputs_needed: Dict[str, str] = Field(
-        ..., description="Input parameters needed, and why each is required"
+        default_factory=dict,
+        description="Natural language explanation of which Input parameters are needed, and why each is required. If no inputs are needed, this should be empty.",
     )

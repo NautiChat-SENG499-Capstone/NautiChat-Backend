@@ -16,6 +16,8 @@ from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary
 from LLM.ThreeLLMs import LLM
 
+# from LLM.core import LLM
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,13 +31,13 @@ async def main():
         )  # Create an instance of the LLM class
         user_prompt = input("Enter your first question (or 'exit' to quit): ")
         chatHistory = []
-        obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary()
         while user_prompt not in ["exit", "quit"]:
             response = await LLM_Instance.run_conversation(
                 user_prompt=user_prompt,
                 user_onc_token=onc_token,
                 chat_history=chatHistory,
-                obtained_params=obtainedParams,
+                obtained_params=obtained_params,
             )
             print()
             print()
@@ -45,11 +47,11 @@ async def main():
                 print("Download request initiated. Request ID:", response.dpRequestId)
                 print("DOI:", response.doi)
                 print("Citation:", response.citation)
-                obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
+                obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary()
             elif response.status == StatusCode.PARAMS_NEEDED:
                 print("Error:", response.response)
-                obtainedParams = response.obtainedParams
-                print("Obtained parameters:", obtainedParams)
+                obtained_params = response.obtained_params
+                print("Obtained parameters:", obtained_params)
             else:
                 print("Response:", response.response)
             print("URL Params Used:", response.urlParamsUsed)

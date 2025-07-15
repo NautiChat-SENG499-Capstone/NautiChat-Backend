@@ -37,7 +37,7 @@ async def generate_download_codes(
     dpo_minMax: Optional[int] = None,
     dpo_average: Optional[int] = None,
     dpo_minMaxAvg: Optional[int] = None,
-    obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+    obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
 ):
     onc = ONC(user_onc_token)
     """
@@ -76,7 +76,7 @@ async def generate_download_codes(
             dpo_minMax (int): Whether to apply min/max resampling. Default is 0 (no min/max).
             dpo_average (int): Whether to apply average resampling. Default is 0 (no average).
             dpo_minMaxAvg (int): Whether to apply min/max and average resampling. Default is 0 (no min/max and average).
-            obtainedParams (ObtainedParamsDictionary): A dictionary of parameters that have already been obtained from the user.
+            obtained_params (ObtainedParamsDictionary): A dictionary of parameters that have already been obtained from the user.
     """
 
     """
@@ -94,39 +94,41 @@ async def generate_download_codes(
     """
     allObtainedParams = {}  # List of all parameters that are set.
     deviceCategoryCode = sync_param(
-        "deviceCategoryCode", deviceCategoryCode, obtainedParams, allObtainedParams
+        "deviceCategoryCode", deviceCategoryCode, obtained_params, allObtainedParams
     )
     locationCode = sync_param(
-        "locationCode", locationCode, obtainedParams, allObtainedParams
+        "locationCode", locationCode, obtained_params, allObtainedParams
     )
     dataProductCode = sync_param(
-        "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
+        "dataProductCode", dataProductCode, obtained_params, allObtainedParams
     )
-    extension = sync_param("extension", extension, obtainedParams, allObtainedParams)
-    dateFrom = sync_param("dateFrom", dateFrom, obtainedParams, allObtainedParams)
-    dateTo = sync_param("dateTo", dateTo, obtainedParams, allObtainedParams)
+    extension = sync_param("extension", extension, obtained_params, allObtainedParams)
+    dateFrom = sync_param("dateFrom", dateFrom, obtained_params, allObtainedParams)
+    dateTo = sync_param("dateTo", dateTo, obtained_params, allObtainedParams)
     #  "dpo_qualityControl": "1", #1 means to clean the data, 0 means to not clean the data. Cleaning the data will use qaqc flags 3,4 and 6 to be replaced with Nans when dpo)dataGaps is set to 1. If its set to 0, then the data will be removed.
     #  "dpo_resample": "none",#No sampling done. If set to average, then the data will be averaged over the time period specified. This auto cleans the data. Same for minMax and minMaxAvg.
     #  #If using dpo_resample then can use for example dpo_minMaxAvg = {0, 60, 600, 900, 3600, 86400} to get 1 min, 10 min, 10 min, 15 min, 1 hour, and 1 day min, max and averages.
     #  "dpo_dataGaps": "1", #Fills missing/bad data with NaNs
     dpo_dataGaps = sync_param(
-        "dpo_dataGaps", dpo_dataGaps, obtainedParams, allObtainedParams
+        "dpo_dataGaps", dpo_dataGaps, obtained_params, allObtainedParams
     )
     dpo_resample = sync_param(
-        "dpo_resample", dpo_resample, obtainedParams, allObtainedParams
+        "dpo_resample", dpo_resample, obtained_params, allObtainedParams
     )
     if dpo_resample in ["average"]:
         dpo_qualityControl = 1  # If resampling is done for just average, then quality control must be applied by default.
 
     dpo_qualityControl = sync_param(
-        "dpo_qualityControl", dpo_qualityControl, obtainedParams, allObtainedParams
+        "dpo_qualityControl", dpo_qualityControl, obtained_params, allObtainedParams
     )
-    dpo_minMax = sync_param("dpo_minMax", dpo_minMax, obtainedParams, allObtainedParams)
+    dpo_minMax = sync_param(
+        "dpo_minMax", dpo_minMax, obtained_params, allObtainedParams
+    )
     dpo_average = sync_param(
-        "dpo_average", dpo_average, obtainedParams, allObtainedParams
+        "dpo_average", dpo_average, obtained_params, allObtainedParams
     )
     dpo_minMaxAvg = sync_param(
-        "dpo_minMaxAvg", dpo_minMaxAvg, obtainedParams, allObtainedParams
+        "dpo_minMaxAvg", dpo_minMaxAvg, obtained_params, allObtainedParams
     )
     print(f"Obtained parameters: {allObtainedParams}")
     """
@@ -158,7 +160,7 @@ async def generate_download_codes(
         return {
             "status": StatusCode.PARAMS_NEEDED,
             "response": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(allObtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
-            "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            "obtained_params": ObtainedParamsDictionary(**allObtainedParams),
         }
 
     try:
@@ -178,7 +180,7 @@ async def generate_download_codes(
         return {
             "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
             "response": "Either Data is unavailable for this sensor and time or there was an error with your request.",  # can switch to just return the error message if we want to be more specific.
-            "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            "obtained_params": ObtainedParamsDictionary(**allObtainedParams),
             "urlParamsUsed": allObtainedParams,
             "baseUrl": "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
         }

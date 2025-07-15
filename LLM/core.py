@@ -195,7 +195,7 @@ class LLM:
                         if doing_data_download:
                             print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
-                            function_args["obtainedParams"] = obtained_params
+                            function_args["obtained_params"] = obtained_params
 
                         function_response = await self.call_tool(
                             self.available_functions[function_name],
@@ -210,7 +210,7 @@ class LLM:
                                     "Download parameters needed, returning response now"
                                 )
                                 obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
+                                    function_response.get("obtained_params", {})
                                 )
                                 print("Obtained parameters:", obtained_params)
                                 print("Obtained parameters:", type(obtained_params))
@@ -218,7 +218,7 @@ class LLM:
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
-                                    obtainedParams=obtained_params,
+                                    obtained_params=obtained_params,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -253,7 +253,7 @@ class LLM:
                             ):
                                 print("Download error so returning response now")
                                 obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
+                                    function_response.get("obtained_params", {})
                                 )
                                 # Return a response indicating that there was an error with the download
                                 return RunConversationResponse(
@@ -262,7 +262,7 @@ class LLM:
                                         "response",
                                         "An error occurred while processing your download request.",
                                     ),
-                                    obtainedParams=obtained_params,
+                                    obtained_params=obtained_params,
                                     urlParamsUsed=function_response.get(
                                         "urlParamsUsed", {}
                                     ),
@@ -272,7 +272,7 @@ class LLM:
                                     ),
                                 )
                         else:
-                            # Not doing data download so clearing the obtainedParams
+                            # Not doing data download so clearing the obtained_params
                             obtained_params: ObtainedParamsDictionary = (
                                 ObtainedParamsDictionary()
                             )
