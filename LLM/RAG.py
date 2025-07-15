@@ -44,22 +44,12 @@ class RAG:
     def __init__(
         self,
         env: Environment,
-        *,
-        embedder: Embeddings | None = None,
-        qdrant_client: QdrantClient | None = None,
     ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
-        self.qdrant_client = qdrant_client or self.qdrant_client_wrapper.qdrant_client
+        self.qdrant_client = self.qdrant_client_wrapper.qdrant_client
         self.collection_name = self.qdrant_client_wrapper.collection_name
         self.QA_collection_name = self.qdrant_client_wrapper.QA_collection_name
-        self.embedding = embedder or JinaEmbeddings()
-
-        # self.qdrant = Qdrant(
-        #     client=self.qdrant_client,
-        #     collection_name=self.collection_name,
-        #     embeddings=self.embedding,
-        #     content_payload_key="text",
-        # )
+        self.embedding = JinaEmbeddings()
 
         self.qdrant_ONC = Qdrant(
             client=self.qdrant_client,
@@ -74,29 +64,18 @@ class RAG:
             content_payload_key="text",
         )
 
-        self.filters = {
-            "positive_feedback": Filter(
-                must=[
-                    FieldCondition(
-                        key="feedback",
-                        match=MatchValue(value="positive"),
-                    )
-                ]
-            ),
-            "no_filter": None # Add this for cases where no specific filter is needed
-        }
         # Qdrant Retriever
         print("Creating Qdrant retriever...")
         # self.retriever = self.qdrant.as_retriever(search_kwargs={"k": 100})
         print(f"Creating Qdrant retriever for {self.collection_name}...")
         self.retriever_ONC = self.qdrant_ONC.as_retriever(
-            search_kwargs={"k": 100, "filter": self.filters["no_filter"]} # Default to positive feedback
+            search_kwargs = {"k":100}
         )
 
         # Qdrant Retriever for the no-filter collection
         print(f"Creating Qdrant retriever for {self.QA_collection_name}...")
         self.retriever_QA = self.qdrant_QA.as_retriever(
-            search_kwargs={"k": 100, "filter": self.filters["positive_feedback"]} # No filter applied
+            search_kwargs = {"k":100}
         )
 
         # Reranker (from RerankerNoGroq notebook)
@@ -125,21 +104,16 @@ class RAG:
             limit=100, 
             with_payload=True,
             with_vectors=False,
-            query_filter=self.filters["positive_feedback"] # Only pull positively rated documents
         )
 
         filtered_qa_hits = [hit for hit in QA_search_results if hit.score >= 0.4]
 
         qa_docs = []
-        # contributing_qa_ids = [] # <-- New list to store QA IDs from this collection
         for hit in filtered_qa_hits:
-            qa_id = hit.payload.get("qa_id")
-            # if qa_id: # Only add if qa_id exists
-                # contributing_qa_ids.append(qa_id)
             qa_docs.append(
                 Document(
                     page_content=hit.payload["text"],
-                    metadata={"score": hit.score, "source_collection": self.QA_collection_name, "qa_id": qa_id}
+                    metadata={"score": hit.score}
                 )
             )
 
@@ -175,18 +149,6 @@ class RAG:
                 break
             selected_docs.append(doc)
             total_tokens += approx_tokens
-        
-        #Printing out docs for me to debug
-        for i, doc in enumerate(qa_docs):
-                print(f"-- Document {i+1} --")
-                print(f"Page Content: {doc.page_content}")
-                if hasattr(doc, 'metadata'):
-                    print(f"Metadata: {doc.metadata}")
-                    # Get qa_id and print
-                    qa_id = doc.metadata.get("qa_id", "N/A")
-                    print(f"QA ID: {qa_id}") # This line will print the QA ID
-
-                print("-" * 20)
 
         compression_contents = [doc.page_content for doc in selected_docs]
 
@@ -194,14 +156,11 @@ class RAG:
         df_qa = pd.DataFrame({"contents": qa_docs}) # DataFrame for QA styling content
         return df_onc, df_qa
     
-    #Upload new Q&A pair to Qdrant Q&A collection
+    #Uploads new Q&A pair to Qdrant Q&A collection
+    #When we receive a "thumbs-up" feedback on an LLM response, backend-api/src/LLM/service.py calls this function
     async def upload_new_qa(self, qa_pair: dict):
         current_qa_id = uuid4().hex
 
-    #     qa_pair = {
-    #     "original_question": user_input,
-    #     "text": {"response": llm_response}
-    # }
         # Determine the actual text content for embedding and payload
         actual_text_content = qa_pair["text"]
         if isinstance(actual_text_content, dict) and "response" in actual_text_content:
@@ -215,12 +174,8 @@ class RAG:
         embedding_vector = self.Qdrant_model.encode(QA_text)
 
         item_payload = {
-            # FIX 1: Corrected: Directly use actual_text_content
             "text": actual_text_content,
             "original_question": qa_pair["original_question"],
-            # FIX 3: Important for feedback loop, should NOT be removed
-            "qa_id": current_qa_id,
-            "feedback": "positive"   # Initial feedback state
         }
         
         # Create a PointStruct for the new data point
@@ -231,41 +186,7 @@ class RAG:
         )
 
         # Upload the new point to Qdrant collection
-        # Using upsert is suitable for adding a single point.
         self.qdrant_client.upsert(
             collection_name=self.QA_collection_name,
             points=[new_point]  # upsert expects a list of points
         )
-        print(f"Uploaded new QA pair with ID: {current_qa_id}")
-    
-    def update_qa_feedback(self, qa_id: str, new_feedback: str):
-        """
-        Updates the feedback for a specific Q&A document in the Q&A collection.
-        """
-        # Find the point by qa_id
-        search_result = self.qdrant_client.scroll(
-            collection_name=self.QA_collection_name,
-            scroll_filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="qa_id",
-                        match=MatchValue(value=qa_id)
-                    )
-                ]
-            ),
-            limit=1,
-            with_payload=True,
-            with_vectors=False
-        )
-
-        if search_result and search_result[0]:
-            point_id = search_result[0][0].id
-            # Update the payload
-            self.qdrant_client.set_payload(
-                collection_name=self.QA_collection_name,
-                payload={"feedback": new_feedback},
-                points=[point_id]
-            )
-            print(f"Updated feedback for QA ID {qa_id} to {new_feedback}")
-        else:
-            print(f"QA ID {qa_id} not found in collection {self.QA_collection_name}")

@@ -32,10 +32,10 @@ async def main():
         obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
         while user_prompt not in ["exit", "quit"]:
             response = await LLM_Instance.run_conversation(
-                userPrompt=user_prompt,
+                user_prompt=user_prompt,
                 user_onc_token=onc_token,
-                chatHistory=chatHistory,
-                obtainedParams=obtainedParams,
+                chat_history=chatHistory,
+                obtained_params=obtainedParams,
             )
             print()
             print()
@@ -58,6 +58,10 @@ async def main():
             chatHistory.append({"role": "user", "content": user_prompt})
             chatHistory.append(response)
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
+            if len(chatHistory) > 6:
+                chatHistory = chatHistory[
+                    -6:
+                ]  # reducing chat history to last 3 conversations
 
     except Exception as e:
         print("Error occurred:", e)

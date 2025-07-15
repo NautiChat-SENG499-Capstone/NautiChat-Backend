@@ -12,7 +12,7 @@ import os
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.tool_descriptions import toolDescriptions
 from LLM.data_download import generate_download_codes
-from LLM.RAG import RAG, JinaEmbeddings
+from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 from LLM.tools_sprint1 import (
     get_active_instruments_at_cambridge_bay,
@@ -35,27 +35,11 @@ sys.modules["LLM"] = sys.modules[__name__]
 
 
 class LLM:
-    __shared: dict[str, object] | None = None
-    # singleton cache
-
     def __init__(self, env, *, RAG_instance=None):
         self.env = env
         self.client = env.get_client()
         self.model = env.get_model()
-
-        if LLM.__shared is None:
-            logging.info("First LLM() building shared embedder/cross-encoder")
-            LLM.__shared = {
-                "embedder": JinaEmbeddings(),
-                "cross": HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base"),
-            }
-
-        shared = LLM.__shared
-        self.RAG_instance = RAG_instance or RAG(
-            env,
-            embedder=shared["embedder"],
-            cross_encoder=shared["cross"],
-        )
+        self.RAG_instance: RAG = RAG_instance or RAG(env=self.env)
         self.available_functions = {
             "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
@@ -71,10 +55,10 @@ class LLM:
 
     async def run_conversation(
         self,
-        userPrompt: str,
+        user_prompt: str,
         user_onc_token: str,
-        chatHistory: list[dict] = [],
-        obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        chat_history: list[dict] = [],
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
     ) -> RunConversationResponse:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -85,10 +69,14 @@ class LLM:
 
                 You MUST prioritize information provided to you via previous assistant messages (such as search results or sensor descriptions) before using any tools.
 
-                You should ONLY use the data download tool or any other time-series-related tool when the user:
+                You should ONLY use the data download tool/generate_download_codes tool or any other time-series-related tool when the user:
                 - explicitly asks to download or retrieve data,
                 - requests measurements, time series, plots, or values over a date or time range,
                 - or provides specific parameters like `dateFrom`, `dateTo`, or timestamp values.
+
+                Do NOT use the data download tool/generate_download_codes tool if the user does not request to download data.
+
+                IGNORE messaging history about downloading data when the user is not explicitly asking to download data and the previous data download was successful.
 
                 Even if valid parameters (such as `deviceCategoryCode`, `dataProductCode`, or `locationCode`) are present in the conversation or from the vector search, do NOT assume the user wants data. The presence of these parameters is common and should be treated as context only.
 
@@ -140,7 +128,8 @@ class LLM:
 
             # print("Messages: ", messages)
 
-            vectorDBResponse,qa_docs = self.RAG_instance.get_documents(userPrompt)
+
+            vectorDBResponse,qa_docs = self.RAG_instance.get_documents(user_prompt)
             print("Vector DB Response:", vectorDBResponse)
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
@@ -165,10 +154,10 @@ class LLM:
                     "content": startingPrompt,
                 },
                 {"role": "assistant", "content": vector_content},
-                *chatHistory,
+                *chat_history,
                 {
                     "role": "user",
-                    "content": userPrompt,
+                    "content": user_prompt,
                 },
             ]
 
@@ -184,24 +173,9 @@ class LLM:
                 """
                 messages.append({"role": "system", "content": styling_prompt})
 
-            # messages.append({"role": "system", "content": vector_content})
-            # print("Vector DB Response:", vector_content)
-            # messages = [
-            #     {
-            #         "role": "system",
-            #         "content": startingPrompt,
-            #     },
-            #     {"role": "assistant", "content": vector_content},
-            #     *chatHistory,
-            #     {
-            #         "role": "user",
-            #         "content": userPrompt,
-            #     },
-            # ]
-
             messages.append({
                 "role": "user",
-                "content": userPrompt,
+                "content": user_prompt,
             })
 
             response = self.client.chat.completions.create(
@@ -247,7 +221,7 @@ class LLM:
                         if doing_data_download:
                             print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
-                            function_args["obtainedParams"] = obtainedParams
+                            function_args["obtainedParams"] = obtained_params
 
                         function_response = await self.call_tool(
                             self.available_functions[function_name],
@@ -261,16 +235,16 @@ class LLM:
                                 print(
                                     "Download parameters needed, returning response now"
                                 )
-                                obtainedParams: ObtainedParamsDictionary = (
+                                obtained_params: ObtainedParamsDictionary = (
                                     function_response.get("obtainedParams", {})
                                 )
-                                print("Obtained parameters:", obtainedParams)
-                                print("Obtained parameters:", type(obtainedParams))
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
                                 # Return a response indicating that Paramaters are needed
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
-                                    obtainedParams=obtainedParams,
+                                    obtainedParams=obtained_params,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -304,7 +278,7 @@ class LLM:
                                 == StatusCode.ERROR_WITH_DATA_DOWNLOAD
                             ):
                                 print("Download error so returning response now")
-                                obtainedParams: ObtainedParamsDictionary = (
+                                obtained_params: ObtainedParamsDictionary = (
                                     function_response.get("obtainedParams", {})
                                 )
                                 # Return a response indicating that there was an error with the download
@@ -314,7 +288,7 @@ class LLM:
                                         "response",
                                         "An error occurred while processing your download request.",
                                     ),
-                                    obtainedParams=obtainedParams,
+                                    obtainedParams=obtained_params,
                                     urlParamsUsed=function_response.get(
                                         "urlParamsUsed", {}
                                     ),
@@ -325,7 +299,7 @@ class LLM:
                                 )
                         else:
                             # Not doing data download so clearing the obtainedParams
-                            obtainedParams: ObtainedParamsDictionary = (
+                            obtained_params: ObtainedParamsDictionary = (
                                 ObtainedParamsDictionary()
                             )
 
@@ -347,7 +321,12 @@ class LLM:
 
                     Do NOT use any data-fetching tools for general, conceptual, or sensor-related questions if relevant information has already been provided (e.g., from a vector search or assistant message).
 
+                    ALWAYS tell the user what the data is about, what it represents, and how to interpret it.
+
+                    ALWAYS When responding, begin by restating or summarizing the user's request in your own words before providing the answer.
+
                     You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
+
 
                     | Time                      | [Measurement Name] (units) |
                     |---------------------------|----------------------------|
@@ -356,7 +335,11 @@ class LLM:
 
                     Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
 
+                    IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
+
                     Convert Time fields to the following format: `YYYY-MM-DD HH:MM:SS` (e.g., from `2023-10-01T12:00:00.000Z` To `2023-10-01 12:00:00` ).
+
+                    IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
                     
                     You must not speculate, infer unavailable values, or offer additional analysis unless explicitly asked.
 
@@ -389,9 +372,10 @@ class LLM:
                         "content": secondLLMCallStartingPrompt,
                     },
                     {"role": "assistant", "content": vector_content},
+                    *toolMessages,  # Add tool messages to the conversation
                     {
                         "role": "user",
-                        "content": userPrompt,
+                        "content": user_prompt,
                     },
                     *toolMessages,  # Add tool messages to the conversation
                 ]
@@ -442,9 +426,9 @@ async def main():
     try:
         LLM_Instance = LLM(env=env, RAG_instance=RAG_instance)  # Create an instance of the LLM class
         user_prompt = input("Enter your first question (or 'exit' to quit): ")
-        chatHistory = []
+        chat_history = []
         while user_prompt not in ["exit", "quit"]:
-            response = await LLM_Instance.run_conversation(userPrompt=user_prompt, user_onc_token = os.getenv("ONC_TOKEN"), chatHistory=chatHistory)
+            response = await LLM_Instance.run_conversation(user_prompt=user_prompt, user_onc_token = os.getenv("ONC_TOKEN"), chat_history=chat_history)
             print(response)
             response = {"role": "system", "content": response}
             user_prompt = input("Enter your next question (or 'exit' to quit): ")
