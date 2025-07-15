@@ -2,7 +2,18 @@ from collections import defaultdict
 from typing import Annotated, List
 
 import hdbscan
-from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
+from fastapi.responses import JSONResponse
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,40 +97,94 @@ async def get_clustered_messages(
     return dict(clusters)
 
 
-@router.post("/documents/raw-data", status_code=201)
+@router.post(
+    "/documents/raw-data",
+    status_code=status.HTTP_201_CREATED,
+)
 async def raw_text_upload(
-    input_text: str,
-    source: str,
     request: Request,
-    _: Annotated[UserOut, Depends(get_admin_user)],
-):
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    current_admin: Annotated[UserOut, Depends(get_admin_user)],
+    source: str = Form(...),
+    input_text: str = Form(...),
+) -> dict:
     """
-    Endpoint for admins to submit raw text to be uploaded to vector database.
+    Upload a raw text blob to the vector DB and record metadata.
+    filename can be a user supplied identifier or will be auto-generated.
     """
-    await service.raw_text_upload_to_vdb(source, input_text, request)
+    if not input_text:
+        raise HTTPException(status_code=400, detail="Input text is required")
+    await service.raw_text_upload_to_vdb(
+        source=source,
+        information=input_text,
+        uploaded_by_id=current_admin.id,
+        request=request,
+        db=db,
+    )
+    return {"detail": "Raw text uploaded successfully"}
 
 
-@router.post("/documents/pdf", status_code=201)
+@router.post(
+    "/documents/pdf",
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def pdf_data_upload(
-    file: UploadFile,
+    *,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    file: UploadFile = File(...),
+    source: str = Form(...),
+    db: AsyncSession = Depends(get_db_session),
+    current_admin: UserOut = Depends(get_admin_user),
+):
+    """Upload a PDF file to the vector DB and record metadata.
+    The PDF will be processed in the background."""
+    # validate and process the uploaded PDF file
+    if file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only PDF uploads are supported.",
+        )
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded PDF is empty.",
+        )
+
+    # schedule the background job
+    background_tasks.add_task(
+        service.pdf_upload_to_vdb,
+        source=source,
+        filename=file.filename,
+        pdf_bytes=pdf_bytes,
+        uploaded_by_id=current_admin.id,
+        db=db,
+        request=request,
+    )
+
+    # Return immediately
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={"detail": "PDF upload queued for processing."},
+    )
+
+
+@router.delete(
+    "/documents/{source}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def source_remove(
     source: str,
     request: Request,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
     _: Annotated[UserOut, Depends(get_admin_user)],
-):
+) -> None:
     """
-    Endpoint for admins to submit pdf files to be uploaded to vector database.
+    Delete source in the vector DB and corresponding metadata for a source.
     """
-    pdf_bytes = await file.read()
-    await service.pdf_upload_to_vdb(source, pdf_bytes, request)
-
-
-@router.delete("/documents/{document_source}", status_code=204)
-async def source_remove(
-    document_source: str,
-    request: Request,
-    _: Annotated[UserOut, Depends(get_admin_user)],
-):
-    """
-    Endpoint for admins to delete all information with a specific source name from vector db.
-    """
-    await service.source_remove_from_vdb(document_source, request)
+    await service.source_remove_from_vdb(
+        source_to_remove=source,
+        request=request,
+        db=db,
+    )
