@@ -1,6 +1,12 @@
 from datetime import datetime, timedelta
-
 from onc import ONC
+import asyncio
+import sys
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.io import wavfile
+import httpx
 
 # import os
 # from dotenv import load_dotenv
@@ -170,38 +176,135 @@ async def get_oxygen_data_24h(
 
 
 # I’m interested in data on ship noise for July 31, 2024 / Get me the acoustic data for the last day in July of 2024
-# async def get_ship_noise_acoustic_for_date(day_str: str,  user_onc_token: str):
-#     """
-#     Get 24 hours of ship noise data for Cambridge Bay on a specific date.
-#     Args:
-#         day_str (str): Date in YYYY-MM-DD format
-#     Returns:
-#         JSON string of the scalar data response
-#     """
-#     onc = ONC(user_onc_token)
-#     # Define 24 hour window
-#     date_from_str = day_str
-#     # Parse into datetime object to add 1 day (accounts for 24-hour period)
-#     date_to = datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days = 1)
-#     date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
+async def get_ship_noise_acoustic_for_date(
+    date_from_str: str,
+    user_onc_token: str
+):
+    """
+    Get 24 hours of ship noise acoustic data for Cambridge Bay.
+    Args:
+        date_from_str (str): Date in YYYY‑MM‑DD format
+        user_onc_token (str): ONC API access token
+    Returns:
+        dict: {
+            "response": {
+                "orders": <orderDataProduct result>,
+                "description": "...",
+            },
+            "urlParamsUsed": { ... },
+            "baseUrl": "...orderDataProduct?",
+        }
+    """
+    # Build 24-hour window
+    onc = ONC(user_onc_token)
+    date_to_str = (
+        datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
+    ).strftime("%Y-%m-%d")
 
-#     # Fetch relevant data through API request
-#     params = {
-#         "locationCode": {CAMBRIDGE_LOCATION_CODE},
-#         "deviceCategoryCode": "HYDROPHONE",
-#         "propertyCode": "voltage",
-#         "dateFrom": {date_from_str},
-#         "dateTo": {date_to_str},
-#         "rowLimit": 250,
-#         "token": {ONC_TOKEN}
-#     }
-#     data = onc.getScalardata(params)
+    params = {
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "HYDROPHONE",
+        "dataProductCode": "AD",  # Acoustic data
+        "extension": "wav",
+        "dateFrom": date_from_str,
+        "dateTo": date_to_str,
+        "dpo_audioDownsample": -1, # Return data with its original sampling rate
+        # Set to 1 below to allow search to fill in any data files for the requested
+        # format that are not already in the archive. Takes about an hour to process for 1 day.
+        "dpo_audioFormatConversion": 0,
+    }
 
-#     return {"response": data}
+    max_retries = 80
+    download_results_only = False
+    include_metadata_file = False
+
+    try:
+        orders = onc.orderDataProduct(
+            params,
+            max_retries,
+            download_results_only,
+            include_metadata_file
+        )
+    except Exception as e:
+        print(
+            f"Error: failed to order hydrophone data after {max_retries} attempts:\n  {e}",
+            file = sys.stderr
+        )
+        # Exit the entire program with a non‑zero status
+        sys.exit(1)
+
+    return {
+        "response": {
+            "orders": orders,
+            "description": (
+                f"Ship noise acoustic data order for Cambridge Bay "
+                f"from {date_from_str} to {date_to_str}"
+            ),
+        },
+        "urlParamsUsed": {**params, "user_onc_token": user_onc_token},
+        "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+    }
 
 
 # Can I see the noise data for July 31, 2024 as a spectogram?
-# TO DO data download
+async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
+    """
+    Get 24 hours of ship noise acoustic data for Cambridge Bay, concatenate the downloaded WAV files,
+    and compute & plot a spectrogram for the entire day.
+    Args:
+        date_str (str): Date in YYYY‑MM‑DD format
+        user_onc_token (str): ONC API access token
+    Returns:
+        dict: {
+            "Pxx": numpy.ndarray,                 # 2D array of power spectral density (dB)
+            "freqs": numpy.ndarray,               # 1D array of frequency bins (Hz)
+            "times": numpy.ndarray,               # 1D array of time bins (s)
+            "figure": matplotlib.figure.Figure,   # the Matplotlib Figure instance
+        }
+    """
+    # Download WAV files using get_ship_noise_acoustic_for_date
+    result = await get_ship_noise_acoustic_for_date(date_str, user_onc_token)
+    orders = result["response"]["orders"]
+    
+    # Extract all local file paths
+    wav_paths = []
+    for order in orders:
+        wav_paths.extend(order.get("localPaths", []))
+    if not wav_paths:
+        print("No WAV files found for", date_str, file=sys.stderr)
+        return
+
+    # Read and concatenate files
+    sample_rate = None
+    segments = []
+    for p in wav_paths:
+        sr, data = wavfile.read(p)
+        if sample_rate is None:
+            sample_rate = sr
+        elif sr != sample_rate:
+            raise RuntimeError(f"Sample rate mismatch: {sr} vs {sample_rate}")
+        if data.ndim > 1:
+            data = data.mean(axis=1)
+        segments.append(data.astype(np.float32))
+    audio = np.concatenate(segments)
+
+    # Create spectrogram
+    fig, ax = plt.subplots(figsize=(12, 6))
+    Pxx, freqs, bins, im = ax.specgram(
+        audio, Fs=sample_rate, NFFT=2048, noverlap=1024, scale="dB"
+    )
+    ax.set_title(f"Hydrophone Spectrogram on {date_str}")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Frequency (Hz)")
+    fig.colorbar(im, ax=ax, label="Intensity (dB)")
+    plt.tight_layout()
+
+    out_png = f"spectrogram_{date_str}.png"
+    fig.savefig(out_png, dpi=150)
+    print(f"Saved spectrogram to {out_png}")
+    plt.show()
+
+    return {"Pxx": Pxx, "freqs": freqs, "times": bins}
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
@@ -369,7 +472,69 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 
 
 # I would like a plot which shows the water depth so I can get an idea of tides in the Arctic for July 2023
-# TO DO data download
+async def plot_monthly_water_depth(month_str: str, user_onc_token: str):
+    """
+    Get water depth readings for Cambridge Bay for a given month and plot the time series.
+    Args:
+        month_str (str): Month in YYYY‑MM format (e.g. "2025-07")
+        user_onc_token (str): ONC API access token
+    Returns:
+        dict: {
+            "times": numpy.ndarray,             # array of Python datetime objects
+            "depths": numpy.ndarray,            # array of depth values (meters)
+            "figure": matplotlib.figure.Figure, # the Matplotlib Figure instance
+        }
+    """
+    # Build the first-of-month and first-of-next-month strings
+    year, month = map(int, month_str.split("-"))
+    date_from = f"{year:04d}-{month:02d}-01"
+    if month == 12:
+        next_year, next_month = year + 1, 1
+    else:
+        next_year, next_month = year, month + 1
+    date_to = f"{next_year:04d}-{next_month:02d}-01"
+
+    # Fetch scalar data from the ONC API
+    url = "https://data.oceannetworks.ca/api/scalardata/location"
+    params = {
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "CTD",
+        "propertyCode": "depth",
+        "dateFrom": date_from,
+        "dateTo": date_to,
+    }
+    headers = {"Authorization": f"Bearer {user_onc_token}"}
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url, params=params, headers=headers)
+        resp.raise_for_status()
+        payload = resp.json()
+
+    # Extract timestamps and depth values
+    records = payload.get("data", [])
+    times = np.array([datetime.fromisoformat(r["time"]) for r in records])
+    depths = np.array([r["value"] for r in records], dtype=float)
+
+    # Plot the time series
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.plot(times, depths)
+    ax.set_title(f"Water Depth in Cambridge Bay — {month_str}")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Depth (m)")
+    fig.autofmt_xdate()
+    plt.tight_layout()
+
+    # Show and save
+    out_png = f"water_depth_{month_str}.png"
+    fig.savefig(out_png, dpi=150)
+    print(f"Saved plot to {out_png}")
+    plt.show()
+
+    return {
+        "times": times,
+        "depths": depths,
+        "figure": fig,
+    }
 
 
 # Can you show me a recent video from the shore camera?
