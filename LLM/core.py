@@ -416,26 +416,3 @@ class LLM:
         except TypeError:
             # fallback if fn doesn't accept user_onc_token
             return await fn(**args)
-
-
-async def main():
-
-    env = Environment()
-    RAG_instance = RAG(env)
-    print("RAG instance created successfully.")
-    try:
-        LLM_Instance = LLM(env=env, RAG_instance=RAG_instance)  # Create an instance of the LLM class
-        user_prompt = input("Enter your first question (or 'exit' to quit): ")
-        chat_history = []
-        while user_prompt not in ["exit", "quit"]:
-            response = await LLM_Instance.run_conversation(user_prompt=user_prompt, user_onc_token = os.getenv("ONC_TOKEN"), chat_history=chat_history)
-            print(response)
-            response = {"role": "system", "content": response}
-            user_prompt = input("Enter your next question (or 'exit' to quit): ")
-
-    except Exception as e:
-        print("Error occurred:", e)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
