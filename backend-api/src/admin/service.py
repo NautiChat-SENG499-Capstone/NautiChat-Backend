@@ -2,7 +2,7 @@ from fastapi import HTTPException, Request
 from qdrant_client.http.models import FieldCondition, Filter, MatchValue, UpdateStatus
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from LLM.vectorDBUpload import (
+from LLM.vector_db_upload import (
     prepare_embedding_input,
     prepare_embedding_input_from_preformatted,
     process_json,
