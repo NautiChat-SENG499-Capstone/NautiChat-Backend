@@ -17,7 +17,6 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.auth import models as auth_models
 from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
 from src.auth.service import create_new_user, delete_user
@@ -35,7 +34,7 @@ router = APIRouter()
 # Could this be /users/create instead of /create?
 @router.post("/create", status_code=201, response_model=auth_schemas.UserOut)
 async def create_admin_user(
-    _: Annotated[auth_models.User, Depends(get_admin_user)],
+    _: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     new_admin: auth_schemas.CreateUserRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> auth_schemas.UserOut:
@@ -46,7 +45,7 @@ async def create_admin_user(
 @router.delete("/users/{id}", status_code=204)
 async def delete_users(
     id: int,
-    user: Annotated[auth_models.User, Depends(get_admin_user)],
+    user: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:
     """Delete a user"""
@@ -55,7 +54,7 @@ async def delete_users(
 
 @router.get("/messages")
 async def get_all_messages(
-    _: Annotated[auth_models.User, Depends(get_admin_user)],
+    _: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> List[llm_schemas.Message]:
     """Get all messages"""
@@ -69,7 +68,7 @@ async def get_all_messages(
 
 @router.get("/messages/clustered")
 async def get_clustered_messages(
-    _: Annotated[auth_models.User, Depends(get_admin_user)],
+    _: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> Dict[str, List[str]]:
     """Cluster all message inputs using HDBSCAN"""
@@ -101,7 +100,7 @@ async def get_clustered_messages(
 
 @router.post("/documents/raw-data", status_code=201, response_model=UploadResponse)
 async def upload_raw_text(
-    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
+    current_admin: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
     source: str = Form(...),
@@ -124,7 +123,7 @@ async def upload_raw_text(
 
 @router.post("/documents/pdf", status_code=202, response_model=UploadResponse)
 async def upload_pdf(
-    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
+    current_admin: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     request: Request,
     background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db_session)],
@@ -157,7 +156,7 @@ async def upload_pdf(
 
 @router.post("/documents/json", status_code=201)
 async def json_data_upload(
-    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
+    current_admin: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     request: Request,
     file: UploadFile = File(...),
@@ -184,7 +183,7 @@ async def json_data_upload(
 @router.delete("/documents/{source}", status_code=204)
 async def delete_document(
     source: str,
-    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
+    current_admin: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:
