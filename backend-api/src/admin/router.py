@@ -30,6 +30,18 @@ async def create_admin_user(
     return await create_new_user(new_admin, db, is_admin=True)
 
 
+@router.get("/users", response_model=List[UserOut])
+async def list_admin_users(
+    _: Annotated[auth_models.User, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> List[UserOut]:
+    """List all admin users"""
+    result = await db.execute(
+        select(auth_models.User).where(auth_models.User.is_admin == True)
+    )
+    return result.scalars().all()
+
+
 @router.delete("/users/{id}", status_code=204)
 async def delete_users(
     id: int,
@@ -111,20 +123,6 @@ async def pdf_data_upload(
     """
     pdf_bytes = await file.read()
     await service.pdf_upload_to_vdb(source, pdf_bytes, request)
-
-
-@router.post("/documents/json", status_code=201)
-async def json_data_upload(
-    file: UploadFile,
-    source: str,
-    request: Request,
-    _: Annotated[UserOut, Depends(get_admin_user)],
-):
-    """
-    Endpoint for admins to submit json files to be uploaded to vector database.
-    """
-    json_bytes = await file.read()
-    await service.json_upload_to_vdb(source, json_bytes, request)
 
 
 @router.delete("/documents/{document_source}", status_code=204)
