@@ -60,13 +60,26 @@ async def get_scalar_data(
     dateTo = sync_param("dateTo", dateTo, obtainedParams, allObtainedParams)
     print(f"Obtained parameters: {allObtainedParams}")
 
+    resample_periods = [ 1, 5, 10, 15, 30, 60, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400, 172800, 259200, 604800, 1209600, 2592000]
+
+    begin = datetime.fromisoformat(dateFrom.replace("Z", "+00:00"))
+    end = datetime.fromisoformat(dateTo.replace("Z", "+00:00"))
+
+    delta_seconds = (end-begin).total_seconds()
+
+    resample_period = min(resample_periods, key=lambda x: abs(x-(delta_seconds/10)))
+
 
     allParamsNeeded = {
         "deviceCategoryCode": deviceCategoryCode,
         "dateFrom": dateFrom,
         "dateTo": dateTo,
         "locationCode": locationCode,
-        "propertyCode": propertyCode
+        "propertyCode": propertyCode,
+        "resampleType": "avgMinMax",
+        "resamplePeriod": resample_period,
+        "outputFormat": "object",
+        "rowLimit": "8000"
     }  # Only the necessary parameters for a data download request.
     neededParams = [
         param for param, value in allParamsNeeded.items() if value is None
@@ -87,14 +100,14 @@ async def get_scalar_data(
         print(f"Response from ONC: {response}")
         if response["sensorData"]:
             return {
-                "result": response,
+                "response": response,
                 "description": f"Here is the scalar data you requested from the {deviceCategoryCode} at {locationCode} from {dateFrom} to {dateTo}",
                 "status": StatusCode.REGULAR_MESSAGE,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
             }
         else:
             return {
-                "result": response,
+                "response": response,
                 "description": f"There is no scalar data at {deviceCategoryCode} at {locationCode} from {dateFrom} to {dateTo}.",
                 "status": StatusCode.NO_DATA,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
@@ -122,7 +135,7 @@ async def get_scalar_data(
             allObtainedParams["dateTo"] = ""
             allObtainedParams["dateFrom"] = ""
             return {
-                "result": f"Device was not deployed during the requested period. Here are the periods that that device has been deployed:\n{deployment_string}",
+                "response": f"Device was not deployed during the requested period. Here are the periods that that device has been deployed:\n{deployment_string}",
                 "status": StatusCode.DEPLOYMENT_ERROR,
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
@@ -130,6 +143,6 @@ async def get_scalar_data(
         else:
             return {
                 "status": StatusCode.LLM_ERROR,
-                "response": "Data is unavailable for this sensor and time.",
+                "response": f"Error: {str(e)}",
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
             }

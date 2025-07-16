@@ -309,7 +309,7 @@ class LLM:
                                 # Return a response indicating that Paramaters are needed
                                 return RunConversationResponse(
                                     status=StatusCode.DEPLOYMENT_ERROR,
-                                    response=function_response.get("result"),
+                                    response=function_response.get("response"),
                                     obtainedParams=obtained_params,
                                 )
                             elif scalarRequestStatus == StatusCode.NO_DATA:
