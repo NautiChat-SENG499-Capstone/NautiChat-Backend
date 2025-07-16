@@ -155,10 +155,23 @@ async def upload_pdf(
     return UploadResponse(detail="PDF upload queued for processing.")
 
 
-@router.delete("/documents/{source}", status_code=204)
-async def delete_document(
+@router.post("/documents/json", status_code=201)
+async def json_data_upload(
+    file: UploadFile,
     source: str,
-    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
+    request: Request,
+    _: Annotated[UserOut, Depends(get_admin_user)],
+):
+    """
+    Endpoint for admins to submit json files to be uploaded to vector database.
+    """
+    json_bytes = await file.read()
+    await service.json_upload_to_vdb(source, json_bytes, request)
+
+
+@router.delete("/documents/{document_source}", status_code=204)
+async def source_remove(
+    document_source: str,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:

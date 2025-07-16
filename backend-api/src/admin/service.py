@@ -6,9 +6,10 @@ from sqlalchemy import delete, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from LLM.vectorDBUpload import (
+from LLM.vector_db_upload import (
     prepare_embedding_input,
     prepare_embedding_input_from_preformatted,
+    process_json,
     process_pdf,
     upload_to_vector_db,
 )
@@ -50,7 +51,6 @@ async def raw_text_upload_to_vdb(
     # Format and embed the input text
     try:
         state = request.app.state
-
         prepared = prepare_embedding_input_from_preformatted(
             [{"paragraphs": [information], "page": [], "source": source}],
             state.rag.embedding,
@@ -60,7 +60,6 @@ async def raw_text_upload_to_vdb(
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Embedding/upload failed: {e}")
-
     # Upsert metadata in your SQL table
     try:
         stmt = _upsert_metadata_stmt(source, uploaded_by_id)
@@ -68,7 +67,21 @@ async def raw_text_upload_to_vdb(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Metadata upsert failed: {e}")
 
+async def json_upload_to_vdb(source: str, json_bytes: bytes, request: Request) -> None:
+    """Preprocess a json file, embed, and upload to vector db"""
+    # Create a new DB object with the text
+    state = request.app.state
+    if not state.llm or not state.rag:
+        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
 
+    processed_json = process_json(True, json_bytes, source=source)
+    prepared_input = prepare_embedding_input(
+        processed_json, embedding_model=state.rag.embedding
+    )
+
+    upload_to_vector_db(prepared_input, state.rag.qdrant_client_wrapper)
+    # Need an upload to standard db of source      
+        
 async def pdf_upload_to_vdb(
     *,
     source: str,
