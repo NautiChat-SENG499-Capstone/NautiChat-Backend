@@ -236,6 +236,7 @@ class LLM:
                                 citation = function_response.get(
                                     "citation", "No citation available"
                                 )
+                                obtained_params = ObtainedParamsDictionary()
                                 # Return a response indicating that the download is being processed
                                 return RunConversationResponse(
                                     status=StatusCode.PROCESSING_DATA_DOWNLOAD,
