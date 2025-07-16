@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Annotated, List
+from typing import Annotated, Dict, List
 
 import hdbscan
 from fastapi import (
@@ -71,7 +71,7 @@ async def get_all_messages(
 async def get_clustered_messages(
     _: Annotated[auth_models.User, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> dict[list[str]]:
+) -> Dict[str, List[str]]:
     """Cluster all message inputs using HDBSCAN"""
     # fetch messages
     result = await db.execute(select(llm_models.Message))
@@ -162,7 +162,7 @@ async def json_data_upload(
     request: Request,
     file: UploadFile = File(...),
     source: str = Form(...),
-):
+) -> UploadResponse:
     """
     Upload a JSON file to the vector DB and record metadata.
     """
