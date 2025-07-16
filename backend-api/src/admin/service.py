@@ -39,16 +39,6 @@ async def _commit_upsert(db: AsyncSession, stmt) -> None:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 
-async def _upload_to_vector_db(state, prepared):
-    """Upload data to the vector database"""
-    try:
-        await asyncio.to_thread(
-            upload_to_vector_db, prepared, state.rag.qdrant_client_wrapper
-        )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Vector DB upload failed: {e}")
-
-
 async def raw_text_upload_to_vdb(
     source: str,
     information: str,
@@ -65,7 +55,9 @@ async def raw_text_upload_to_vdb(
             [{"paragraphs": [information], "page": [], "source": source}],
             state.rag.embedding,
         )
-        await _upload_to_vector_db(state, prepared)
+        await asyncio.to_thread(
+            upload_to_vector_db, prepared, state.rag.qdrant_client_wrapper
+        )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Embedding/upload failed: {e}")
 
@@ -93,13 +85,19 @@ async def pdf_upload_to_vdb(
     # Preprocess & embed
     try:
         state = request.app.state
-        processed = process_pdf(True, pdf_bytes, source=source)
+        processed = await asyncio.to_thread(process_pdf, True, pdf_bytes, source=source)
+        if not processed:
+            raise HTTPException(
+                status_code=400, detail="No valid content found in PDF."
+            )
         for page in processed:
             page["name"] = filename
         prepared = prepare_embedding_input(
             processed, embedding_model=state.rag.embedding
         )
-        await _upload_to_vector_db(state, prepared)
+        await asyncio.to_thread(
+            upload_to_vector_db, prepared, state.rag.qdrant_client_wrapper
+        )
     except Exception as e:
         raise HTTPException(
             status_code=502,

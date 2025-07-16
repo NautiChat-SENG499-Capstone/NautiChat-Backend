@@ -31,6 +31,8 @@ from .schemas import UploadResponse
 router = APIRouter()
 
 
+# TO DO:
+# Could this be /users/create instead of /create?
 @router.post("/create", status_code=201, response_model=auth_schemas.UserOut)
 async def create_admin_user(
     _: Annotated[auth_models.User, Depends(get_admin_user)],
@@ -46,7 +48,7 @@ async def delete_users(
     id: int,
     user: Annotated[auth_models.User, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-):
+) -> None:
     """Delete a user"""
     return await delete_user(id, user, db)
 
@@ -69,7 +71,7 @@ async def get_all_messages(
 async def get_clustered_messages(
     _: Annotated[auth_models.User, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-):
+) -> dict[list[str]]:
     """Cluster all message inputs using HDBSCAN"""
     # fetch messages
     result = await db.execute(select(llm_models.Message))
@@ -130,6 +132,7 @@ async def upload_pdf(
     file: UploadFile = File(...),
 ) -> UploadResponse:
     """Upload a PDF to the vector DB and schedule background embedding/metadata logging."""
+    # Note: I wasn't sure if we want to set source to the filename or a custom source, so I left it as a form field.
     if file.content_type != "application/pdf":
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -155,7 +158,7 @@ async def upload_pdf(
 @router.delete("/documents/{source}", status_code=204)
 async def delete_document(
     source: str,
-    _: Annotated[auth_models.User, Depends(get_admin_user)],
+    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:
