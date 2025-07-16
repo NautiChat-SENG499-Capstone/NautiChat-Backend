@@ -9,6 +9,7 @@ import pandas as pd
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.tool_descriptions import toolDescriptions
 from LLM.data_download import generate_download_codes
+from LLM.general_data import get_scalar_data
 from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 from LLM.tools_sprint1 import (
@@ -22,9 +23,6 @@ from LLM.tools_sprint2 import (
     get_ice_thickness,
     get_oxygen_data_24h,
     get_wind_speed_at_timestamp,
-)
-from LLM.general_data import (
-    get_scalar_data
 )
 
 logger = logging.getLogger(__name__)
@@ -48,7 +46,7 @@ class LLM:
             "get_oxygen_data_24h": get_oxygen_data_24h,
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
-            "get_scalar_data": get_scalar_data
+            "get_scalar_data": get_scalar_data,
         }
 
     async def run_conversation(
@@ -447,4 +445,3 @@ class LLM:
         except TypeError:
             # fallback if fn doesn't accept user_onc_token
             return await fn(**args)
-        

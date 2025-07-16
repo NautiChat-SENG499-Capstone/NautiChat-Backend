@@ -1,11 +1,12 @@
-from onc import ONC
-from typing import Optional
-from LLM.Constants.status_codes import StatusCode
-from LLM.tools_sprint1 import get_deployed_devices_over_time_interval
-from LLM.schemas import ObtainedParamsDictionary
-from LLM.data_download import sync_param
 from datetime import datetime
+from typing import Optional
 
+from onc import ONC
+
+from LLM.Constants.status_codes import StatusCode
+from LLM.data_download import sync_param
+from LLM.schemas import ObtainedParamsDictionary
+from LLM.tools_sprint1 import get_deployed_devices_over_time_interval
 
 
 async def get_scalar_data(
@@ -17,7 +18,6 @@ async def get_scalar_data(
     dateTo: Optional[str] = None,
     obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
 ):
-
     onc = ONC(user_onc_token)
     """
         Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode with a resamplePeriod and resampleType,
@@ -53,22 +53,43 @@ async def get_scalar_data(
     locationCode = sync_param(
         "locationCode", locationCode, obtainedParams, allObtainedParams
     )
-    propertyCode = sync_param( # uses dataProductCode of ObtainedParams dict to not overload core.py
+    propertyCode = sync_param(  # uses dataProductCode of ObtainedParams dict to not overload core.py
         "dataProductCode", propertyCode, obtainedParams, allObtainedParams
     )
     dateFrom = sync_param("dateFrom", dateFrom, obtainedParams, allObtainedParams)
     dateTo = sync_param("dateTo", dateTo, obtainedParams, allObtainedParams)
     print(f"Obtained parameters: {allObtainedParams}")
 
-    resample_periods = [ 1, 5, 10, 15, 30, 60, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400, 172800, 259200, 604800, 1209600, 2592000]
+    resample_periods = [
+        1,
+        5,
+        10,
+        15,
+        30,
+        60,
+        300,
+        600,
+        900,
+        1800,
+        3600,
+        7200,
+        14400,
+        21600,
+        43200,
+        86400,
+        172800,
+        259200,
+        604800,
+        1209600,
+        2592000,
+    ]
 
     begin = datetime.fromisoformat(dateFrom.replace("Z", "+00:00"))
     end = datetime.fromisoformat(dateTo.replace("Z", "+00:00"))
 
-    delta_seconds = (end-begin).total_seconds()
+    delta_seconds = (end - begin).total_seconds()
 
-    resample_period = min(resample_periods, key=lambda x: abs(x-(delta_seconds/10)))
-
+    resample_period = min(resample_periods, key=lambda x: abs(x - (delta_seconds / 10)))
 
     allParamsNeeded = {
         "deviceCategoryCode": deviceCategoryCode,
@@ -79,7 +100,7 @@ async def get_scalar_data(
         "resampleType": "avgMinMax",
         "resamplePeriod": resample_period,
         "outputFormat": "object",
-        "rowLimit": "8000"
+        "rowLimit": "8000",
     }  # Only the necessary parameters for a data download request.
     neededParams = [
         param for param, value in allParamsNeeded.items() if value is None
@@ -87,30 +108,33 @@ async def get_scalar_data(
 
     if len(neededParams) > 0:  # If need one or more parameters
         print("OBTAINED PARAMS: ", ObtainedParamsDictionary(**allObtainedParams))
-        param_keys = ', '.join(k if k != 'dataProductCode' else 'propertyCode' for k in allObtainedParams.keys())
+        param_keys = ", ".join(
+            k if k != "dataProductCode" else "propertyCode"
+            for k in allObtainedParams.keys()
+        )
         return {
             "status": StatusCode.PARAMS_NEEDED,
             "response": f"Hey! It looks like you are requesting scalar data! So far I have the following parameters: {param_keys}. However, I still need you to please provide the following missing parameters so I can complete the scalar data request: {', '.join(neededParams)}. Thank you!",
             "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
-            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
+            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
         }
 
     try:
-        response = (onc.getScalardata(allParamsNeeded))
+        response = onc.getScalardata(allParamsNeeded)
         print(f"Response from ONC: {response}")
         if response["sensorData"]:
             return {
                 "response": response,
                 "description": f"Here is the scalar data you requested from the {deviceCategoryCode} at {locationCode} from {dateFrom} to {dateTo}",
                 "status": StatusCode.REGULAR_MESSAGE,
-                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
             }
         else:
             return {
                 "response": response,
                 "description": f"There is no scalar data at {deviceCategoryCode} at {locationCode} from {dateFrom} to {dateTo}.",
                 "status": StatusCode.NO_DATA,
-                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
             }
     except Exception as e:
         error_message = str(e)
@@ -127,9 +151,15 @@ async def get_scalar_data(
             ]
             deployment_string = ""
             for deployment_range in deployment_ranges:
-                zbegin = datetime.fromisoformat(deployment_range["begin"].replace("Z", "+00:00"))
-                zend = datetime.fromisoformat(deployment_range["end"].replace("Z", "+00:00"))
-                begin = zbegin.strftime("%B {day}th, %Y at %I:%M%p").format(day=zbegin.day)
+                zbegin = datetime.fromisoformat(
+                    deployment_range["begin"].replace("Z", "+00:00")
+                )
+                zend = datetime.fromisoformat(
+                    deployment_range["end"].replace("Z", "+00:00")
+                )
+                begin = zbegin.strftime("%B {day}th, %Y at %I:%M%p").format(
+                    day=zbegin.day
+                )
                 end = zend.strftime("%B {day}th, %Y at %I:%M%p").format(day=zend.day)
                 deployment_string += f"Begin: {begin}, End: {end}\n"
             allObtainedParams["dateTo"] = ""
@@ -138,11 +168,11 @@ async def get_scalar_data(
                 "response": f"Device was not deployed during the requested period. Here are the periods that that device has been deployed:\n{deployment_string}",
                 "status": StatusCode.DEPLOYMENT_ERROR,
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
-                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
-            }  
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+            }
         else:
             return {
                 "status": StatusCode.LLM_ERROR,
                 "response": f"Error: {str(e)}",
-                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location"
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
             }

@@ -141,7 +141,7 @@ async def generate_download_codes(
 
         Note that tides are not filtered out in resampled products.
     """
-    
+
     allParamsNeeded = {
         "dataProductCode": dataProductCode,
         "extension": extension,
