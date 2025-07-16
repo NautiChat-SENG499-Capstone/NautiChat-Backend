@@ -131,16 +131,6 @@ async def admin_headers(async_session: AsyncSession):
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest_asyncio.fixture()
-async def create_conversation(client: AsyncClient, headers: dict, title: str = "Test"):
-    resp = await client.post(
-        "/llm/conversations", json={"title": title}, headers=headers
-    )
-
-    assert resp.status_code == 201
-    return resp.json()
-
-
 class DummyLLM:
     async def run_conversation(self, user_prompt, *_, **__):
         return RunConversationResponse(

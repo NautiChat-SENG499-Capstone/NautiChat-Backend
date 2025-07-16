@@ -162,7 +162,7 @@ class TestFeedback:
         for rating in [5, 2]:
             resp = await client.patch(
                 f"/llm/messages/{msg_id}/feedback",
-                json={"rating", rating},
+                json={"rating": rating},
                 headers=user_headers,
             )
             assert resp.status_code == status.HTTP_200_OK
@@ -192,7 +192,7 @@ class TestContextUtils:
         await async_session.refresh(new_conversation)
 
     @pytest.mark.asyncio
-    async def test_get_context(async_session: AsyncSession, _user_headers):
+    async def test_get_context(self, async_session: AsyncSession, _user_headers):
         # Add conversation
         users = await async_session.execute(select(User))
         user_in_db = users.scalars().first()
