@@ -13,7 +13,6 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import JSONResponse
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,22 +20,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth import models as auth_models
 from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
-from src.auth.schemas import UserOut
 from src.auth.service import create_new_user, delete_user
 from src.database import get_db_session
-from src.llm import models, schemas
+from src.llm import models as llm_models
+from src.llm import schemas as llm_schemas
 
 from . import service
+from .schemas import UploadResponse
 
 router = APIRouter()
 
 
-@router.post("/create", status_code=201, response_model=UserOut)
+@router.post("/create", status_code=201, response_model=auth_schemas.UserOut)
 async def create_admin_user(
     _: Annotated[auth_models.User, Depends(get_admin_user)],
     new_admin: auth_schemas.CreateUserRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> UserOut:
+) -> auth_schemas.UserOut:
     """Create new admin"""
     return await create_new_user(new_admin, db, is_admin=True)
 
@@ -53,26 +53,26 @@ async def delete_users(
 
 @router.get("/messages")
 async def get_all_messages(
-    _: Annotated[UserOut, Depends(get_admin_user)],
+    _: Annotated[auth_models.User, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> List[schemas.Message]:
+) -> List[llm_schemas.Message]:
     """Get all messages"""
     # TODO: add pagination to this in case there are tons of messages
 
     result = await db.execute(
-        select(models.Message).order_by(models.Message.message_id.desc())
+        select(llm_models.Message).order_by(llm_models.Message.message_id.desc())
     )
     return result.scalars().all()  # type: ignore
 
 
 @router.get("/messages/clustered")
 async def get_clustered_messages(
-    _: Annotated[UserOut, Depends(get_admin_user)],
+    _: Annotated[auth_models.User, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ):
     """Cluster all message inputs using HDBSCAN"""
     # fetch messages
-    result = await db.execute(select(models.Message))
+    result = await db.execute(select(llm_models.Message))
 
     messages = result.scalars().all()
 
@@ -97,23 +97,18 @@ async def get_clustered_messages(
     return dict(clusters)
 
 
-@router.post(
-    "/documents/raw-data",
-    status_code=status.HTTP_201_CREATED,
-)
-async def raw_text_upload(
+@router.post("/documents/raw-data", status_code=201, response_model=UploadResponse)
+async def upload_raw_text(
+    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
-    current_admin: Annotated[UserOut, Depends(get_admin_user)],
     source: str = Form(...),
     input_text: str = Form(...),
-) -> dict:
-    """
-    Upload a raw text blob to the vector DB and record metadata.
-    filename can be a user supplied identifier or will be auto-generated.
-    """
+) -> UploadResponse:
+    """Upload a raw text blob to the vector DB and record metadata."""
     if not input_text:
         raise HTTPException(status_code=400, detail="Input text is required")
+
     await service.raw_text_upload_to_vdb(
         source=source,
         information=input_text,
@@ -121,25 +116,20 @@ async def raw_text_upload(
         request=request,
         db=db,
     )
-    return {"detail": "Raw text uploaded successfully"}
+
+    return UploadResponse(detail="Raw text uploaded successfully")
 
 
-@router.post(
-    "/documents/pdf",
-    status_code=status.HTTP_202_ACCEPTED,
-)
-async def pdf_data_upload(
-    *,
-    background_tasks: BackgroundTasks,
+@router.post("/documents/pdf", status_code=202, response_model=UploadResponse)
+async def upload_pdf(
+    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
     request: Request,
-    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
     source: str = Form(...),
-    db: AsyncSession = Depends(get_db_session),
-    current_admin: UserOut = Depends(get_admin_user),
-):
-    """Upload a PDF file to the vector DB and record metadata.
-    The PDF will be processed in the background."""
-    # validate and process the uploaded PDF file
+    file: UploadFile = File(...),
+) -> UploadResponse:
+    """Upload a PDF to the vector DB and schedule background embedding/metadata logging."""
     if file.content_type != "application/pdf":
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -147,12 +137,8 @@ async def pdf_data_upload(
         )
     pdf_bytes = await file.read()
     if not pdf_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Uploaded PDF is empty.",
-        )
+        raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
-    # schedule the background job
     background_tasks.add_task(
         service.pdf_upload_to_vdb,
         source=source,
@@ -163,28 +149,17 @@ async def pdf_data_upload(
         request=request,
     )
 
-    # Return immediately
-    return JSONResponse(
-        status_code=status.HTTP_202_ACCEPTED,
-        content={"detail": "PDF upload queued for processing."},
-    )
+    return UploadResponse(detail="PDF upload queued for processing.")
 
 
-@router.delete(
-    "/documents/{source}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-async def source_remove(
+@router.delete("/documents/{source}", status_code=204)
+async def delete_document(
     source: str,
+    _: Annotated[auth_models.User, Depends(get_admin_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
-    _: Annotated[UserOut, Depends(get_admin_user)],
 ) -> None:
-    """
-    Delete source in the vector DB and corresponding metadata for a source.
-    """
+    """Delete a document from both the vector DB and metadata store."""
     await service.source_remove_from_vdb(
-        source_to_remove=source,
-        request=request,
-        db=db,
+        source_to_remove=source, request=request, db=db
     )

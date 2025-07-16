@@ -1,8 +1,8 @@
-import uuid
+import asyncio
 
 from fastapi import HTTPException, Request, status
 from qdrant_client.http.models import FieldCondition, Filter, MatchValue, UpdateStatus
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,7 @@ from LLM.vectorDBUpload import (
     upload_to_vector_db,
 )
 from src.admin.models import VectorDocument
+from src.logger import logger
 
 
 def _upsert_metadata_stmt(source: str, uploaded_by_id: int) -> insert:
@@ -24,7 +25,7 @@ def _upsert_metadata_stmt(source: str, uploaded_by_id: int) -> insert:
             usage_count=0,
             uploaded_by_id=uploaded_by_id,
         )
-        .on_conflict_do_nothing(index_elements=[VectorDocument.source])
+        .on_conflict_do_nothing(index_elements=["source"])
     )
 
 
@@ -33,17 +34,19 @@ async def _commit_upsert(db: AsyncSession, stmt) -> None:
     try:
         await db.execute(stmt)
         await db.commit()
-    except Exception as exc:
+    except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {exc}")
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 
 async def _upload_to_vector_db(state, prepared):
     """Upload data to the vector database"""
     try:
-        upload_to_vector_db(prepared, state.rag.qdrant_client_wrapper)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Vector DB upload failed: {exc}")
+        await asyncio.to_thread(
+            upload_to_vector_db, prepared, state.rag.qdrant_client_wrapper
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Vector DB upload failed: {e}")
 
 
 async def raw_text_upload_to_vdb(
@@ -54,23 +57,24 @@ async def raw_text_upload_to_vdb(
     db: AsyncSession,
 ) -> None:
     """Format raw text, embed, upload to vector DB, and record metadata."""
-    if not source:
-        source = f"{uuid.uuid4().hex[:8]}"
-    if not information:
-        raise HTTPException(status_code=400, detail="information is required")
+    # Format and embed the input text
+    try:
+        state = request.app.state
 
-    state = request.app.state
-    if not state.llm or not state.rag:
-        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
+        prepared = prepare_embedding_input_from_preformatted(
+            [{"paragraphs": [information], "page": [], "source": source}],
+            state.rag.embedding,
+        )
+        await _upload_to_vector_db(state, prepared)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Embedding/upload failed: {e}")
 
-    prepared = prepare_embedding_input_from_preformatted(
-        [{"paragraphs": [information], "page": [], "source": source}],
-        state.rag.embedding,
-    )
-    await _upload_to_vector_db(state, prepared)
-
-    stmt = _upsert_metadata_stmt(source, uploaded_by_id)
-    await _commit_upsert(db, stmt)
+    # Upsert metadata in your SQL table
+    try:
+        stmt = _upsert_metadata_stmt(source, uploaded_by_id)
+        await _commit_upsert(db, stmt)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Metadata upsert failed: {e}")
 
 
 async def pdf_upload_to_vdb(
@@ -89,17 +93,18 @@ async def pdf_upload_to_vdb(
     # Preprocess & embed
     try:
         state = request.app.state
-        if not state.llm or not state.rag:
-            raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
         processed = process_pdf(True, pdf_bytes, source=source)
         for page in processed:
             page["name"] = filename
         prepared = prepare_embedding_input(
             processed, embedding_model=state.rag.embedding
         )
-        upload_to_vector_db(prepared, state.rag.qdrant_client_wrapper)
-    except Exception:
-        raise
+        await _upload_to_vector_db(state, prepared)
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"PDF embedding/upload failed: {e}",
+        )
 
     # Upsert metadata in your SQL table
     stmt = _upsert_metadata_stmt(source, uploaded_by_id)
@@ -118,15 +123,10 @@ async def source_remove_from_vdb(
     source_to_remove: str, request: Request, db: AsyncSession
 ) -> None:
     """Delete points in vector DB and remove metadata record."""
-    if not source_to_remove:
-        raise HTTPException(status_code=400, detail="source_to_remove is required")
-
-    state = request.app.state
-    if not state.llm or not state.rag:
-        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
 
     # Remove from vector DB
     try:
+        state = request.app.state
         filter_cond = Filter(
             must=[
                 FieldCondition(key="source", match=MatchValue(value=source_to_remove))
@@ -151,6 +151,31 @@ async def source_remove_from_vdb(
         await db.commit()
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {exc}")
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+
+async def increment_usage(sources: list[str], db: AsyncSession) -> None:
+    """Increment usage count for each source in the vector DB.
+    Currently used in llm.service.generate_response to increment usage count for sources.
+    Pre-existing sources in the VectorDB won't be in our database, so we can't increment usage for them.
+    """
+    if not sources:
+        return
+    try:
+        # use single update statement for atomicity
+        stmt = (
+            update(VectorDocument)
+            .where(VectorDocument.source.in_(sources))
+            .values(usage_count=VectorDocument.usage_count + 1)
+        )
+        result = await db.execute(stmt)
+        await db.commit()
+        if result.rowcount == 0:
+            logger.warning(
+                f"No VectorDocument found for sources: {sources}. increment_usage could not increment usage."
+            )
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to increment usage: {e}")

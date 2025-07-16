@@ -17,9 +17,6 @@ class VectorDocument(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     source: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
     usage_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    uploaded_by_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True
-    )
     uploaded_by_id: Mapped[Optional[int]] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="SET NULL"),
