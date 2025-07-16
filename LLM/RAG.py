@@ -36,7 +36,7 @@ class QdrantClientWrapper:
         self.qdrant_client = QdrantClient(
             url=env.get_qdrant_url(), api_key=env.get_qdrant_api_key()
         )
-        self.collection_name = env.get_collection_name()
+        self.knowledge_collection_name = env.get_knowledge_collection_name()
         self.QA_collection_name = env.get_QA_collection_name()
 
 
@@ -47,13 +47,13 @@ class RAG:
     ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
         self.qdrant_client = self.qdrant_client_wrapper.qdrant_client
-        self.collection_name = self.qdrant_client_wrapper.collection_name
+        self.knowledge_collection_name = self.qdrant_client_wrapper.knowledge_collection_name
         self.QA_collection_name = self.qdrant_client_wrapper.QA_collection_name
         self.embedding = JinaEmbeddings()
 
-        self.qdrant_ONC = Qdrant(
+        self.qdrant_knowledge = Qdrant(
             client=self.qdrant_client,
-            collection_name=self.collection_name,
+            collection_name=self.knowledge_collection_name,
             embeddings=self.embedding,
             content_payload_key="text",
         )
@@ -66,16 +66,16 @@ class RAG:
 
         # Qdrant Retriever
         print("Creating Qdrant retriever...")
-        # self.retriever = self.qdrant.as_retriever(search_kwargs={"k": 100})
-        print(f"Creating Qdrant retriever for {self.collection_name}...")
-        self.retriever_ONC = self.qdrant_ONC.as_retriever(
+
+        print(f"Creating Qdrant retriever for {self.knowledge_collection_name}...")
+        self.retriever_knowledge = self.qdrant_knowledge.as_retriever(
             search_kwargs = {"k":100}
         )
 
         # Qdrant Retriever for the no-filter collection
         print(f"Creating Qdrant retriever for {self.QA_collection_name}...")
         self.retriever_QA = self.qdrant_QA.as_retriever(
-            search_kwargs = {"k":100}
+            search_kwargs = {"k":5}
         )
 
         # Reranker (from RerankerNoGroq notebook)
@@ -90,8 +90,8 @@ class RAG:
         query_embedding = self.embedding.embed_query(question)
 
         #Searching through ONC-Knowledge collection
-        ONC_search_results = self.qdrant_client.search(
-            collection_name=self.collection_name,
+        knowledge_search_results = self.qdrant_client.search(
+            collection_name=self.knowledge_collection_name,
             query_vector=query_embedding,
             limit=100,  # same as k in retriever
             with_payload=True,
@@ -106,10 +106,8 @@ class RAG:
             with_vectors=False,
         )
 
-        filtered_qa_hits = [hit for hit in QA_search_results if hit.score >= 0.4]
-
         qa_docs = []
-        for hit in filtered_qa_hits:
+        for hit in QA_search_results:
             qa_docs.append(
                 Document(
                     page_content=hit.payload["text"],
@@ -118,9 +116,9 @@ class RAG:
             )
 
         # Filter results by score threshold
-        filtered_hits = [hit for hit in ONC_search_results if hit.score >= 0.4]
+        filtered_hits = [hit for hit in knowledge_search_results if hit.score >= 0.4]
 
-        documents = [
+        knowledge_docs = [
             Document(
                 page_content=hit.payload["text"],
                 metadata={"score": hit.score}
@@ -128,22 +126,18 @@ class RAG:
             for hit in filtered_hits
         ]        
 
-        
         # No documents were above threshold
-        if not documents and not qa_docs: # Check both lists
+        if not knowledge_docs and not qa_docs: # Check both lists
             return pd.DataFrame({"contents": []}), [], pd.DataFrame({"contents": []}) # Return empty dfs and empty list of qa_ids
         # Rerank using the CrossEncoderReranker
-        reranked_documents = self.compressor.compress_documents(documents, query=question)
+        reranked_documents = self.compressor.compress_documents(knowledge_docs, query=question)
 
         #Ensure there is only a maximum of around 2000 tokens of data
         max_tokens = 2000
         total_tokens = 0
         selected_docs = []
 
-        # combined_final_documents = qa_documents + reranked_documents
-        combined_final_documents = reranked_documents
-
-        for doc in combined_final_documents:
+        for doc in reranked_documents:
             approx_tokens = len(doc.page_content) // 4
             if total_tokens + approx_tokens > max_tokens:
                 break
@@ -152,9 +146,9 @@ class RAG:
 
         compression_contents = [doc.page_content for doc in selected_docs]
 
-        df_onc = pd.DataFrame({"contents": compression_contents})
+        df_knowledge = pd.DataFrame({"contents": compression_contents})
         df_qa = pd.DataFrame({"contents": qa_docs}) # DataFrame for QA styling content
-        return df_onc, df_qa
+        return df_knowledge, df_qa
     
     #Uploads new Q&A pair to Qdrant Q&A collection
     #When we receive a "thumbs-up" feedback on an LLM response, backend-api/src/LLM/service.py calls this function

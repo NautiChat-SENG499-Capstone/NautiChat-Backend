@@ -374,7 +374,6 @@ class LLM:
                         "role": "user",
                         "content": user_prompt,
                     },
-                    *toolMessages,  # Add tool messages to the conversation
                 ]
                 second_response = self.client.chat.completions.create(
                     model=self.model,
