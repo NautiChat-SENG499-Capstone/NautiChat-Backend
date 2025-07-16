@@ -22,6 +22,9 @@ from src.auth.service import create_access_token, get_password_hash
 from src.database import Base, get_db_session
 from src.main import create_app
 
+from LLM.Constants.status_codes import StatusCode
+from LLM.schemas import RunConversationResponse
+
 
 @pytest.fixture
 def _user_headers(user_headers):
@@ -128,9 +131,22 @@ async def admin_headers(async_session: AsyncSession):
     return {"Authorization": f"Bearer {token}"}
 
 
+@pytest_asyncio.fixture()
+async def create_conversation(client: AsyncClient, headers: dict, title: str = "Test"):
+    resp = await client.post(
+        "/llm/conversations", json={"title": title}, headers=headers
+    )
+
+    assert resp.status_code == 201
+    return resp.json()
+
+
 class DummyLLM:
     async def run_conversation(self, user_prompt, *_, **__):
-        return {"response": f"LLM Response for {user_prompt}"}
+        return RunConversationResponse(
+            status=StatusCode.REGULAR_MESSAGE,
+            response=f"LLM Response for {user_prompt}",
+        )
 
         async def _noop(*_args, **_kwargs):
             return ""

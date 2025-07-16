@@ -146,59 +146,232 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "generate_download_codes",
-            "description": "Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, so that users request to download data, over a specified time period. Returns a result of a data download request. This function simply queues a download from ONC, and gives no additional information to the LLM. If this function is called, the LLM will either tell the user that their download is queued, or that their download request was unsuccessful. If the request is successful, the download is not necessarily successful, so do not tell the user if the download is successful or not. Returns: result (str): The result of the download request. It will either signify that the download was successful, or that the download was unsuccessful, and you should inform the user of this result. Args: deviceCategory (str): An ONC defined code identifying each device. locationCode (str): An ONC defined code identifying each device site. dataProductCode (str): AN ONC defined code identifying the data type being delivered. extension (str): The format of the dataProduct to be delivered. dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+            "description": "Call this function ONLY when the user has explicitly requested to download or retrieve data from Ocean Networks Canada (ONC). Pass only the parameters that the user has explicitly provided. Do NOT guess, assume, or add any missing parameters. If the user has not provided dateFrom or dateTo, do NOT include them. The function will handle missing parameters appropriately. After calling this function, you are NOT responsible for generating any response related to the download result — your task ends here. You should only call this function when you are certain the user wants data downloaded. Otherwise, do NOT call it.",
             "parameters": {
+                "type": "object",
                 "properties": {
-                    "deviceCategory": {
+                    "deviceCategoryCode": {
                         "type": "string",
-                        "description": "The device category code for which scalar data is requested.",
+                        "enum": [
+                            "DIVE_COMPUTER",
+                            "ROV_CAMERA",
+                            "NAV",
+                            "ADCP1200KHZ",
+                            "ACOUSTICRECEIVER",
+                            "CAMLIGHTS",
+                            "CTD",
+                            "FLNTU",
+                            "FLUOROMETER",
+                            "HYDROPHONE",
+                            "ICEPROFILER",
+                            "NITRATESENSOR",
+                            "OXYSENSOR",
+                            "PHSENSOR",
+                            "PLANKTONSAMPLER",
+                            "RADIOMETER",
+                            "TURBIDITYMETER",
+                            "VIDEOCAM",
+                            "WETLABS_WQM",
+                            "INTERNAL_DEVICE_MONITOR",
+                            "ORIENTATION",
+                            "ICE_BUOY",
+                            "AISRECEIVER",
+                            "BARPRESS",
+                            "POWER_SUPPLY",
+                        ],
+                        "description": "The ONC-defined deviceCategoryCode representing the type of device.",
                     },
                     "locationCode": {
                         "type": "string",
-                        "description": "The location code for which the data is requested.",
+                        "enum": ["CBYDS", "CBYIP", "CBYIU", "CBYSP", "CBYSS", "CBYSU"],
+                        "description": "The ONC-defined locationCode where the device is deployed. (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).",  # (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).
                     },
                     "dataProductCode": {
                         "type": "string",
-                        "description": "The type of data product requested.",
+                        "enum": [
+                            "LF",
+                            "MSQAQCR",
+                            "MP4V",
+                            "TSSD",
+                            "TSSP",
+                            "TSSCP",
+                            "TSSPPGD",
+                            "ND",
+                            "VRF",
+                            "RADCPTS",
+                            "RDCUP",
+                            "RDIP",
+                            "AF",
+                            "AD",
+                            "ASFV",
+                            "SBCTDRF",
+                            "CSPPD",
+                            "HSD",
+                            "HSPD",
+                            "SHV",
+                            "SISUSTS",
+                            "SRSLMF",
+                            "JPGF",
+                            "VQAQCR",
+                            "VQAQCTSB",
+                            "VQAQCTSF",
+                            "VQAQCTSSD",
+                            "IBPP",
+                            "IBTSPP",
+                        ],
+                        "description": "The ONC-defined dataProductCode for the data product requested.",  # (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)
                     },
                     "extension": {
                         "type": "string",
-                        "description": "The format in which the data product will be delivered.",
+                        "enum": [
+                            "txt",
+                            "json",
+                            "mat",
+                            "png",
+                            "zip",
+                            "mp4",
+                            "vrl",
+                            "nc",
+                            "fft",
+                            "flac",
+                            "wav",
+                            "an",
+                            "csv",
+                            "pdf",
+                            "jpg",
+                        ],
+                        "description": "The file format in which the data product should be delivered.",
                     },
                     "dateFrom": {
                         "type": "string",
-                        "description": "The starting date of the data request.",
+                        "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
                     },
                     "dateTo": {
                         "type": "string",
-                        "description": "The end date of the data request.",
+                        "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # },
+                    "dpo_qualityControl": {
+                        "type": "integer",
+                        "enum": [0, 1],
+                        "description": "Whether to apply quality control to the data. If 1, the function will apply quality control; if 0, it will not.",
+                    },
+                    "dpo_dataGaps": {
+                        "type": "integer",
+                        "enum": [0, 1],
+                        "description": "Whether to include data gaps in the response. If 1, the function will include data gaps; if 0, it will not and instead fill missing/bad data with NaNs (Not a number).",
+                    },
+                    "dpo_resample": {
+                        "type": "string",
+                        "enum": ["none", "average", "minMax", "minMaxAvg"],
+                        "description": "The resampling type to apply to the data. Must be one of: 'none', 'average', 'minMax', or 'minMaxAvg'. Use 'average' to return average values per interval, 'minMax' for only minimum and maximum values, and 'minMaxAvg' for all three. Set to 'none' if no resampling is needed. Choose based on how the user describes the summary they want (e.g., average, min/max, or all three (min, max, and average)).",
+                    },
+                    "dpo_minMax": {
+                        "type": "integer",
+                        "enum": [60, 300, 900, 3600, 86400],
+                        "description": "The specified resample interval seconds for the minimum and maximum resampling. Allowed values: 60=1Minute, 300=5Minutes, 900=15Minutes, 3600=1Hour, 86400=1Day.",
+                    },
+                    "dpo_average": {
+                        "type": "integer",
+                        "enum": [60, 300, 900, 3600, 86400],
+                        "description": "The specified resample interval seconds for the average resampling. Allowed values: 60=1Minute, 300=5Minutes, 900=15Minutes, 3600=1Hour, 86400=1Day.",
+                    },
+                    "dpo_minMaxAvg": {
+                        "type": "integer",
+                        "enum": [60, 300, 900, 3600, 86400],
+                        "description": "The specified resample interval in seconds for the minimum, maximum, and average. Allowed values: 60=1Minute, 300=5Minutes, 900=15Minutes, 3600=1Hour, 86400=1Day.",
+                    },
                 },
-                "required": [
-                    "deviceCategory",
-                    "locationCode",
-                    "dataProductCode",
-                    "extension",
-                    "dateTo",
-                    "dateFrom",
-                ],
-                "type": "object",
-            },
-            "returns": {
-                "type": "object",
-                "properties": {
-                    "status": {"type": "string", "enum": ["queued", "error"]},
-                    "dpRequestId": {"type": "string"},
-                    "message": {"type": "string"},
-                },
-                "required": ["status", "message"],
+                "required": [],
             },
         },
     },
+    # {
+    # "type": "function",
+    #     "function": {
+    #         "name": "generate_download_codes",
+    #         "description": "Call this function only when the user has expressed an intent to download data from Ocean Networks Canada (ONC). Your sole responsibility is to pass in only the parameters that the user has explicitly provided. Do not guess, assume, or invent any missing parameters. This function will handle missing parameters and generate a response accordingly. After this function is called, you will not be involved in the response handling or in checking the status of the download. You do not need to explain the result to the user.",
+    #         "parameters": {
+    #         "type": "object",
+    #         "properties": {
+    #             "deviceCategoryCode": {
+    #             "type": "string",
+    #             "description": "The ONC-defined code representing the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ)."
+    #             },
+    #             "locationCode": {
+    #             "type": "string",
+    #             "description": "The ONC-defined location code where the device is deployed (e.g., 'CBYDS' for the Cambridge Bay Diver data or 'CBYIP' for the Cambridge Bay Underwater Network or 'CBYSP' for the Cambridge Bay Safe Passage Buoy or 'CBYSS' for the Cambridge Bay Shore Station)."
+    #             },
+    #             "dataProductCode": {
+    #             "type": "string",
+    #             "description": "The ONC-defined code for the data product requested (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)."
+    #             },
+    #             "extension": {
+    #             "type": "string",
+    #             "description": "The file format in which the data product should be delivered (e.g., 'txt', 'json', 'mat', 'png', 'zip', 'mp4', 'vrl', 'nc', 'fft', 'flac', 'wav', 'an', 'csv', 'pdf', 'jpg')."
+    #             },
+    #             "dateFrom": {
+    #             "type": "string",
+    #             "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
+    #             },
+    #             "dateTo": {
+    #             "type": "string",
+    #             "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ')."
+    #             }
+    #         },
+    #         "required": []
+    #         },
+    #     }
+    # },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "generate_download_codes",
+    #         "description": "Get the device categoryCode at a certain locationCode at Cambridge Bay in a dataProduct with an extension, so that users request to download data, over a specified time period. Returns a result of a data download request. This function simply queues a download from ONC, and gives no additional information to the LLM. If this function is called, the LLM will either tell the user that their download is queued, or that their download request was unsuccessful. If the request is successful, the download is not necessarily successful, so do not tell the user if the download is successful or not. Returns: result (str): The result of the download request. It will either signify that the download was successful, or that the download was unsuccessful, and you should inform the user of this result. Args: deviceCategoryCode (str): An ONC defined code identifying each device. locationCode (str): An ONC defined code identifying each device site. dataProductCode (str): AN ONC defined code identifying the data type being delivered. extension (str): The format of the dataProduct to be delivered. dateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') dateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+    #         "parameters": {
+    #             "properties": {
+    #                 "deviceCategoryCode": {
+    #                     "type": "string",
+    #                     "description": "The device category code for which scalar data is requested.",
+    #                 },
+    #                 "locationCode": {
+    #                     "type": "string",
+    #                     "description": "The location code for which the data is requested.",
+    #                 },
+    #                 "dataProductCode": {
+    #                     "type": "string",
+    #                     "description": "The type of data product requested.",
+    #                 },
+    #                 "extension": {
+    #                     "type": "string",
+    #                     "description": "The format in which the data product will be delivered.",
+    #                 },
+    #                 "dateFrom": {
+    #                     "type": "string",
+    #                     "description": "The starting date of the data request.",
+    #                 },
+    #                 "dateTo": {
+    #                     "type": "string",
+    #                     "description": "The end date of the data request.",
+    #                 },
+    #                 # "user_onc_token": {
+    #                 #     "type": "string",
+    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
+    #                 # },
+    #             },
+    #             "required": [], #"deviceCategoryCode", "locationCode", "dataProductCode", "extension", "dateTo", "dateFrom"
+    #             "type": "object",
+    #         },
+    #         "returns": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "status": {"type": "string", "enum": ["queued", "error"]},
+    #                 "dpRequestId": {"type": "string"},
+    #                 "message": {"type": "string"},
+    #             },
+    #             "required": ["status", "message"],
+    #         },
+    #     },
+    # },
     {
         "type": "function",
         "function": {
