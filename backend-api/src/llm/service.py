@@ -22,6 +22,8 @@ from .schemas import (
 )
 from .utils import get_context
 
+from LLM.RAG import RAG
+
 MAX_CONTEXT_WORDS = 200
 
 
@@ -152,6 +154,7 @@ async def generate_response(
         )
 
         message.response = llm_result.response
+
         # Handle queueing data download
         if llm_result.dpRequestId:
             logger.info(
@@ -196,6 +199,7 @@ async def submit_feedback(
     feedback: Feedback,
     current_user: UserOut,
     db: AsyncSession,
+    request:Request
 ) -> Message:
     """Create Feedback entry for Message (or update current Feedback)"""
     # TODO: Check that message belongs to current user
@@ -228,7 +232,22 @@ async def submit_feedback(
         # Create new feedback entry
         new_feedback = FeedbackModel(message_id=message_id, **feedback.model_dump())
         db.add(new_feedback)
-
     await db.commit()
     await db.refresh(message)
+    if feedback.rating == 2:
+        state = request.app.state
+        await upload_message_to_qdrant(message.input, message.response, state.rag)
+
     return message
+
+
+async def upload_message_to_qdrant(user_input: str, llm_response: str, rag:RAG):
+    """
+    Uploads the user input and LLM response to the Qdrant QA collection.
+    """
+    qa_pair_to_upload = {
+        "original_question": user_input,
+        "text": {"response": llm_response}
+    }
+    # This calls the method on the RAG instance.
+    await rag.upload_new_qa(qa_pair_to_upload)
