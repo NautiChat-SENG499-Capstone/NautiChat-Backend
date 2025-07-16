@@ -20,8 +20,6 @@ class VectorDocumentBase(BaseModel):
 class VectorDocumentOut(VectorDocumentBase):
     """What we return when reading VectorDocument metadata."""
 
-    model_config = ConfigDict(from_attributes=True)
-
     id: int = Field(..., description="Primary key of the vector document")
 
 

@@ -154,7 +154,7 @@ async def upload_pdf(
     return UploadResponse(detail="PDF upload queued for processing.")
 
 
-@router.post("/documents/json", status_code=201)
+@router.post("/documents/json", status_code=201, response_model=UploadResponse)
 async def json_data_upload(
     current_admin: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],

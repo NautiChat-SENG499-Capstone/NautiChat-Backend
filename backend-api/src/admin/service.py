@@ -48,6 +48,12 @@ async def raw_text_upload_to_vdb(
     db: AsyncSession,
 ) -> None:
     """Format raw text, embed, upload to vector DB, and record metadata."""
+    # Upsert metadata in your SQL table
+    try:
+        stmt = _upsert_metadata_stmt(source, uploaded_by_id)
+        await _commit_upsert(db, stmt)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Metadata upsert failed: {e}")
     # Format and embed the input text
     try:
         state = request.app.state
@@ -58,15 +64,15 @@ async def raw_text_upload_to_vdb(
         await asyncio.to_thread(
             upload_to_vector_db, prepared, state.rag.qdrant_client_wrapper
         )
+        logger.info(
+            f"Raw text successfully uploaded for '{source}' by {uploaded_by_id}"
+        )
     except Exception as e:
+        logger.error(f"Raw text upload failed for '{source}' by {uploaded_by_id}: {e}")
+        # attempt to rollback metadata to preserve consistency
+        await db.execute(delete(VectorDocument).where(VectorDocument.source == source))
+        await db.commit()
         raise HTTPException(status_code=502, detail=f"Embedding/upload failed: {e}")
-
-    # Upsert metadata in your SQL table
-    try:
-        stmt = _upsert_metadata_stmt(source, uploaded_by_id)
-        await _commit_upsert(db, stmt)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Metadata upsert failed: {e}")
 
 
 async def json_upload_to_vdb(
@@ -77,6 +83,12 @@ async def json_upload_to_vdb(
     db: AsyncSession,
 ) -> None:
     """Preprocess a JSON file, embed, and upload to vector DB, and upsert metadata."""
+    # Upsert metadata in your SQL table
+    try:
+        stmt = _upsert_metadata_stmt(source, uploaded_by_id)
+        await _commit_upsert(db, stmt)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Metadata upsert failed: {e}")
     # Preprocess and embed the JSON, upload to vector DB
     try:
         state = request.app.state
@@ -88,17 +100,15 @@ async def json_upload_to_vdb(
         await asyncio.to_thread(
             upload_to_vector_db, prepared_input, state.rag.qdrant_client_wrapper
         )
+        logger.info(f"JSON successfully uploaded for '{source}' by {uploaded_by_id}")
     except Exception as e:
+        logger.error(f"JSON upload failed for '{source}' by {uploaded_by_id}: {e}")
+        # attempt to rollback metadata to preserve consistency
+        await db.execute(delete(VectorDocument).where(VectorDocument.source == source))
+        await db.commit()
         raise HTTPException(
             status_code=502, detail=f"JSON embedding/upload failed: {e}"
         )
-
-    # Upsert metadata in your SQL table
-    try:
-        stmt = _upsert_metadata_stmt(source, uploaded_by_id)
-        await _commit_upsert(db, stmt)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Metadata upsert failed: {e}")
 
 
 async def pdf_upload_to_vdb(
@@ -114,6 +124,18 @@ async def pdf_upload_to_vdb(
     Background task: preprocess PDF, embed, upload to vector DB,
     then upsert metadata (source, uploader).
     """
+    # Upsert metadata in your SQL table
+    try:
+        stmt = _upsert_metadata_stmt(source, uploaded_by_id)
+        await db.execute(stmt)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Metadata upsert failed: {e}",
+        )
+
     # Preprocess & embed
     try:
         state = request.app.state
@@ -130,22 +152,15 @@ async def pdf_upload_to_vdb(
         await asyncio.to_thread(
             upload_to_vector_db, prepared, state.rag.qdrant_client_wrapper
         )
+        logger.info(f"PDF successfully uploaded for '{source}' by {uploaded_by_id}")
     except Exception as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"PDF embedding/upload failed: {e}",
-        )
-
-    # Upsert metadata in your SQL table
-    stmt = _upsert_metadata_stmt(source, uploaded_by_id)
-    try:
-        await db.execute(stmt)
+        logger.error(f"PDF upload failed for '{source}' by {uploaded_by_id}: {e}")
+        # attempt to rollback metadata to preserve consistency
+        await db.execute(delete(VectorDocument).where(VectorDocument.source == source))
         await db.commit()
-    except Exception as e:
-        await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Metadata upsert failed: {e}",
+            status_code=500,
+            detail=f"PDF embedding/upload failed: {e}",
         )
 
 
