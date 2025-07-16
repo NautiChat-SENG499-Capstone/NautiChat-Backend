@@ -157,21 +157,34 @@ async def upload_pdf(
 
 @router.post("/documents/json", status_code=201)
 async def json_data_upload(
-    file: UploadFile,
-    source: str,
+    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
     request: Request,
-    _: Annotated[UserOut, Depends(get_admin_user)],
+    file: UploadFile = File(...),
+    source: str = Form(...),
 ):
     """
-    Endpoint for admins to submit json files to be uploaded to vector database.
+    Upload a JSON file to the vector DB and record metadata.
     """
     json_bytes = await file.read()
-    await service.json_upload_to_vdb(source, json_bytes, request)
+    if not json_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded JSON is empty.")
+
+    await service.json_upload_to_vdb(
+        source=source,
+        json_bytes=json_bytes,
+        uploaded_by_id=current_admin.id,
+        request=request,
+        db=db,
+    )
+
+    return UploadResponse(detail="JSON uploaded successfully")
 
 
-@router.delete("/documents/{document_source}", status_code=204)
-async def source_remove(
-    document_source: str,
+@router.delete("/documents/{source}", status_code=204)
+async def delete_document(
+    source: str,
+    current_admin: Annotated[auth_models.User, Depends(get_admin_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:

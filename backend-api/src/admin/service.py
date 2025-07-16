@@ -60,6 +60,7 @@ async def raw_text_upload_to_vdb(
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Embedding/upload failed: {e}")
+
     # Upsert metadata in your SQL table
     try:
         stmt = _upsert_metadata_stmt(source, uploaded_by_id)
@@ -67,21 +68,39 @@ async def raw_text_upload_to_vdb(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Metadata upsert failed: {e}")
 
-async def json_upload_to_vdb(source: str, json_bytes: bytes, request: Request) -> None:
-    """Preprocess a json file, embed, and upload to vector db"""
-    # Create a new DB object with the text
-    state = request.app.state
-    if not state.llm or not state.rag:
-        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
 
-    processed_json = process_json(True, json_bytes, source=source)
-    prepared_input = prepare_embedding_input(
-        processed_json, embedding_model=state.rag.embedding
-    )
+async def json_upload_to_vdb(
+    source: str,
+    json_bytes: bytes,
+    uploaded_by_id: int,
+    request: Request,
+    db: AsyncSession,
+) -> None:
+    """Preprocess a JSON file, embed, and upload to vector DB, and upsert metadata."""
+    # Preprocess and embed the JSON, upload to vector DB
+    try:
+        state = request.app.state
 
-    upload_to_vector_db(prepared_input, state.rag.qdrant_client_wrapper)
-    # Need an upload to standard db of source      
-        
+        processed_json = process_json(True, json_bytes, source=source)
+        prepared_input = prepare_embedding_input(
+            processed_json, embedding_model=state.rag.embedding
+        )
+        await asyncio.to_thread(
+            upload_to_vector_db, prepared_input, state.rag.qdrant_client_wrapper
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=502, detail=f"JSON embedding/upload failed: {e}"
+        )
+
+    # Upsert metadata in your SQL table
+    try:
+        stmt = _upsert_metadata_stmt(source, uploaded_by_id)
+        await _commit_upsert(db, stmt)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Metadata upsert failed: {e}")
+
+
 async def pdf_upload_to_vdb(
     *,
     source: str,
