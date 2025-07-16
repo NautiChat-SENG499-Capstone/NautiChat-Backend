@@ -2,6 +2,8 @@ from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from LLM.schemas import ObtainedParamsDictionary
+
 
 class Feedback(BaseModel):
     """User Feedback on LLM Response"""
@@ -23,6 +25,8 @@ class Message(BaseModel):
     response: str
     request_id: Optional[int] = None
     feedback: Optional[Feedback] = None
+    citation: Optional[str] = None
+    onc_api_url: Optional[str] = None
 
 
 class Conversation(BaseModel):
@@ -34,6 +38,9 @@ class Conversation(BaseModel):
     user_id: int
     title: Optional[str] = None
     messages: Optional[List[Message]] = []
+    obtained_params: ObtainedParamsDictionary = Field(
+        default_factory=ObtainedParamsDictionary
+    )
 
 
 class CreateConversationBody(BaseModel):
