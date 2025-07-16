@@ -1,16 +1,13 @@
 from collections import defaultdict
-from typing import Annotated, Dict, List
+from typing import Annotated
 
 import hdbscan
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
-    File,
-    Form,
     HTTPException,
     Request,
-    UploadFile,
     status,
 )
 from sentence_transformers import SentenceTransformer
@@ -25,7 +22,12 @@ from src.llm import models as llm_models
 from src.llm import schemas as llm_schemas
 
 from . import service
-from .schemas import UploadResponse
+from .schemas import (
+    JSONUploadRequest,
+    PDFUploadRequest,
+    RawTextUploadRequest,
+    UploadResponse,
+)
 
 router = APIRouter()
 
@@ -56,7 +58,7 @@ async def delete_users(
 async def get_all_messages(
     _: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> List[llm_schemas.Message]:
+) -> list[llm_schemas.Message]:
     """Get all messages"""
     # TODO: add pagination to this in case there are tons of messages
 
@@ -70,7 +72,7 @@ async def get_all_messages(
 async def get_clustered_messages(
     _: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     """Cluster all message inputs using HDBSCAN"""
     # fetch messages
     result = await db.execute(select(llm_models.Message))
@@ -103,16 +105,15 @@ async def upload_raw_text(
     current_admin: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
-    source: str = Form(...),
-    input_text: str = Form(...),
+    data: Annotated[RawTextUploadRequest, Depends(RawTextUploadRequest.as_form)],
 ) -> UploadResponse:
     """Upload a raw text blob to the vector DB and record metadata."""
-    if not input_text:
+    if not data.input_text:
         raise HTTPException(status_code=400, detail="Input text is required")
 
     await service.raw_text_upload_to_vdb(
-        source=source,
-        information=input_text,
+        source=data.source,
+        information=data.input_text,
         uploaded_by_id=current_admin.id,
         request=request,
         db=db,
@@ -127,24 +128,23 @@ async def upload_pdf(
     request: Request,
     background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db_session)],
-    source: str = Form(...),
-    file: UploadFile = File(...),
+    data: Annotated[PDFUploadRequest, Depends(PDFUploadRequest.as_form)],
 ) -> UploadResponse:
     """Upload a PDF to the vector DB and schedule background embedding/metadata logging."""
     # Note: I wasn't sure if we want to set source to the filename or a custom source, so I left it as a form field.
-    if file.content_type != "application/pdf":
+    if data.file.content_type != "application/pdf":
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="Only PDF uploads are supported.",
         )
-    pdf_bytes = await file.read()
+    pdf_bytes = await data.file.read()
     if not pdf_bytes:
         raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
     background_tasks.add_task(
         service.pdf_upload_to_vdb,
-        source=source,
-        filename=file.filename,
+        source=data.source,
+        filename=data.file.filename,
         pdf_bytes=pdf_bytes,
         uploaded_by_id=current_admin.id,
         db=db,
@@ -159,18 +159,17 @@ async def json_data_upload(
     current_admin: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     request: Request,
-    file: UploadFile = File(...),
-    source: str = Form(...),
+    data: Annotated[JSONUploadRequest, Depends(JSONUploadRequest.as_form)],
 ) -> UploadResponse:
     """
     Upload a JSON file to the vector DB and record metadata.
     """
-    json_bytes = await file.read()
+    json_bytes = await data.file.read()
     if not json_bytes:
         raise HTTPException(status_code=400, detail="Uploaded JSON is empty.")
 
     await service.json_upload_to_vdb(
-        source=source,
+        source=data.source,
         json_bytes=json_bytes,
         uploaded_by_id=current_admin.id,
         request=request,
