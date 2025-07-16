@@ -107,7 +107,7 @@ def populate_message_from_response(
 ) -> None:
     message.response = llm_response.response
 
-    if llm_response.citation is not None:
+    if llm_response.citation:
         message.citation = llm_response.citation
 
     if llm_response.baseUrl:
