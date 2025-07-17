@@ -18,7 +18,7 @@ async def get_scalar_data(
     propertyCode: Optional[str] = None,
     dateFrom: Optional[str] = None,
     dateTo: Optional[str] = None,
-    obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+    obtainedParams: ObtainedParamsDictionary = None,
 ):
     onc = ONC(user_onc_token)
     """
