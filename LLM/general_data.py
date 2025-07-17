@@ -20,6 +20,8 @@ async def get_scalar_data(
     dateTo: Optional[str] = None,
     obtainedParams: ObtainedParamsDictionary = None,
 ):
+    if obtainedParams is None:
+        obtainedParams = ObtainedParamsDictionary()
     onc = ONC(user_onc_token)
     """
         Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode with a resamplePeriod and resampleType,
@@ -125,7 +127,7 @@ async def get_scalar_data(
         }
 
     try:
-        response = onc.getScalardata(allParamsNeeded)
+        response = onc.getScalardataByLocation(allParamsNeeded)
         print(f"Response from ONC: {response}")
         if response["sensorData"]:
             return {
