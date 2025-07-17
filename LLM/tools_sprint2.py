@@ -248,63 +248,57 @@ async def get_ship_noise_acoustic_for_date(
 
 # Can I see the noise data for July 31, 2024 as a spectogram?
 async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
-    """
-    Get 24 hours of ship noise acoustic data for Cambridge Bay, concatenate the downloaded WAV files,
-    and compute & plot a spectrogram for the entire day.
+"""
+    Download and return the pre-generated ONC spectrogram image for a given date.
+
     Args:
-        date_str (str): Date in YYYY‑MM‑DD format
+        date_str (str): Date in YYYY-MM-DD format
         user_onc_token (str): ONC API access token
+
     Returns:
-        dict: {
-            "Pxx": numpy.ndarray,                 # 2D array of power spectral density (dB)
-            "freqs": numpy.ndarray,               # 1D array of frequency bins (Hz)
-            "times": numpy.ndarray,               # 1D array of time bins (s)
-            "figure": matplotlib.figure.Figure,   # the Matplotlib Figure instance
-        }
+        PIL.Image.Image | None: Spectrogram image object, or None if download fails.
     """
-    # Download WAV files using get_ship_noise_acoustic_for_date
-    result = await get_ship_noise_acoustic_for_date(date_str, user_onc_token)
-    orders = result["response"]["orders"]
-    
-    # Extract all local file paths
-    wav_paths = []
-    for order in orders:
-        wav_paths.extend(order.get("localPaths", []))
-    if not wav_paths:
-        print("No WAV files found for", date_str, file=sys.stderr)
-        return
+    base_url = "https://data.oceannetworks.ca/api/dataProductDelivery"
 
-    # Read and concatenate files
-    sample_rate = None
-    segments = []
-    for p in wav_paths:
-        sr, data = wavfile.read(p)
-        if sample_rate is None:
-            sample_rate = sr
-        elif sr != sample_rate:
-            raise RuntimeError(f"Sample rate mismatch: {sr} vs {sample_rate}")
-        if data.ndim > 1:
-            data = data.mean(axis=1)
-        segments.append(data.astype(np.float32))
-    audio = np.concatenate(segments)
+    # Define 24-hour window
+    date_from = date_str
+    date_to = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # Create spectrogram
-    fig, ax = plt.subplots(figsize=(12, 6))
-    Pxx, freqs, bins, im = ax.specgram(
-        audio, Fs=sample_rate, NFFT=2048, noverlap=1024, scale="dB"
-    )
-    ax.set_title(f"Hydrophone Spectrogram on {date_str}")
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Frequency (Hz)")
-    fig.colorbar(im, ax=ax, label="Intensity (dB)")
-    plt.tight_layout()
+    params = {
+        "method": "GET",
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "HYDROPHONE",
+        "dataProductCode": "HSD",
+        "extension": "png",
+        "dateFrom": date_from,
+        "dateTo": date_to,
+        "token": user_onc_token,
+        "outputFormat": "zip"
+    }
 
-    out_png = f"spectrogram_{date_str}.png"
-    fig.savefig(out_png, dpi=150)
-    print(f"Saved spectrogram to {out_png}")
-    plt.show()
+    response = requests.get(base_url, params=params)
 
-    return {"Pxx": Pxx, "freqs": freqs, "times": bins}
+    if response.status_code != 200:
+        print(f"Failed to retrieve spectrogram. Status code: {response.status_code}")
+        print(response.text)
+        return None
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        zip_path = os.path.join(tmpdir, "spectrogram.zip")
+        with open(zip_path, "wb") as f:
+            f.write(response.content)
+
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(tmpdir)
+
+        png_files = [f for f in os.listdir(tmpdir) if f.endswith(".png")]
+        if not png_files:
+            print("No PNG spectrogram files found in the archive.")
+            return None
+
+        image_path = os.path.join(tmpdir, png_files[0])
+        image = Image.open(image_path).copy()  # Copy to persist after tmpdir is deleted
+        return image
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
