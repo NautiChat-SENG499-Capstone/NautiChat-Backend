@@ -118,9 +118,10 @@ class LLM:
                 DO NOT guess what the tool might return.  
                 DO NOT say "I will now use the tool."  
                 DO NOT try to reason about data availability.
-
-                If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
+                DO NOT infer some dateTo or dateFrom, if it is given use it, if it is not, leave it blank.
+                If there are similar entries in the vector database for a device, DO NOT pick one, ask the user to clarify which device they want.
             """
+            # If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
 
             # print("Messages: ", messages)
 
@@ -312,9 +313,7 @@ class LLM:
                                     obtainedParams=obtained_params,
                                 )
                             elif scalarRequestStatus == StatusCode.NO_DATA:
-                                print(
-                                    "Scalar request parameters needed, returning response now"
-                                )
+                                print("No data returned.")
                                 obtained_params: ObtainedParamsDictionary = (
                                     function_response.get("obtainedParams", {})
                                 )
@@ -327,7 +326,7 @@ class LLM:
                                     obtainedParams=obtained_params,
                                 )
                         else:
-                            # Not doing data download or scalar request so clearing the obtainedParams
+                            # Not doing data download or scalar request is successful so clearing the obtainedParams
                             obtained_params: ObtainedParamsDictionary = (
                                 ObtainedParamsDictionary()
                             )

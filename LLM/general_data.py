@@ -4,9 +4,11 @@ from typing import Optional
 from onc import ONC
 
 from LLM.Constants.status_codes import StatusCode
-from LLM.data_download import sync_param
+from LLM.Constants.utils import sync_param
 from LLM.schemas import ObtainedParamsDictionary
 from LLM.tools_sprint1 import get_deployed_devices_over_time_interval
+
+ROW_LIMIT = "8000"
 
 
 async def get_scalar_data(
@@ -83,13 +85,16 @@ async def get_scalar_data(
         1209600,
         2592000,
     ]
+    resample_period = 1
+    if dateFrom and dateTo:
+        begin = datetime.fromisoformat(dateFrom.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(dateTo.replace("Z", "+00:00"))
 
-    begin = datetime.fromisoformat(dateFrom.replace("Z", "+00:00"))
-    end = datetime.fromisoformat(dateTo.replace("Z", "+00:00"))
+        delta_seconds = (end - begin).total_seconds()
 
-    delta_seconds = (end - begin).total_seconds()
-
-    resample_period = min(resample_periods, key=lambda x: abs(x - (delta_seconds / 10)))
+        resample_period = min(
+            resample_periods, key=lambda x: abs(x - (delta_seconds / 10))
+        )
 
     allParamsNeeded = {
         "deviceCategoryCode": deviceCategoryCode,
@@ -100,7 +105,7 @@ async def get_scalar_data(
         "resampleType": "avgMinMax",
         "resamplePeriod": resample_period,
         "outputFormat": "object",
-        "rowLimit": "8000",
+        "rowLimit": ROW_LIMIT,
     }  # Only the necessary parameters for a data download request.
     neededParams = [
         param for param, value in allParamsNeeded.items() if value is None
