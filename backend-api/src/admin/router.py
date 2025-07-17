@@ -6,14 +6,13 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
-    HTTPException,
     Request,
-    status,
 )
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.auth import models as auth_models
 from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
 from src.auth.service import create_new_user, delete_user
@@ -36,7 +35,7 @@ router = APIRouter()
 # Could this be /users/create instead of /create?
 @router.post("/create", status_code=201, response_model=auth_schemas.UserOut)
 async def create_admin_user(
-    _: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
+    _: Annotated[auth_models.User, Depends(get_admin_user)],
     new_admin: auth_schemas.CreateUserRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> auth_schemas.UserOut:
@@ -108,8 +107,6 @@ async def upload_raw_text(
     data: Annotated[RawTextUploadRequest, Depends(RawTextUploadRequest.as_form)],
 ) -> UploadResponse:
     """Upload a raw text blob to the vector DB and record metadata."""
-    if not data.input_text:
-        raise HTTPException(status_code=400, detail="Input text is required")
 
     await service.raw_text_upload_to_vdb(
         source=data.source,
@@ -132,20 +129,11 @@ async def upload_pdf(
 ) -> UploadResponse:
     """Upload a PDF to the vector DB and schedule background embedding/metadata logging."""
     # Note: I wasn't sure if we want to set source to the filename or a custom source, so I left it as a form field.
-    if data.file.content_type != "application/pdf":
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Only PDF uploads are supported.",
-        )
-    pdf_bytes = await data.file.read()
-    if not pdf_bytes:
-        raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
-
     background_tasks.add_task(
         service.pdf_upload_to_vdb,
         source=data.source,
         filename=data.file.filename,
-        pdf_bytes=pdf_bytes,
+        pdf_bytes=await data.file.read(),
         uploaded_by_id=current_admin.id,
         db=db,
         request=request,
@@ -164,13 +152,10 @@ async def json_data_upload(
     """
     Upload a JSON file to the vector DB and record metadata.
     """
-    json_bytes = await data.file.read()
-    if not json_bytes:
-        raise HTTPException(status_code=400, detail="Uploaded JSON is empty.")
 
     await service.json_upload_to_vdb(
         source=data.source,
-        json_bytes=json_bytes,
+        json_bytes=await data.file.read(),
         uploaded_by_id=current_admin.id,
         request=request,
         db=db,

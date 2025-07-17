@@ -48,6 +48,10 @@ async def raw_text_upload_to_vdb(
     db: AsyncSession,
 ) -> None:
     """Format raw text, embed, upload to vector DB, and record metadata."""
+
+    if not information.strip():
+        raise HTTPException(status_code=400, detail="Input text is required")
+
     # Upsert metadata in your SQL table
     try:
         stmt = _upsert_metadata_stmt(source, uploaded_by_id)
@@ -83,6 +87,10 @@ async def json_upload_to_vdb(
     db: AsyncSession,
 ) -> None:
     """Preprocess a JSON file, embed, and upload to vector DB, and upsert metadata."""
+
+    if not json_bytes.strip():
+        raise HTTPException(status_code=400, detail="Uploaded JSON is empty.")
+
     # Upsert metadata in your SQL table
     try:
         stmt = _upsert_metadata_stmt(source, uploaded_by_id)
@@ -124,6 +132,10 @@ async def pdf_upload_to_vdb(
     Background task: preprocess PDF, embed, upload to vector DB,
     then upsert metadata (source, uploader).
     """
+
+    if not pdf_bytes.strip():
+        raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
+
     # Upsert metadata in your SQL table
     try:
         stmt = _upsert_metadata_stmt(source, uploaded_by_id)

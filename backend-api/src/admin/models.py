@@ -23,14 +23,14 @@ class VectorDocument(Base):
         nullable=True,
         index=True,
     )
-    uploaded_by: Mapped["User"] = relationship(
-        "User",
-        back_populates="vector_documents",
-        passive_deletes=True,
-    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+    uploaded_by: Mapped["User"] = relationship(
+        "User",
+        back_populates="vector_documents",
+        passive_deletes=True,
     )
