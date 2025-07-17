@@ -10,7 +10,7 @@ from src.llm.utils import get_context
 from src.settings import get_settings
 
 
-class TestConversationEndpoints:
+class TestConversation:
     async def _create_conversation(
         self, client: AsyncClient, headers: dict, title: str = "Test"
     ) -> schemas.Conversation:
@@ -188,7 +188,7 @@ class TestConversationEndpoints:
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-class TestMessageEndpoints:
+class TestMessage:
     async def _create_conversation(
         self, client: AsyncClient, headers: dict, title: str = "Chat"
     ) -> int:
