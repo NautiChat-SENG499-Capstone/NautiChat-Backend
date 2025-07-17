@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from LLM.core import LLM
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
+from src.admin.service import increment_usage
 from src.auth.schemas import UserOut
 
 from .models import Conversation as ConversationModel
@@ -102,8 +103,8 @@ async def delete_conversation(
     await db.commit()
 
 
-def populate_message_from_response(
-    llm_response: RunConversationResponse, message: MessageModel
+async def populate_message_from_response(
+    llm_response: RunConversationResponse, message: MessageModel, db: AsyncSession
 ) -> None:
     message.response = llm_response.response
 
@@ -122,6 +123,11 @@ def populate_message_from_response(
 
     if llm_response.dpRequestId:
         message.request_id = llm_response.dpRequestId
+
+    # Handle incrementing usage if sources are present
+    if llm_response.sources:
+        await increment_usage(llm_response.sources, db)
+        message.sources = llm_response.sources
 
 
 async def generate_response(
@@ -170,7 +176,7 @@ async def generate_response(
             ),
         )
 
-        populate_message_from_response(llm_result, message)
+        await populate_message_from_response(llm_result, message, db)
 
     except Exception as e:
         raise HTTPException(

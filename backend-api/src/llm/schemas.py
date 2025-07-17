@@ -1,4 +1,4 @@
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -26,6 +26,7 @@ class Message(BaseModel):
     request_id: Optional[int] = None
     feedback: Optional[Feedback] = None
     citation: Optional[str] = None
+    sources: Optional[list[str]] = Field(default_factory=list)
     onc_api_url: Optional[str] = None
 
 
@@ -37,7 +38,7 @@ class Conversation(BaseModel):
     conversation_id: int
     user_id: int
     title: Optional[str] = None
-    messages: Optional[List[Message]] = []
+    messages: Optional[list[Message]] = Field(default_factory=list)
     obtained_params: ObtainedParamsDictionary = Field(
         default_factory=ObtainedParamsDictionary
     )
