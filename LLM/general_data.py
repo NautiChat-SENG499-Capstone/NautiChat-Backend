@@ -132,14 +132,14 @@ async def get_scalar_data(
         if response["sensorData"]:
             return {
                 "response": response,
-                "description": f"Here is the scalar data you requested from the {deviceCategoryCode} at {locationCode} from {dateFrom} to {dateTo}",
+                "description": f"Here is the scalar data you requested from the {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {dateFrom} to {dateTo}",
                 "status": StatusCode.REGULAR_MESSAGE,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
             }
         else:
             return {
                 "response": response,
-                "description": f"There is no scalar data at {deviceCategoryCode} at {locationCode} from {dateFrom} to {dateTo}.",
+                "description": f"There is no scalar data at {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {dateFrom} to {dateTo}.",
                 "status": StatusCode.NO_DATA,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
             }
@@ -179,7 +179,7 @@ async def get_scalar_data(
             }
         else:
             return {
-                "status": StatusCode.LLM_ERROR,
+                "status": StatusCode.SCALAR_REQUEST_ERROR,
                 "response": f"Error: {str(e)}",
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
             }

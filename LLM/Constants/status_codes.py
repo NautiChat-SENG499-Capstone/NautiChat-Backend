@@ -9,3 +9,4 @@ class StatusCode(Enum):
     LLM_ERROR = 5
     DEPLOYMENT_ERROR = 6
     NO_DATA = 7
+    SCALAR_REQUEST_ERROR = 8
