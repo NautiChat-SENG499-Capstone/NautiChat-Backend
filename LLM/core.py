@@ -339,6 +339,8 @@ class LLM:
                                     response=function_response.get("response"),
                                     obtainedParams=obtained_params,
                                 )
+                            elif scalarRequestStatus == StatusCode.REGULAR_MESSAGE:
+                                obtained_params = ObtainedParamsDictionary()
                         else:
                             # Not doing data download or scalar request is successful so clearing the obtainedParams
                             obtained_params: ObtainedParamsDictionary = (
