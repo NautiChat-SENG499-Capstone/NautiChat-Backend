@@ -4,7 +4,7 @@ from typing import Optional
 from onc import ONC
 
 from LLM.Constants.status_codes import StatusCode
-from LLM.Constants.utils import sync_param
+from LLM.Constants.utils import resample_periods, sync_param
 from LLM.schemas import ObtainedParamsDictionary
 from LLM.tools_sprint1 import get_deployed_devices_over_time_interval
 
@@ -64,29 +64,6 @@ async def get_scalar_data(
     dateTo = sync_param("dateTo", dateTo, obtainedParams, allObtainedParams)
     print(f"Obtained parameters: {allObtainedParams}")
 
-    resample_periods = [
-        1,
-        5,
-        10,
-        15,
-        30,
-        60,
-        300,
-        600,
-        900,
-        1800,
-        3600,
-        7200,
-        14400,
-        21600,
-        43200,
-        86400,
-        172800,
-        259200,
-        604800,
-        1209600,
-        2592000,
-    ]
     resample_period = 1
     if dateFrom and dateTo:
         begin = datetime.fromisoformat(dateFrom.replace("Z", "+00:00"))

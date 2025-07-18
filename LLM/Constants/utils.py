@@ -1,3 +1,28 @@
+resample_periods = [
+    1,
+    5,
+    10,
+    15,
+    30,
+    60,
+    300,
+    600,
+    900,
+    1800,
+    3600,
+    7200,
+    14400,
+    21600,
+    43200,
+    86400,
+    172800,
+    259200,
+    604800,
+    1209600,
+    2592000,
+]
+
+
 def sync_param(field_name: str, local_value, params_model, allObtainedParams: dict):
     """
     Sync a local variable with a field in a Pydantic model:
