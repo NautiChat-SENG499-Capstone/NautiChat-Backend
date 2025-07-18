@@ -466,20 +466,19 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 
 
 # I would like a plot which shows the water depth so I can get an idea of tides in the Arctic for July 2023
-async def plot_monthly_water_depth(month_str: str, user_onc_token: str):
-    """
-    Get water depth readings for Cambridge Bay for a given month and plot the time series.
+async def plot_monthly_water_depth(month_str: str, user_onc_token: str) -> str:
+      """
+    Retrieve the NetCDF (.nc) file of water depth data for Cambridge Bay for a given month
+    using the 'Cast Scalar Profile Plot and Data' (CSPPD) data product.
+
     Args:
         month_str (str): Month in YYYY‑MM format (e.g. "2025-07")
         user_onc_token (str): ONC API access token
+
     Returns:
-        dict: {
-            "times": numpy.ndarray,             # array of Python datetime objects
-            "depths": numpy.ndarray,            # array of depth values (meters)
-            "figure": matplotlib.figure.Figure, # the Matplotlib Figure instance
-        }
+        str: Path to the downloaded .nc file
     """
-    # Build the first-of-month and first-of-next-month strings
+    # Compute dateFrom and dateTo
     year, month = map(int, month_str.split("-"))
     date_from = f"{year:04d}-{month:02d}-01"
     if month == 12:
@@ -488,48 +487,39 @@ async def plot_monthly_water_depth(month_str: str, user_onc_token: str):
         next_year, next_month = year, month + 1
     date_to = f"{next_year:04d}-{next_month:02d}-01"
 
-    # Fetch scalar data from the ONC API
-    url = "https://data.oceannetworks.ca/api/scalardata/location"
+    # Order the data product
     params = {
+        "method": "dataProductDelivery",
         "locationCode": "CBYIP",
         "deviceCategoryCode": "CTD",
-        "propertyCode": "depth",
+        "dataProductCode": "CSPPD",
+        "extension": "nc",
         "dateFrom": date_from,
         "dateTo": date_to,
+        "token": user_onc_token,
     }
-    headers = {"Authorization": f"Bearer {user_onc_token}"}
 
     async with httpx.AsyncClient() as client:
-        resp = await client.get(url, params=params, headers=headers)
-        resp.raise_for_status()
-        payload = resp.json()
+        # Request product generation/download URL
+        order_resp = await client.get("https://data.oceannetworks.ca/api/dataProductDelivery", params=params)
+        order_resp.raise_for_status()
+        data = order_resp.json()
+        download_url = data.get("downloadUrl")
 
-    # Extract timestamps and depth values
-    records = payload.get("data", [])
-    times = np.array([datetime.fromisoformat(r["time"]) for r in records])
-    depths = np.array([r["value"] for r in records], dtype=float)
+        if not download_url:
+            raise RuntimeError("Failed to get download URL from ONC response.")
 
-    # Plot the time series
-    fig, ax = plt.subplots(figsize=(12, 5))
-    ax.plot(times, depths)
-    ax.set_title(f"Water Depth in Cambridge Bay — {month_str}")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Depth (m)")
-    fig.autofmt_xdate()
-    plt.tight_layout()
+        # Download the NetCDF file
+        download_resp = await client.get(download_url)
+        download_resp.raise_for_status()
 
-    # Show and save
-    out_png = f"water_depth_{month_str}.png"
-    fig.savefig(out_png, dpi=150)
-    print(f"Saved plot to {out_png}")
-    plt.show()
+    # Save the file locally
+    filename = f"CBY_water_depth_{month_str}.nc"
+    with open(filename, "wb") as f:
+        f.write(download_resp.content)
 
-    return {
-        "times": times,
-        "depths": depths,
-        "figure": fig,
-    }
-
+    print(f"Saved NetCDF file to {filename}")
+    return filename
 
 # Can you show me a recent video from the shore camera?
 # TO DO data download
