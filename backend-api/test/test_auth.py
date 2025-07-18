@@ -9,7 +9,7 @@ from src.settings import get_settings
 
 
 class TestRegisteration:
-    async def _create_user_request(
+    def _create_user_request(
         self,
         username: str = "tester",
         password: str = "password",
@@ -21,7 +21,7 @@ class TestRegisteration:
         )
         return user
 
-    async def _create_user_model(
+    def _create_user_model(
         self,
         username: str = "tester",
         password: str = "password",
@@ -36,7 +36,7 @@ class TestRegisteration:
         self, client: AsyncClient, async_session: AsyncSession
     ):
         """Test registering a new user"""
-        new_user = await self._create_user_request(username="lebron", password="cavs")
+        new_user = self._create_user_request(username="lebron", password="cavs")
 
         response = await client.post("/auth/register", json=new_user.model_dump())
         assert response.status_code == status.HTTP_201_CREATED
@@ -57,15 +57,13 @@ class TestRegisteration:
     ):
         """Test adding a user that already exists"""
         # Add user that should exist in db first
-        existing_user = await self._create_user_model(
-            username="lebron", password="cavs"
-        )
+        existing_user = self._create_user_model(username="lebron", password="cavs")
         async_session.add(existing_user)
         await async_session.commit()
         await async_session.refresh(existing_user)
 
         # Add another user with same username
-        user_attempt = await self._create_user_request(
+        user_attempt = self._create_user_request(
             username=existing_user.username, password="differentpassword"
         )
         response = await client.post("/auth/register", json=user_attempt.model_dump())
@@ -80,7 +78,7 @@ class TestRegisteration:
         self, client: AsyncClient, async_session: AsyncSession
     ):
         """Test registering user with invalid onc token"""
-        invalid = await self._create_user_request(
+        invalid = self._create_user_request(
             username="lebron", password="cavs", token="invalid_token"
         )
 
@@ -96,7 +94,7 @@ class TestRegisteration:
 
 
 class TestAuthentication:
-    async def _create_user_model(
+    def _create_user_model(
         self,
         username: str = "tester",
         password: str = "password",
@@ -113,7 +111,7 @@ class TestAuthentication:
         """Login with existing user"""
         # Add user that should exist in database
         password = "supersecure"
-        user = await self._create_user_model(
+        user = self._create_user_model(
             username="newUser", password=get_password_hash(password)
         )
         async_session.add(user)
@@ -152,9 +150,7 @@ class TestAuthentication:
     ):
         """Attempt to log in with incorrect credentials"""
         password = "right"
-        user = await self._create_user_model(
-            "wrongpasswordtest", get_password_hash(password)
-        )
+        user = self._create_user_model("wrongpasswordtest", get_password_hash(password))
         async_session.add(user)
         await async_session.commit()
 

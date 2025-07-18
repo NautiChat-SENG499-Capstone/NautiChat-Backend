@@ -24,7 +24,7 @@ class TestAuthentication:
 
 
 class TestAdminCreation:
-    async def _create_user_request(
+    def _create_user_request(
         self,
         username: str = "tester",
         password: str = "password",
@@ -39,7 +39,7 @@ class TestAdminCreation:
     @pytest.mark.asyncio
     async def test_create_admin_success(self, client: AsyncClient, admin_headers: dict):
         """Test attempt at creating new admin"""
-        new_admin = await self._create_user_request(
+        new_admin = self._create_user_request(
             username="newadmin", password="securepass123"
         )
 
@@ -55,7 +55,7 @@ class TestAdminCreation:
     @pytest.mark.asyncio
     async def test_create_admin_unauthenticated(self, client: AsyncClient):
         """Test attempt create admin without authentication"""
-        bad_request = await self._create_user_request(username="unauth", password="x")
+        bad_request = self._create_user_request(username="unauth", password="x")
         response = await client.post(
             "/admin/create",
             json=bad_request.model_dump(),
@@ -67,7 +67,7 @@ class TestAdminCreation:
         self, client: AsyncClient, user_headers: dict
     ):
         """Test attempt at creating admin as normal user"""
-        bad_request = await self._create_user_request(username="baduser", password="x")
+        bad_request = self._create_user_request(username="baduser", password="x")
         response = await client.post(
             "/admin/create",
             json=bad_request.model_dump(),
@@ -80,7 +80,7 @@ class TestAdminCreation:
         self, client: AsyncClient, admin_headers: dict
     ):
         """Test creating an admin with an invalid ONC token"""
-        invalid_admin = await self._create_user_request(
+        invalid_admin = self._create_user_request(
             username="admin4", password="pass", token="invalid_token"
         )
         response = await client.post(
