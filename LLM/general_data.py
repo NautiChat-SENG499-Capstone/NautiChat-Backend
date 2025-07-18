@@ -108,6 +108,7 @@ async def get_scalar_data(
         "resamplePeriod": resample_period,
         "outputFormat": "object",
         "rowLimit": ROW_LIMIT,
+        "token": user_onc_token,
     }  # Only the necessary parameters for a data download request.
     neededParams = [
         param for param, value in allParamsNeeded.items() if value is None
@@ -124,6 +125,7 @@ async def get_scalar_data(
             "response": f"Hey! It looks like you are requesting scalar data! So far I have the following parameters: {param_keys}. However, I still need you to please provide the following missing parameters so I can complete the scalar data request: {', '.join(neededParams)}. Thank you!",
             "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+            "urlParamsUsed": allParamsNeeded,
         }
 
     try:
@@ -135,6 +137,7 @@ async def get_scalar_data(
                 "description": f"Here is the scalar data you requested from the {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {dateFrom} to {dateTo}",
                 "status": StatusCode.REGULAR_MESSAGE,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+                "urlParamsUsed": allParamsNeeded,
             }
         else:
             return {
@@ -142,6 +145,7 @@ async def get_scalar_data(
                 "description": f"There is no scalar data at {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {dateFrom} to {dateTo}.",
                 "status": StatusCode.NO_DATA,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+                "urlParamsUsed": allParamsNeeded,
             }
     except Exception as e:
         error_message = str(e)
@@ -176,10 +180,12 @@ async def get_scalar_data(
                 "status": StatusCode.DEPLOYMENT_ERROR,
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+                "urlParamsUsed": allParamsNeeded,
             }
         else:
             return {
                 "status": StatusCode.SCALAR_REQUEST_ERROR,
                 "response": f"Error: {str(e)}",
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+                "urlParamsUsed": allParamsNeeded,
             }

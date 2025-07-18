@@ -394,7 +394,7 @@ class LLM:
                     DO NOT say "I will now use the tool."  
                     DO NOT try to reason about data availability.
 
-                    DO NOT MAKE UP DATA. If a function tells you to do something, DO IT.
+                    DO NOT MAKE UP DATA. Only use data returned from the tools.
                 """
                 messagesNoContext = [
                     {
