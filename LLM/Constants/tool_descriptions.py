@@ -377,7 +377,7 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_scalar_data",
-            "description": "Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode with a resamplePeriod and resampleType, so that users can request scalar data, over a specified time period. Returns the result of a scalar data request. This function performs a data request to the ONC API, then returns the data to the LLM. If this function is called, the LLM will only provide the parameters the user has explicitly given. Do not guess, assume, or invent any missing parameters. If parameters are missing, the function will handle asking the user for them. If there that device isn't deployed at that time, the LLM will respond with the deployment times. If there is no data from the device during a deployed time, the LLM will tell the user, and not invent data. Returns: result (str): The result of the data request. Args: deviceCategoryCode (str): An ONC-defined code identifying the type of device (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ). locationCode (str): An ONC-defined code identifying the location of the device (e.g., 'CBYDS' for the Cambridge Bay Diver data or 'CBYIP' for the Cambridge Bay Underwater Network or 'CBYSP' for the Cambridge Bay Safe Passage Buoy or 'CBYSS' for the Cambridge Bay Shore Station). propertyCode (str): An ONC-defined code identifying the type of data being requested (e.g., 'oxygen' for oxygen data, 'temperature' for temperature data). dateFrom (str): The start date of the data request in ISO 8601 format (e.g., '2016-06-01T00:00:00.000Z'). (YYYY-MM-DDTHH:MM:SS.sssZ) dateTo (str): The end date of the data request in ISO 8601 format (e.g., '2016-09-30T23:59:59.999Z'). (YYYY-MM-DDTHH:MM:SS.sssZ)",
+            "description": "Gets deviceCategoryCode data at a locationCode in Cambridge Bay for a propertyCode with resamplePeriod and resampleType over a time range; calls the ONC API, uses only explicitly provided parameters, prompts the user if any are missing, and informs them if the device isn’t deployed or if no data is available.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -446,7 +446,7 @@ toolDescriptions = [
                             "CBYSU.AC2",
                             "CF240",
                         ],
-                        "description": "The ONC-defined locationCode where the device is deployed. (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, etc...)",
+                        "description": "The ONC-defined locationCode where the device is deployed.",
                     },
                     "propertyCode": {
                         "type": "string",
@@ -478,11 +478,11 @@ toolDescriptions = [
                     },
                     "dateFrom": {
                         "type": "string",
-                        "description": "The start date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
+                        "description": "The start date for the data request, in ISO 8601 format.",
                     },
                     "dateTo": {
                         "type": "string",
-                        "description": "The end date for the data request, in ISO 8601 format (e.g., 'YYYY-MM-DDTHH:MM:SS.sssZ').",
+                        "description": "The end date for the data request, in ISO 8601 format.",
                     },
                 },
                 "required": [],

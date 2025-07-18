@@ -40,15 +40,10 @@ async def get_scalar_data(
 
         Args:
             deviceCategoryCode (str): An ONC-defined code identifying the type of device 
-                                    (e.g., DIVE_COMPUTER, NAV, ROV_CAMERA, ACOUSTICRECEIVER, ADCP1200KHZ).
             locationCode (str): An ONC-defined code identifying the location of the device 
-                                (e.g., 'CBYDS' for the Cambridge Bay Diver data or 'CBYIP' for the Cambridge Bay Underwater Network or 'CBYSP' for the Cambridge Bay Safe Passage Buoy or 'CBYSS' for the Cambridge Bay Shore Station).
             propertyCode (str): An ONC-defined code identifying the type of data being requested 
-                                (e.g., 'oxygen' for oxygen data, 'temperature' for temperature data).
             dateFrom (str): The start date of the data request in ISO 8601 format 
-                            (e.g., '2016-06-01T00:00:00.000Z'). (YYYY-MM-DDTHH:MM:SS.sssZ)
             dateTo (str): The end date of the data request in ISO 8601 format 
-                          (e.g., '2016-09-30T23:59:59.999Z'). (YYYY-MM-DDTHH:MM:SS.sssZ)
     """
     allObtainedParams = {}
     deviceCategoryCode = sync_param(
