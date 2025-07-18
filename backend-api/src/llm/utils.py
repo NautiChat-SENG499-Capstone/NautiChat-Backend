@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +29,9 @@ async def get_context(
         select(Conversation).filter(Conversation.conversation_id == conversation_id)
     )
     conversation = conversation_result.scalar_one_or_none()
-    assert conversation, "Invalid conversation id"
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
     # most recent messages first
     messages: List[Message] = conversation.messages[::-1]
