@@ -120,6 +120,7 @@ class LLM:
                 DO NOT try to reason about data availability.
                 DO NOT infer some dateTo or dateFrom, if it is given use it, if it is not, leave it blank.
                 If there are similar entries in the vector database for a device, DO NOT pick one, ask the user to clarify which device they want.
+                If no tool can reliably answer the question, tell the user you can't answer the question.
             """
             # If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
 
@@ -323,6 +324,19 @@ class LLM:
                                 return RunConversationResponse(
                                     status=StatusCode.DEPLOYMENT_ERROR,
                                     response=function_response.get("description"),
+                                    obtainedParams=obtained_params,
+                                )
+                            elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
+                                print("No data returned.")
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.SCALAR_REQUEST_ERROR,
+                                    response=function_response.get("response"),
                                     obtainedParams=obtained_params,
                                 )
                         else:
