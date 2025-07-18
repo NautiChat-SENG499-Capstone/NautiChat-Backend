@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from LLM.core import LLM
 from LLM.schemas import RunConversationResponse
+from src.admin.service import increment_usage
 from src.auth.schemas import UserOut
 from src.logger import logger
 
@@ -152,6 +153,9 @@ async def generate_response(
         )
 
         message.response = llm_result.response
+        # Handle incrementing usage if sources are present
+        if llm_result.sources:
+            await increment_usage(llm_result.sources, db)
         # Handle queueing data download
         if llm_result.dpRequestId:
             logger.info(
