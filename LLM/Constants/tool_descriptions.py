@@ -520,20 +520,22 @@ toolDescriptions = [
         "function": {
             "name": "plot_monthly_water_depth",
             "description": (
-            "Retrieve and plot water depth readings for Cambridge Bay over a specified month using CTD sensor data. "
-            "This function queries Ocean Networks Canada's scalar data API for the 'depth' property and returns a time series plot "
-            "along with raw timestamps and depth values. The plot is generated as a Matplotlib figure."
+            "Retrieve a NetCDF (.nc) file containing CTD cast profile data for water depth "
+            "in Cambridge Bay for a given month. The file is generated using Ocean Networks Canada's "
+            "'Cast Scalar Profile Plot and Data' (CSPPD) product, which includes profiles of "
+            "temperature, salinity, depth, and other measurements collected during the month. "
+            "Returns the local file path to the downloaded NetCDF file."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "month_str": {
                         "type": "string",
-                        "description": "Month in YYYY-MM format (e.g., '2025-07') representing the month to retrieve water depth data for."
+                        "description": "Month in YYYY-MM format (e.g., '2025-07') to retrieve water depth cast data for."
                     },
                     "user_onc_token": {
                         "type": "string",
-                        "description": "User's ONC API access token."
+                        "description": "A valid Ocean Networks Canada API access token."
                     }
                 },
                 "required": ["month_str", "user_onc_token"]
