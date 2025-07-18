@@ -1,4 +1,3 @@
-import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -198,7 +197,7 @@ async def get_deployed_devices_over_time_interval(
                         "locationCode": locationCode,
                         "dateFrom": dateFrom,
                         "dateTo": dateTo,
-                        "user_onc_token": user_onc_token,
+                        "token": user_onc_token,
                     },
                     "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
                 }
@@ -210,7 +209,7 @@ async def get_deployed_devices_over_time_interval(
                         "locationCode": locationCode,
                         "dateFrom": dateFrom,
                         "dateTo": dateTo,
-                        "user_onc_token": user_onc_token,
+                        "token": user_onc_token,
                     },
                     "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
                 }
@@ -222,7 +221,7 @@ async def get_deployed_devices_over_time_interval(
                         "locationCode": locationCode,
                         "dateFrom": dateFrom,
                         "dateTo": dateTo,
-                        "user_onc_token": user_onc_token,
+                        "token": user_onc_token,
                     },
                     "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
                 }
@@ -248,7 +247,7 @@ async def get_deployed_devices_over_time_interval(
                 "locationCode": locationCode,
                 "dateFrom": dateFrom,
                 "dateTo": dateTo,
-                "user_onc_token": user_onc_token,
+                "token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
         }
@@ -263,7 +262,7 @@ async def get_deployed_devices_over_time_interval(
             "locationCode": locationCode,
             "dateFrom": dateFrom,
             "dateTo": dateTo,
-            "user_onc_token": user_onc_token,
+            "token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
     }
@@ -310,11 +309,11 @@ async def get_active_instruments_at_cambridge_bay(user_onc_token: str):
     return {
         "response": {
             "result": result,
-            "description": f"The number of instruments collecting data at Cambridge Bay and the active instruments",
+            "description": "The number of instruments collecting data at Cambridge Bay and the active instruments",
         },
         "urlParamsUsed": {
             "locationCode": locationCode,
-            "user_onc_token": user_onc_token,
+            "token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
     }

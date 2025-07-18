@@ -1,15 +1,14 @@
 from typing import List
 
 from fastapi import HTTPException, Request
-from sqlalchemy import exists, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from LLM.core import LLM
-from LLM.schemas import RunConversationResponse
+from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 from src.admin.service import increment_usage
 from src.auth.schemas import UserOut
-from src.logger import logger
 
 from .models import Conversation as ConversationModel
 from .models import Feedback as FeedbackModel
@@ -104,6 +103,33 @@ async def delete_conversation(
     await db.commit()
 
 
+async def populate_message_from_response(
+    llm_response: RunConversationResponse, message: MessageModel, db: AsyncSession
+) -> None:
+    message.response = llm_response.response
+
+    if llm_response.citation:
+        message.citation = llm_response.citation
+
+    if llm_response.baseUrl:
+        onc_api_url = llm_response.baseUrl
+        url_params = llm_response.urlParamsUsed or {}
+
+        # LLM code is always adding ? to end of base url
+        onc_api_url += "?" if not onc_api_url.endswith("?") else ""
+        onc_api_url += "&".join([f"{key}={value}" for key, value in url_params.items()])
+
+        message.onc_api_url = onc_api_url
+
+    if llm_response.dpRequestId:
+        message.request_id = llm_response.dpRequestId
+
+    # Handle incrementing usage if sources are present
+    if llm_response.sources:
+        await increment_usage(llm_response.sources, db)
+        message.sources = llm_response.sources
+
+
 async def generate_response(
     llm_query: CreateLLMQuery,
     current_user: UserOut,
@@ -111,21 +137,16 @@ async def generate_response(
     request: Request,
 ) -> Message:
     """Validate user creating new Message that will be sent to LLM"""
-    # Ensure LLM and RAG are initialized
-    state = request.app.state
-    if not state.llm or not state.rag:
-        raise HTTPException(status_code=500, detail="LLM/RAG not initialized")
 
     # Verify conversation exists
-    conversation_exists = await db.execute(
-        select(
-            exists().where(
-                ConversationModel.user_id == current_user.id,
-                ConversationModel.conversation_id == llm_query.conversation_id,
-            )
+    conversation_result = await db.execute(
+        select(ConversationModel).where(
+            ConversationModel.user_id == current_user.id,
+            ConversationModel.conversation_id == llm_query.conversation_id,
         )
     )
-    if not conversation_exists:
+    existing_conversation = conversation_result.scalar_one_or_none()
+    if not existing_conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Fetch up to MAX_CONTEXT_WORDS of prior messages for context
@@ -145,32 +166,31 @@ async def generate_response(
 
     # Call LLM to generate response
     try:
-        llm: LLM = state.llm
+        llm: LLM = request.app.state.llm
         llm_result: RunConversationResponse = await llm.run_conversation(
             user_prompt=llm_query.input,
             chat_history=chat_history,
             user_onc_token=current_user.onc_token,
+            obtained_params=ObtainedParamsDictionary(
+                **existing_conversation.obtained_params
+            ),
         )
 
-        message.response = llm_result.response
-        # Handle incrementing usage if sources are present
-        if llm_result.sources:
-            await increment_usage(llm_result.sources, db)
-        # Handle queueing data download
-        if llm_result.dpRequestId:
-            logger.info(
-                f"Got a data product request id back from LLM {llm_result.dpRequestId}"
-            )
-            message.request_id = llm_result.dpRequestId
+        await populate_message_from_response(llm_result, message, db)
+
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error generating response from LLM: {str(e)}"
         )
 
-    # Add message to DB
+    existing_conversation.obtained_params = llm_result.obtainedParams.model_dump()
+
     db.add(message)
     await db.commit()
+
     await db.refresh(message)
+    await db.refresh(existing_conversation)
+
     return message
 
 

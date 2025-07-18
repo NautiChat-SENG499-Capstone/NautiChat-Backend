@@ -37,7 +37,7 @@ class RunConversationResponse(BaseModel):
 
     status: StatusCode
     response: str
-    obtainedParams: Optional[ObtainedParamsDictionary] = Field(
+    obtainedParams: ObtainedParamsDictionary = Field(
         default_factory=ObtainedParamsDictionary
     )
     dpRequestId: Optional[int] = None

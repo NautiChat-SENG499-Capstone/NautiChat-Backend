@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -22,9 +22,13 @@ class Conversation(Base):
     # one-to-many: conversation can have many messages
     # Delete messages if conversation is deleted
     # NOTE: lazy:selectin eager loads by default
-    messages: Mapped[List["Message"]] = relationship(
+    messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan", lazy="selectin"
     )
+    obtained_params: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
+
     # Many-to-one: links to user who 'owns' conversation
     user: Mapped["User"] = relationship(back_populates="conversations")
 
@@ -43,6 +47,9 @@ class Message(Base):
     input: Mapped[str] = mapped_column(Text)
     response: Mapped[str] = mapped_column(Text)
     request_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    onc_api_url: Mapped[str] = mapped_column(String, nullable=True)
+    citation: Mapped[str] = mapped_column(String, nullable=True)
+    sources: Mapped[list] = mapped_column(JSON, default=list)
 
     # many-to-one: each message belongs to a conversation
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
