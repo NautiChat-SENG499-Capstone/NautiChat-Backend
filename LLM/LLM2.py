@@ -5,8 +5,8 @@ from collections import OrderedDict
 from datetime import datetime
 
 import pandas as pd
-from langchain.output_parsers import PydanticOutputParser
 
+# from langchain.output_parsers import PydanticOutputParser
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.system_prompts import (
     generate_system_prompt,
