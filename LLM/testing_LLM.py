@@ -12,9 +12,9 @@ onc_token = os.getenv("ONC_TOKEN")
 
 from LLM.Constants.status_codes import StatusCode
 from LLM.Environment import Environment
+from LLM.LLM2 import LLM
 from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary
-from LLM.ThreeLLMs import LLM
 
 # from LLM.core import LLM
 

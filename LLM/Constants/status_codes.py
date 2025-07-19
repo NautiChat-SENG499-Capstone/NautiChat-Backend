@@ -7,3 +7,4 @@ class StatusCode(Enum):
     PARAMS_NEEDED = 3
     ERROR_WITH_DATA_DOWNLOAD = 4
     LLM_ERROR = 5
+    TOOL_CALLS = 6
