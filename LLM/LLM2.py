@@ -122,7 +122,7 @@ class LLM:
             )
             print("Unique tool calls:", tool_calls)
             toolMessages = []
-            baseUrlsList = []
+            baseUrlList = []
             urlParamsUsedList = []
             for tool_call in tool_calls:
                 # print(tool_call)
@@ -151,7 +151,7 @@ class LLM:
                         function_args or {},
                         user_onc_token=user_onc_token or self.env.get_onc_token(),
                     )
-                    baseUrlsList.append(
+                    baseUrlList.append(
                         function_response.get(
                             "baseUrl",
                             "",
@@ -239,7 +239,7 @@ class LLM:
             return {
                 "status": StatusCode.TOOL_CALLS,
                 "toolMessages": toolMessages,
-                "baseUrls": baseUrlsList,
+                "baseUrls": baseUrlList,
                 "urlParamsUsed": urlParamsUsedList,
             }
         else:
@@ -342,6 +342,67 @@ class LLM:
             inputs_uncertain,
         )
 
+    async def run_final_response(
+        self,
+        currentDate: str,
+        user_prompt: str,
+        chat_history: list[dict] = [],
+        vector_content: str = "",
+        toolMessages: list[dict] = None,
+        urlParamsUsedList: list[dict] = [],
+        baseUrlList: list[str] = [],
+        sources: list[str] = [],
+    ):
+        systemPromptFinalResponse = generate_system_prompt(
+            system_prompt_final_response,
+            context={
+                "current_date": currentDate,
+            },
+        )
+        messagesNoContext = [
+            {
+                "role": "system",
+                "content": systemPromptFinalResponse,
+            },
+            *chat_history,
+            {"role": "assistant", "content": vector_content},
+        ]
+        if toolMessages:
+            messagesNoContext.extend(
+                toolMessages
+            )  # Add tool messages to the conversation
+        messagesNoContext.append(
+            {
+                "role": "user",
+                "content": user_prompt,
+            }
+        )  # Add the user prompt to the conversation
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messagesNoContext,  # Conversation history without context and different starting system prompt
+            max_completion_tokens=4096,
+            temperature=0,
+            stream=False,
+        )  # Calls LLM again with all the data from all functions
+        # Return the final response
+        print("final response: ", response.choices[0].message)
+        response = response.choices[0].message.content
+        if toolMessages:
+            return RunConversationResponse(
+                status=StatusCode.REGULAR_MESSAGE,
+                response=response,
+                urlParamsUsed=urlParamsUsedList[0] if urlParamsUsedList else "",
+                baseUrl=baseUrlList[0] if baseUrlList else "",
+                sources=sources,
+            )
+        else:
+            print(response)
+            return RunConversationResponse(
+                status=StatusCode.REGULAR_MESSAGE,
+                response=response,
+                sources=sources,
+            )
+
     async def run_conversation(
         self,
         user_prompt: str,
@@ -351,7 +412,6 @@ class LLM:
     ) -> RunConversationResponse:
         try:
             currentDate = datetime.now().strftime("%Y-%m-%d")
-
             (
                 reasoning,
                 tools_needed,
@@ -362,25 +422,30 @@ class LLM:
                 currentDate, user_prompt, chat_history, obtained_params
             )
             if inputs_uncertain:
-                return await self.handle_uncertain_inputs(inputs_uncertain)
+                return await RunConversationResponse(
+                    **self.handle_uncertain_inputs(inputs_uncertain), sources=[]
+                )
 
             VectorDBinput = "User: " + user_prompt + "Assistant: " + str(inputs_missing)
             vectorDBResponse = self.RAG_instance.get_documents(VectorDBinput)
             print("Vector DB Response:", vectorDBResponse)
+            sources = []
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
                 else:
+                    if "sources" in vectorDBResponse.columns:
+                        # we need a list of sources to return with the LLM response
+                        sources = vectorDBResponse["sources"].tolist()
                     # Convert DataFrame to a more readable format
-                    # vectorDBResponse['contents'] = vectorDBResponse['contents'].apply(lambda x: update_date_to(x, currentDate))
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
-            print("Vector DB Response:", vector_content)
+            # print("Vector DB Response:", vector_content)
 
             toolMessages = None
             urlParamsUsedList = []
-            baseUrlsList = []
+            baseUrlList = []
             if tools_needed:
                 print("NEED INPUTS")
                 print("obtained Params before tools called: ", obtained_params)
@@ -396,68 +461,40 @@ class LLM:
                 if response.get("status") == StatusCode.TOOL_CALLS:
                     toolMessages = response.get("toolMessages", [])
                     urlParamsUsedList = response.get("urlParamsUsed", [])
-                    baseUrlsList = response.get("baseUrls", [])
+                    baseUrlList = response.get("baseUrls", [])
                     print("Tool Messages:", toolMessages)
                     if not toolMessages:
                         return RunConversationResponse(
                             status=StatusCode.LLM_ERROR,
                             response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
+                            sources=sources,
                         )
                 elif (
                     not response.get("status") == StatusCode.REGULAR_MESSAGE
                 ):  # if the status is not REGULAR_MESSAGE, it means we have a special case like PARAMS_NEEDED or PROCESSING_DATA_DOWNLOAD wich just want to return
-                    return RunConversationResponse(**response)
+                    return RunConversationResponse(
+                        **response,
+                        sources=sources,
+                    )
                 else:
                     toolMessages = None
+            return await self.run_final_response(
+                currentDate,
+                user_prompt,
+                chat_history,
+                vector_content,
+                toolMessages,
+                urlParamsUsedList,
+                baseUrlList,
+                sources,
+            )  # The final response is the last step where we call the LLM again with all the data from all functions and the user prompt
 
-            systemPromptFinalResponse = generate_system_prompt(
-                system_prompt_final_response,
-                context={
-                    "current_date": currentDate,
-                },
-            )
-            messagesNoContext = [
-                {
-                    "role": "system",
-                    "content": systemPromptFinalResponse,
-                },
-                {"role": "assistant", "content": vector_content},
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
-            ]
-            if toolMessages:
-                messagesNoContext.extend(
-                    toolMessages
-                )  # Add tool messages to the conversation
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messagesNoContext,  # Conversation history without context and different starting system prompt
-                max_completion_tokens=4096,
-                temperature=0,
-                stream=False,
-            )  # Calls LLM again with all the data from all functions
-            # Return the final response
-            print("final response: ", response.choices[0].message)
-            response = response.choices[0].message.content
-            if toolMessages:
-                return RunConversationResponse(
-                    status=StatusCode.REGULAR_MESSAGE,
-                    response=response,
-                    urlParamsUsed=urlParamsUsedList[0] if urlParamsUsedList else "",
-                    baseUrl=baseUrlsList[0] if baseUrlsList else "",
-                )
-            else:
-                print(response)
-                return RunConversationResponse(
-                    status=StatusCode.REGULAR_MESSAGE, response=response
-                )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
             return RunConversationResponse(
                 status=StatusCode.LLM_ERROR,
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
+                sources=sources,
             )
 
     async def call_tool(self, fn, args, user_onc_token):
