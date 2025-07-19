@@ -414,27 +414,57 @@ toolDescriptions = [
             },
         },
     },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "get_ship_noise_for_date",
-    #         "description": "Get 24 hours of ship-noise data for Cambridge Bay on a specific date, returned as a JSON string of the full time series.",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "date_from_str": {
-    #                     "type": "string",
-    #                     "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve ship-noise data."
-    #                 },
-    #                 "user_onc_token": {
-    #                     "type": "string",
-    #                     "description": "User's ONC token for API access. This is required to access the data.",
-    #                 }
-    #             },
-    #             "required": ["date_from_str", "user_onc_token"]
-    #         },
-    #     },
-    # },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ship_noise_acoustic_for_date",
+            "description": (
+            "Get 24 hours of ship noise acoustic data for Cambridge Bay using the ONC hydrophone system. "
+            "This function requests a downloadable WAV audio data product from the Ocean Networks Canada API, "
+            "using device category 'HYDROPHONE' at location 'CBYIP'. It returns order metadata including a URL, "
+            "parameters used in the request, and a description of the data order."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date_from_str": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window."
+                    },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC API access token."
+                    }
+                },
+                "required": ["date_from_str", "user_onc_token"]
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "plot_spectrogram_for_date",
+            "description": (
+            "Retrieve a pre-generated spectrogram image for hydrophone data from Cambridge Bay. "
+            "This function downloads a PNG spectrogram (data product code 'HSD') from the Ocean Networks Canada API "
+            "for a 24-hour period starting from the given date. It returns the image as a PIL.Image.Image object if successful."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date_str": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window."
+                    },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "User's ONC API access token."
+                    }
+                },
+                "required": ["date_str", "user_onc_token"]
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -482,6 +512,33 @@ toolDescriptions = [
                     # }
                 },
                 "required": ["date_from_str", "date_to_str"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "plot_monthly_water_depth",
+            "description": (
+            "Retrieve a NetCDF (.nc) file containing CTD cast profile data for water depth "
+            "in Cambridge Bay for a given month. The file is generated using Ocean Networks Canada's "
+            "'Cast Scalar Profile Plot and Data' (CSPPD) product, which includes profiles of "
+            "temperature, salinity, depth, and other measurements collected during the month. "
+            "Returns the local file path to the downloaded NetCDF file."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month_str": {
+                        "type": "string",
+                        "description": "Month in YYYY-MM format (e.g., '2025-07') to retrieve water depth cast data for."
+                    },
+                    "user_onc_token": {
+                        "type": "string",
+                        "description": "A valid Ocean Networks Canada API access token."
+                    }
+                },
+                "required": ["month_str", "user_onc_token"]
             },
         },
     },
