@@ -1,12 +1,12 @@
-from datetime import datetime, timedelta
-from onc import ONC
 import asyncio
 import sys
+from datetime import datetime, timedelta
 
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.io import wavfile
 import httpx
+import matplotlib.pyplot as plt
+import numpy as np
+from onc import ONC
+from scipy.io import wavfile
 
 # import os
 # from dotenv import load_dotenv
@@ -73,7 +73,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(
                 "deviceCategoryCode": "METSTN",
                 "dateFrom": date_from_str,
                 "dateTo": date_to_str,
-                "user_onc_token": user_onc_token,
+                "token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }
@@ -99,7 +99,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(
             "deviceCategoryCode": "METSTN",
             "dateFrom": date_from_str,
             "dateTo": date_to_str,
-            "user_onc_token": user_onc_token,
+            "token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
@@ -148,7 +148,7 @@ async def get_oxygen_data_24h(
                 "dateFrom": date_from_str,
                 "dateTo": date_to_str,
                 "resamplePeriod": "3600",
-                "user_onc_token": user_onc_token,
+                "token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }
@@ -169,17 +169,14 @@ async def get_oxygen_data_24h(
             "deviceCategoryCode": "METSTN",
             "dateFrom": date_from_str,
             "dateTo": date_to_str,
-            "user_onc_token": user_onc_token,
+            "token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
 
 
 # I’m interested in data on ship noise for July 31, 2024 / Get me the acoustic data for the last day in July of 2024
-async def get_ship_noise_acoustic_for_date(
-    date_from_str: str,
-    user_onc_token: str
-):
+async def get_ship_noise_acoustic_for_date(date_from_str: str, user_onc_token: str):
     """
     Get 24 hours of ship noise acoustic data for Cambridge Bay.
     Args:
@@ -208,7 +205,7 @@ async def get_ship_noise_acoustic_for_date(
         "extension": "wav",
         "dateFrom": date_from_str,
         "dateTo": date_to_str,
-        "dpo_audioDownsample": -1, # Return data with its original sampling rate
+        "dpo_audioDownsample": -1,  # Return data with its original sampling rate
         # Set to 1 below to allow search to fill in any data files for the requested
         # format that are not already in the archive. Takes about an hour to process for 1 day.
         "dpo_audioFormatConversion": 0,
@@ -220,15 +217,12 @@ async def get_ship_noise_acoustic_for_date(
 
     try:
         orders = onc.orderDataProduct(
-            params,
-            max_retries,
-            download_results_only,
-            include_metadata_file
+            params, max_retries, download_results_only, include_metadata_file
         )
     except Exception as e:
         print(
             f"Error: failed to order hydrophone data after {max_retries} attempts:\n  {e}",
-            file = sys.stderr
+            file=sys.stderr,
         )
         # Exit the entire program with a non‑zero status
         sys.exit(1)
@@ -241,14 +235,14 @@ async def get_ship_noise_acoustic_for_date(
                 f"from {date_from_str} to {date_to_str}"
             ),
         },
-        "urlParamsUsed": {**params, "user_onc_token": user_onc_token},
+        "urlParamsUsed": {**params, "token": user_onc_token},
         "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
     }
 
 
 # Can I see the noise data for July 31, 2024 as a spectogram?
 async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
-"""
+    """
     Download and return the pre-generated ONC spectrogram image for a given date.
 
     Args:
@@ -262,7 +256,9 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
 
     # Define 24-hour window
     date_from = date_str
-    date_to = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    date_to = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
 
     params = {
         "method": "GET",
@@ -273,7 +269,7 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
         "dateFrom": date_from,
         "dateTo": date_to,
         "token": user_onc_token,
-        "outputFormat": "zip"
+        "outputFormat": "zip",
     }
 
     response = requests.get(base_url, params=params)
@@ -288,7 +284,7 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
         with open(zip_path, "wb") as f:
             f.write(response.content)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(tmpdir)
 
         png_files = [f for f in os.listdir(tmpdir) if f.endswith(".png")]
@@ -349,7 +345,7 @@ async def get_wind_speed_at_timestamp(
                 "propertyCode": "windspeed",
                 "dateFrom": date_from_str,
                 "dateTo": date_to_str,
-                "user_onc_token": user_onc_token,
+                "token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }
@@ -381,7 +377,7 @@ async def get_wind_speed_at_timestamp(
             "propertyCode": "windspeed",
             "dateFrom": date_from_str,
             "dateTo": date_to_str,
-            "user_onc_token": user_onc_token,
+            "token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
@@ -434,7 +430,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
                 "sensorCategoryCodes": "ice_thickness_corrected",
                 "dateFrom": date_from_str,
                 "dateTo": date_to_str,
-                "user_onc_token": user_onc_token,
+                "token": user_onc_token,
             },
             "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
         }  # No data available for the given date
@@ -459,7 +455,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
             "sensorCategoryCodes": "ice_thickness_corrected",
             "dateFrom": date_from_str,
             "dateTo": date_to_str,
-            "user_onc_token": user_onc_token,
+            "token": user_onc_token,
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
@@ -467,7 +463,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 
 # I would like a plot which shows the water depth so I can get an idea of tides in the Arctic for July 2023
 async def plot_monthly_water_depth(month_str: str, user_onc_token: str) -> str:
-      """
+    """
     Retrieve the NetCDF (.nc) file of water depth data for Cambridge Bay for a given month
     using the 'Cast Scalar Profile Plot and Data' (CSPPD) data product.
 
@@ -501,7 +497,9 @@ async def plot_monthly_water_depth(month_str: str, user_onc_token: str) -> str:
 
     async with httpx.AsyncClient() as client:
         # Request product generation/download URL
-        order_resp = await client.get("https://data.oceannetworks.ca/api/dataProductDelivery", params=params)
+        order_resp = await client.get(
+            "https://data.oceannetworks.ca/api/dataProductDelivery", params=params
+        )
         order_resp.raise_for_status()
         data = order_resp.json()
         download_url = data.get("downloadUrl")
@@ -520,6 +518,7 @@ async def plot_monthly_water_depth(month_str: str, user_onc_token: str) -> str:
 
     print(f"Saved NetCDF file to {filename}")
     return filename
+
 
 # Can you show me a recent video from the shore camera?
 # TO DO data download
