@@ -7,6 +7,7 @@ from src.database import Base
 
 # want to expose import for type checkers but don't want circular import
 if TYPE_CHECKING:
+    from src.admin.models import VectorDocument
     from src.llm.models import Conversation
 
 
@@ -25,4 +26,12 @@ class User(Base):
     # Ensures deleting a user also deletes all their conversations
     conversations: Mapped[List["Conversation"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+
+    # one-to-many: a user can upload many vector documents
+    # Ensures deleting a user doesnt delete vector documents
+    # but sets their uploaded_by_id to None
+    vector_documents: Mapped[List["VectorDocument"]] = relationship(
+        back_populates="uploaded_by",
+        passive_deletes=True,
     )

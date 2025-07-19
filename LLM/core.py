@@ -127,10 +127,14 @@ class LLM:
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
             print("Vector DB Response:", vectorDBResponse)
+            sources = []
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
                 else:
+                    if "sources" in vectorDBResponse.columns:
+                        # we need a list of sources to return with the LLM response
+                        sources = vectorDBResponse["sources"].tolist()
                     # Convert DataFrame to a more readable format
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
@@ -370,11 +374,14 @@ class LLM:
                         "baseUrl",
                         "",
                     ),
+                    sources=sources,
                 )
             else:
                 print(response_message)
                 return RunConversationResponse(
-                    status=StatusCode.REGULAR_MESSAGE, response=response_message.content
+                    status=StatusCode.REGULAR_MESSAGE,
+                    response=response_message.content,
+                    sources=sources,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)

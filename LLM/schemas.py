@@ -47,6 +47,7 @@ class RunConversationResponse(BaseModel):
     citation: Optional[str] = None  # may need to switch to a list of strings
     baseUrl: Optional[str] = None
     urlParamsUsed: Optional[dict] = Field(default_factory=dict)
+    sources: list[str] = Field(default_factory=list)
 
 
 class PlanningResponse(BaseModel):

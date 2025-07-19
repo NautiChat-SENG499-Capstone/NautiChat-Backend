@@ -74,7 +74,13 @@ class RAG:
         filtered_hits = [hit for hit in search_results if hit.score >= 0.4]
 
         documents = [
-            Document(page_content=hit.payload["text"], metadata={"score": hit.score})
+            Document(
+                page_content=hit.payload["text"],
+                metadata={
+                    "score": hit.score,
+                    "source": hit.payload.get("source", "unknown"),
+                },
+            )
             for hit in filtered_hits
         ]
 
@@ -100,5 +106,6 @@ class RAG:
             total_tokens += approx_tokens
 
         compression_contents = [doc.page_content for doc in selected_docs]
-        df = pd.DataFrame({"contents": compression_contents})
+        sources = [doc.metadata.get("source", "unknown") for doc in selected_docs]
+        df = pd.DataFrame({"contents": compression_contents, "sources": sources})
         return df
