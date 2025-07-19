@@ -1,9 +1,8 @@
 # from LLM.Constants.StatusCodes import StatusCode
 import json
-import re
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from LLM.Constants.status_codes import StatusCode  # Change to LLM. for production
 
@@ -13,7 +12,6 @@ T = TypeVar("T", bound=BaseModel)
 def parse_llm_response(
     raw_response: str,
     model: Type[T],
-    extract_json: bool = True,
 ) -> T:
     """
     Parse a raw LLM response string into a Pydantic model instance.
@@ -30,23 +28,22 @@ def parse_llm_response(
     Raises:
         ValueError: If JSON parsing or validation fails.
     """
+    import ast
+
     try:
-        json_text = raw_response
-        if extract_json:
-            # Attempt to extract JSON object from text (if wrapped in extra text)
-            match = re.search(r"\{.*\}", raw_response, re.DOTALL)
-            if not match:
-                raise ValueError("No JSON object found in the response text.")
-            json_text = match.group(0)
-
-        data = json.loads(json_text)
-        return model.model_validate(data)
-
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON: {e}")
-
-    except ValidationError as e:
-        raise ValueError(f"Model validation error: {e}")
+        try:
+            print(f"Raw response: {raw_response}")
+            data = json.loads(raw_response)
+            print(f"data: {data}")
+            return model.model_validate(data)
+        except json.JSONDecodeError as e:
+            print(f"Invalid JSON: {e}")
+            data = ast.literal_eval(raw_response)
+            print(f"data: {data}")
+            return model.model_validate(data)
+    except Exception as e:
+        print(f"Model validation error: {e}")
+        raise ValueError(f"Could not parse model: {e}")
 
 
 class ObtainedParamsDictionary(BaseModel):
@@ -118,7 +115,7 @@ class PlanningResponse(BaseModel):
     inputs_uncertain: Dict[str, str] = Field(
         default_factory=dict,
         description=(
-            "Inputs that might be inferred or partially present in the user's input, but are not confidently resolved. Should be confirmed or refined before using."
+            "Inputs that might be inferred or partially present in the user's input, but are not confidently resolved. Should be confirmed or refined before using. Dont include non required inputs here."
         ),
     )
 

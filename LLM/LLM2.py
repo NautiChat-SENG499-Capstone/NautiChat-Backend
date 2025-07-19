@@ -24,6 +24,7 @@ from LLM.schemas import (
     ObtainedParamsDictionary,
     PlanningResponse,
     RunConversationResponse,
+    ToolCall,
     ToolCallList,
     parse_llm_response,
 )
@@ -48,7 +49,7 @@ sys.modules["LLM"] = sys.modules[__name__]
 # parser = PydanticOutputParser(pydantic_object=PlanningResponse)
 # formatInstructions = parser.get_format_instructions()
 formatPlanningInstructions = PlanningResponse.model_json_schema()
-formatToolCallingInstructions = ToolCallList.model_json_schema()
+formatToolCallingInstructions = ToolCall.model_json_schema()
 
 
 class LLM:
@@ -70,215 +71,6 @@ class LLM:
             "get_ice_thickness": get_ice_thickness,
         }
 
-    async def handle_tool_calls(
-        self,
-        currentDate,
-        inputs_provided,
-        inputs_missing,
-        vector_content,
-        user_onc_token=None,
-        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
-    ):
-        systemPromptToolExecution = generate_system_prompt(
-            system_prompt_tool_execution,
-            context={
-                "current_date": currentDate,
-                "format_instructions": formatToolCallingInstructions,
-                "inputs_provided": inputs_provided,
-                "inputs_missing": inputs_missing,
-                "vector_db_results": vector_content,
-            },
-        )
-
-        messages = [
-            {
-                "role": "system",
-                "content": systemPromptToolExecution,
-            },
-        ]
-
-        response = self.client.chat.completions.create(
-            model=self.model,  # LLM to use
-            messages=messages,  # Includes Conversation history
-            stream=False,
-            # tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
-            # tool_choice="auto",  # Let our LLM decide when to use tools
-            max_completion_tokens=1024,  # Maximum number of tokens to allow in our response
-            temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
-        )
-        response_message = response.choices[0].message.content
-        tool_calls = parse_llm_response(response_message, ToolCallList)
-        print("Tool Calls:", tool_calls)
-
-        doing_data_download = False
-
-        if tool_calls:
-            # print("Tool calls detected, processing...")
-            # print("tools calls:", tool_calls)
-            tool_calls = list(
-                OrderedDict(
-                    ((call.id, call.name, call.arguments), call) for call in tool_calls
-                ).values()
-            )
-            print("Unique tool calls:", tool_calls)
-            toolMessages = []
-            baseUrlList = []
-            urlParamsUsedList = []
-            for tool_call in tool_calls:
-                # print(tool_call)
-                # print()
-                function_name = tool_call.name
-
-                if function_name in self.available_functions:
-                    if function_name == "generate_download_codes":
-                        # Special case for download codes
-                        print("Generating download codes...")
-                        doing_data_download = True
-                    try:
-                        function_args = json.loads(tool_call.arguments)
-                    except json.JSONDecodeError:
-                        function_args = {}
-                    print(
-                        f"Calling function: {function_name} with args: {function_args}"
-                    )
-                    if doing_data_download:
-                        print("function_args: ", function_args)
-                        # print("**function_args: ",**function_args)
-                        function_args["obtained_params"] = obtained_params
-
-                    function_response = await self.call_tool(
-                        self.available_functions[function_name],
-                        function_args or {},
-                        user_onc_token=user_onc_token or self.env.get_onc_token(),
-                    )
-                    baseUrlList.append(
-                        function_response.get(
-                            "baseUrl",
-                            "",
-                        )
-                    )
-                    urlParamsUsedList.append(function_response.get("urlParamsUsed", {}))
-
-                    print("Function response:", function_response)
-                    if doing_data_download:
-                        DataDownloadStatus = function_response.get("status")
-                        if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
-                            print("Download parameters needed, returning response now")
-                            obtained_params: ObtainedParamsDictionary = (
-                                function_response.get("obtained_params", {})
-                            )
-                            print("Obtained parameters:", obtained_params)
-                            print("Obtained parameters:", type(obtained_params))
-                            # Return a response indicating that Paramaters are needed
-                            return RunConversationResponse(
-                                status=StatusCode.PARAMS_NEEDED,
-                                response=function_response.get("response"),
-                                obtained_params=obtained_params,
-                            )
-                        elif DataDownloadStatus == StatusCode.PROCESSING_DATA_DOWNLOAD:
-                            print("download done so returning response now")
-                            dpRequestId = function_response.get("dpRequestId")
-                            doi = function_response.get("doi", "No DOI available")
-                            citation = function_response.get(
-                                "citation", "No citation available"
-                            )
-                            # Return a response indicating that the download is being processed
-                            return RunConversationResponse(
-                                status=StatusCode.PROCESSING_DATA_DOWNLOAD,
-                                response=function_response.get(
-                                    "response", "Your download is being processed."
-                                ),
-                                dpRequestId=dpRequestId,
-                                doi=doi,
-                                citation=citation,
-                                urlParamsUsed=function_response.get(
-                                    "urlParamsUsed", {}
-                                ),
-                                baseUrl=function_response.get(
-                                    "baseUrl",
-                                    "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
-                                ),
-                            )
-                        elif DataDownloadStatus == StatusCode.ERROR_WITH_DATA_DOWNLOAD:
-                            print("Download error so returning response now")
-                            obtained_params: ObtainedParamsDictionary = (
-                                function_response.get("obtained_params", {})
-                            )
-                            # Return a response indicating that there was an error with the download
-                            return RunConversationResponse(
-                                status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
-                                response=function_response.get(
-                                    "response",
-                                    "An error occurred while processing your download request.",
-                                ),
-                                obtained_params=obtained_params,
-                                urlParamsUsed=function_response.get(
-                                    "urlParamsUsed", {}
-                                ),
-                                baseUrl=function_response.get(
-                                    "baseUrl",
-                                    "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
-                                ),
-                            )
-                    else:
-                        # Not doing data download so clearing the obtained_params
-                        obtained_params: ObtainedParamsDictionary = (
-                            ObtainedParamsDictionary()
-                        )
-
-                    toolMessages.append(
-                        {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",  # Indicates this message is from tool use
-                            "name": function_name,
-                            "content": json.dumps(
-                                function_response.get("response", "")
-                            ),
-                        }
-                    )  # May be able to use this for getting most recent data if needed.
-            return {
-                "status": StatusCode.TOOL_CALLS,
-                "toolMessages": toolMessages,
-                "baseUrls": baseUrlList,
-                "urlParamsUsed": urlParamsUsedList,
-            }
-        else:
-            return RunConversationResponse(
-                status=StatusCode.REGULAR_MESSAGE,
-                response="No tool calls detected. Please try again with a different query.",
-            )
-
-    async def handle_uncertain_inputs(
-        self,
-        inputs_uncertain: dict,
-    ) -> RunConversationResponse:
-        systemPromptUncertain = generate_system_prompt(
-            system_prompt_uncertain,
-            context={
-                "inputs_uncertain": inputs_uncertain,
-                "format_instructions": formatPlanningInstructions,
-            },
-        )
-        messages = [
-            {
-                "role": "system",
-                "content": systemPromptUncertain,
-            },
-        ]
-        response = self.client.chat.completions.create(
-            model=self.model,  # LLM to use
-            messages=messages,  # Includes Conversation history
-            stream=False,
-            max_completion_tokens=512,  # Maximum number of tokens to allow in our response
-            temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
-        )
-        response_message = response.choices[0].message.content
-
-        return RunConversationResponse(
-            status=StatusCode.REGULAR_MESSAGE,
-            response=response_message,
-        )
-
     async def run_planning(
         self,
         currentDate: str,
@@ -290,7 +82,9 @@ class LLM:
             system_prompt_reasoning,
             context={
                 "current_date": currentDate,
-                "obtained_params": json.dumps(obtained_params),
+                "obtained_params": json.dumps(
+                    obtained_params.model_dump(exclude_none=True)
+                ),
                 "format_instructions": formatPlanningInstructions,
                 "tool_descriptions": json.dumps(toolDescriptions),
             },
@@ -342,6 +136,235 @@ class LLM:
             inputs_uncertain,
         )
 
+    async def handle_uncertain_inputs(
+        self,
+        inputs_uncertain: dict,
+    ) -> RunConversationResponse:
+        systemPromptUncertain = generate_system_prompt(
+            system_prompt_uncertain,
+            context={
+                "inputs_uncertain": inputs_uncertain,
+            },
+        )
+        messages = [
+            {
+                "role": "system",
+                "content": systemPromptUncertain,
+            },
+        ]
+        response = self.client.chat.completions.create(
+            model=self.model,  # LLM to use
+            messages=messages,  # Includes Conversation history
+            stream=False,
+            max_completion_tokens=512,  # Maximum number of tokens to allow in our response
+            temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
+        )
+        response_message = response.choices[0].message.content
+
+        return RunConversationResponse(
+            status=StatusCode.REGULAR_MESSAGE, response=response_message, sources=[]
+        )
+
+    async def handle_tool_calls(
+        self,
+        currentDate,
+        reasoning,
+        inputs_provided,
+        inputs_missing,
+        vector_content,
+        user_onc_token=None,
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+    ) -> dict:
+        systemPromptToolExecution = generate_system_prompt(
+            system_prompt_tool_execution,
+            context={
+                "current_date": currentDate,
+                "format_instructions": formatToolCallingInstructions,
+                # "reasoning": reasoning,
+                # "inputs_provided": inputs_provided,
+                # "inputs_missing": inputs_missing,
+                # "vector_db_results": vector_content,
+            },
+        )
+
+        messages = [
+            {
+                "role": "system",
+                "content": systemPromptToolExecution,
+            },
+            {
+                "role": "assistant",
+                "content": f"Reasoning: {reasoning}",
+            },
+            {
+                "role": "assistant",
+                "content": f"Inputs provided: {inputs_provided}",
+            },
+            {
+                "role": "assistant",
+                "content": f"Inputs missing: {inputs_missing}",
+            },
+            {
+                "role": "assistant",
+                "content": f"Vector DB results: {vector_content}",
+            },  # Include vector content as context
+        ]
+
+        response = self.client.chat.completions.create(
+            model=self.model,  # LLM to use
+            messages=messages,  # Includes Conversation history
+            stream=False,
+            # tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
+            # tool_choice="auto",  # Let our LLM decide when to use tools
+            max_completion_tokens=1024,  # Maximum number of tokens to allow in our response
+            temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
+        )
+        response_message = response.choices[0].message.content
+        tool_calls = parse_llm_response(response_message, ToolCallList)
+
+        doing_data_download = False
+        tool_calls = tool_calls.tools
+        print("Tool Calls:", tool_calls)
+        if tool_calls:
+            print("Tool calls detected, processing...")
+            print("tools calls:", tool_calls)
+            tool_calls = list(
+                OrderedDict(((call.name), call) for call in tool_calls).values()
+            )
+            print("Unique tool calls:", tool_calls)
+            toolMessages = []
+            baseUrlList = []
+            urlParamsUsedList = []
+            for tool_call in tool_calls:
+                # print(tool_call)
+                # print()
+                function_name = tool_call.name
+                print("Function name:", function_name)
+                print("Function arguments:", tool_call.arguments)
+                # tool_call_json = tool_call.model_dump_json(indent=2)
+                # print("Tool call JSON:", tool_call_json)
+                # print("Function name:", tool_call_json["name"])
+                # print("Function arguments:", tool_call_json["arguments"])
+
+                if function_name in self.available_functions:
+                    if function_name == "generate_download_codes":
+                        # Special case for download codes
+                        print("Generating download codes...")
+                        doing_data_download = True
+                    try:
+                        function_args = tool_call.arguments
+                    except json.JSONDecodeError:
+                        function_args = {}
+                    print(
+                        f"Calling function: {function_name} with args: {function_args}"
+                    )
+                    if doing_data_download:
+                        print("function_args: ", function_args)
+                        # print("**function_args: ",**function_args)
+                        function_args["obtained_params"] = obtained_params
+
+                    function_response = await self.call_tool(
+                        self.available_functions[function_name],
+                        function_args or {},
+                        user_onc_token=user_onc_token or self.env.get_onc_token(),
+                    )
+                    baseUrlList.append(
+                        function_response.get(
+                            "baseUrl",
+                            "",
+                        )
+                    )
+                    urlParamsUsedList.append(function_response.get("urlParamsUsed", {}))
+
+                    print("Function response:", function_response)
+                    if doing_data_download:
+                        DataDownloadStatus = function_response.get("status")
+                        if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
+                            print("Download parameters needed, returning response now")
+                            obtained_params: ObtainedParamsDictionary = (
+                                function_response.get("obtained_params", {})
+                            )
+                            print("Obtained parameters:", obtained_params)
+                            print("Obtained parameters:", type(obtained_params))
+                            # Return a response indicating that Paramaters are needed
+                            return {
+                                "status": StatusCode.PARAMS_NEEDED,
+                                "response": function_response.get("response"),
+                                "obtained_params": obtained_params,
+                            }
+                        elif DataDownloadStatus == StatusCode.PROCESSING_DATA_DOWNLOAD:
+                            print("download done so returning response now")
+                            dpRequestId = function_response.get("dpRequestId")
+                            doi = function_response.get("doi", "No DOI available")
+                            citation = function_response.get(
+                                "citation", "No citation available"
+                            )
+                            # Return a response indicating that the download is being processed
+                            return {
+                                "status": StatusCode.PROCESSING_DATA_DOWNLOAD,
+                                "response": function_response.get(
+                                    "response", "Your download is being processed."
+                                ),
+                                "dpRequestId": dpRequestId,
+                                "doi": doi,
+                                "citation": citation,
+                                "urlParamsUsed": function_response.get(
+                                    "urlParamsUsed", {}
+                                ),
+                                "baseUrl": function_response.get(
+                                    "baseUrl",
+                                    "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
+                                ),
+                            }
+                        elif DataDownloadStatus == StatusCode.ERROR_WITH_DATA_DOWNLOAD:
+                            print("Download error so returning response now")
+                            obtained_params: ObtainedParamsDictionary = (
+                                function_response.get("obtained_params", {})
+                            )
+                            # Return a response indicating that there was an error with the download
+                            return {
+                                "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+                                "response": function_response.get(
+                                    "response",
+                                    "An error occurred while processing your download request.",
+                                ),
+                                "obtained_params": obtained_params,
+                                "urlParamsUsed": function_response.get(
+                                    "urlParamsUsed", {}
+                                ),
+                                "baseUrl": function_response.get(
+                                    "baseUrl",
+                                    "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
+                                ),
+                            }
+                    else:
+                        # Not doing data download so clearing the obtained_params
+                        obtained_params: ObtainedParamsDictionary = (
+                            ObtainedParamsDictionary()
+                        )
+
+                    toolMessages.append(
+                        {
+                            "tool_call_id": str(tool_call.id),
+                            "role": "tool",  # Indicates this message is from tool use
+                            "name": function_name,
+                            "content": json.dumps(
+                                function_response.get("response", "")
+                            ),
+                        }
+                    )  # May be able to use this for getting most recent data if needed.
+            return {
+                "status": StatusCode.TOOL_CALLS,
+                "toolMessages": toolMessages,
+                "baseUrls": baseUrlList,
+                "urlParamsUsed": urlParamsUsedList,
+            }
+        else:
+            return {
+                "status": StatusCode.REGULAR_MESSAGE,
+                "response": "No tool calls detected. Please try again with a different query.",
+            }
+
     async def run_final_response(
         self,
         currentDate: str,
@@ -352,7 +375,7 @@ class LLM:
         urlParamsUsedList: list[dict] = [],
         baseUrlList: list[str] = [],
         sources: list[str] = [],
-    ):
+    ) -> RunConversationResponse:
         systemPromptFinalResponse = generate_system_prompt(
             system_prompt_final_response,
             context={
@@ -423,9 +446,7 @@ class LLM:
                 currentDate, user_prompt, chat_history, obtained_params
             )
             if inputs_uncertain:
-                return await RunConversationResponse(
-                    **self.handle_uncertain_inputs(inputs_uncertain), sources=[]
-                )
+                return await self.handle_uncertain_inputs(inputs_uncertain)
 
             VectorDBinput = "User: " + user_prompt + "Assistant: " + str(inputs_missing)
             vectorDBResponse = self.RAG_instance.get_documents(VectorDBinput)
@@ -451,10 +472,11 @@ class LLM:
                 print("NEED INPUTS")
                 print("obtained Params before tools called: ", obtained_params)
                 response = await self.handle_tool_calls(
-                    currentDate,
-                    inputs_provided,
-                    inputs_missing,
-                    vector_content,
+                    currentDate=currentDate,
+                    reasoning=reasoning,
+                    inputs_provided=inputs_provided,
+                    inputs_missing=inputs_missing,
+                    vector_content=vector_content,
                     user_onc_token=user_onc_token,
                     obtained_params=obtained_params,
                 )
@@ -465,18 +487,17 @@ class LLM:
                     baseUrlList = response.get("baseUrls", [])
                     print("Tool Messages:", toolMessages)
                     if not toolMessages:
-                        return RunConversationResponse(
-                            status=StatusCode.LLM_ERROR,
-                            response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
-                            sources=sources,
+                        print(
+                            "No tool messages returned from handle_tool_calls, something went wrong."
+                        )
+                        raise Exception(
+                            "No tool messages returned from handle_tool_calls, something went wrong."
                         )
                 elif (
                     not response.get("status") == StatusCode.REGULAR_MESSAGE
-                ):  # if the status is not REGULAR_MESSAGE, it means we have a special case like PARAMS_NEEDED or PROCESSING_DATA_DOWNLOAD wich just want to return
-                    return RunConversationResponse(
-                        **response,
-                        sources=sources,
-                    )
+                ):  # if the status is not REGULAR_MESSAGE, it means we have a special case like PARAMS_NEEDED or PROCESSING_DATA_DOWNLOAD which we just want to return
+                    response["sources"] = sources
+                    return RunConversationResponse.model_validate(response)
                 else:
                     toolMessages = None
             return await self.run_final_response(
