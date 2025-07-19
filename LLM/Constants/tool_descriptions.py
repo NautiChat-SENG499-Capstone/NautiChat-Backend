@@ -23,12 +23,7 @@ toolDescriptions = [
             "description": "Get a list of properties available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
-                },
+                "properties": {},
             },
             "required": [],
         },
@@ -42,12 +37,7 @@ toolDescriptions = [
             ),
             "parameters": {
                 "type": "object",
-                "properties": {
-                    # "user_onc_token": {
-                    #         "type": "string",
-                    #         "description": "User's ONC token for API access. This is required to access the data.",
-                    #     }
-                },
+                "properties": {},
                 "required": [],
             },
         },
@@ -82,10 +72,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format for when daily sea temperature is wanted for",
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
                 },
                 "required": ["day_str"],
                 "type": "object",
@@ -107,10 +93,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": "ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
                 },
                 "required": ["dateFrom", "dateTo"],
                 "type": "object",
@@ -272,10 +254,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-23").',
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
                 },
                 "required": ["date_from_str"],
             },
@@ -289,10 +267,6 @@ toolDescriptions = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # },
                     "date_from_str": {
                         "type": "string",
                         "description": 'Date in YYYY-MM-DD format, (e.g. "2024-06-24").',
@@ -314,10 +288,6 @@ toolDescriptions = [
     #                     "type": "string",
     #                     "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve ship-noise data."
     #                 },
-    #                 "user_onc_token": {
-    #                     "type": "string",
-    #                     "description": "User's ONC token for API access. This is required to access the data.",
-    #                 }
     #             },
     #             "required": ["date_from_str", "user_onc_token"]
     #         },
@@ -335,10 +305,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": 'Date to get wind speed in YYYY-MM-DD format, (e.g. "2024-06-24").',
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # },
                     "hourInterval": {
                         "type": "integer",
                         "description": "Hour of the day wanted for windspeed, default is 12 (noon)",
@@ -364,10 +330,6 @@ toolDescriptions = [
                         "type": "string",
                         "description": 'End date in YYYY-MM-DD format (e.g. "2024-02-01").',
                     },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
                 },
                 "required": ["date_from_str", "date_to_str"],
             },

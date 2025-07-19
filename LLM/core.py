@@ -312,6 +312,13 @@ class LLM:
                                     status=StatusCode.DEPLOYMENT_ERROR,
                                     response=function_response.get("response"),
                                     obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
                                 )
                             elif scalarRequestStatus == StatusCode.NO_DATA:
                                 print("No data returned.")
@@ -325,6 +332,13 @@ class LLM:
                                     status=StatusCode.DEPLOYMENT_ERROR,
                                     response=function_response.get("description"),
                                     obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
                                 )
                             elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
                                 print("No data returned.")
@@ -338,9 +352,18 @@ class LLM:
                                     status=StatusCode.SCALAR_REQUEST_ERROR,
                                     response=function_response.get("response"),
                                     obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
                                 )
                             elif scalarRequestStatus == StatusCode.REGULAR_MESSAGE:
-                                obtained_params = ObtainedParamsDictionary()
+                                obtained_params: ObtainedParamsDictionary = (
+                                    ObtainedParamsDictionary()
+                                )
                         else:
                             # Not doing data download or scalar request is successful so clearing the obtainedParams
                             obtained_params: ObtainedParamsDictionary = (

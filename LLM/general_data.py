@@ -6,7 +6,6 @@ from onc import ONC
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.utils import resample_periods, sync_param
 from LLM.schemas import ObtainedParamsDictionary
-from LLM.tools_sprint1 import get_deployed_devices_over_time_interval
 
 ROW_LIMIT = "8000"
 
@@ -103,6 +102,7 @@ async def get_scalar_data(
     try:
         response = onc.getScalardataByLocation(allParamsNeeded)
         print(f"Response from ONC: {response}")
+        allParamsNeeded["token"] = user_onc_token
         if response["sensorData"]:
             return {
                 "response": response,
