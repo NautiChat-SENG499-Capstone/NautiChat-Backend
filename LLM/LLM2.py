@@ -10,7 +10,6 @@ from langchain.output_parsers import PydanticOutputParser
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.system_prompts import (
     generate_system_prompt,
-    parse_llm_response,
     system_prompt_final_response,
     system_prompt_reasoning,
     system_prompt_tool_execution,
@@ -26,6 +25,7 @@ from LLM.schemas import (
     PlanningResponse,
     RunConversationResponse,
     ToolCallList,
+    parse_llm_response,
 )
 from LLM.tools_sprint1 import (
     get_active_instruments_at_cambridge_bay,
@@ -411,6 +411,7 @@ class LLM:
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
     ) -> RunConversationResponse:
         try:
+            sources = []
             currentDate = datetime.now().strftime("%Y-%m-%d")
             (
                 reasoning,
@@ -429,7 +430,7 @@ class LLM:
             VectorDBinput = "User: " + user_prompt + "Assistant: " + str(inputs_missing)
             vectorDBResponse = self.RAG_instance.get_documents(VectorDBinput)
             print("Vector DB Response:", vectorDBResponse)
-            sources = []
+
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""

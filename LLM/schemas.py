@@ -104,24 +104,21 @@ class PlanningResponse(BaseModel):
     inputs_provided: Dict[str, str] = Field(
         default_factory=dict,
         description=(
-            "A dictionary where keys are 'tool_name.input_name' and values are natural language descriptions of inputs "
-            "that are already provided by the user or current context."
+            "A dictionary where keys are 'tool_name.input_name' and values are natural language descriptions of inputs are already provided by the user or current context."
         ),
     )
     inputs_missing: Dict[str, str] = (
         Field(
             default_factory=dict,
             description=(
-                "A dictionary where keys are 'tool_name.input_name' and values are natural language descriptions of inputs "
-                "that are missing and need to be retrieved (e.g., by querying a vector DB)."
+                "A dictionary where keys are 'tool_name.input_name' and values are natural language descriptions of inputs that are missing and need to be retrieved (e.g., by querying a vector DB)."
             ),
         ),
     )
     inputs_uncertain: Dict[str, str] = Field(
         default_factory=dict,
         description=(
-            "Inputs that might be inferred or partially present in the user's input, but are not confidently resolved. "
-            "Should be confirmed or refined before using."
+            "Inputs that might be inferred or partially present in the user's input, but are not confidently resolved. Should be confirmed or refined before using."
         ),
     )
 
