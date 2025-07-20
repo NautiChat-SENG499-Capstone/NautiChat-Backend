@@ -168,7 +168,7 @@ class LLM:
     async def handle_tool_calls(
         self,
         currentDate,
-        reasoning,
+        tool_reasoning,
         inputs_provided,
         inputs_missing,
         vector_content,
@@ -179,11 +179,11 @@ class LLM:
             system_prompt_tool_execution,
             context={
                 "current_date": currentDate,
-                "format_instructions": formatToolCallingInstructions,
-                # "reasoning": reasoning,
-                # "inputs_provided": inputs_provided,
-                # "inputs_missing": inputs_missing,
-                # "vector_db_results": vector_content,
+                # "format_instructions": formatToolCallingInstructions,
+                "reasoning": tool_reasoning,
+                "inputs_provided": inputs_provided,
+                "inputs_missing": inputs_missing,
+                "vector_db_results": vector_content,
             },
         )
 
@@ -192,22 +192,6 @@ class LLM:
                 "role": "system",
                 "content": systemPromptToolExecution,
             },
-            {
-                "role": "assistant",
-                "content": f"Reasoning: {reasoning}",
-            },
-            {
-                "role": "assistant",
-                "content": f"Inputs provided: {inputs_provided}",
-            },
-            {
-                "role": "assistant",
-                "content": f"Inputs missing: {inputs_missing}",
-            },
-            {
-                "role": "assistant",
-                "content": f"Vector DB results: {vector_content}",
-            },  # Include vector content as context
         ]
 
         response = self.client.chat.completions.create(
@@ -220,6 +204,7 @@ class LLM:
             temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
         )
         response_message = response.choices[0].message.content
+        print("Response from tool calling LLM:", response_message)
         tool_calls = parse_llm_response(response_message, ToolCallList)
 
         doing_data_download = False
@@ -473,7 +458,7 @@ class LLM:
                 print("obtained Params before tools called: ", obtained_params)
                 response = await self.handle_tool_calls(
                     currentDate=currentDate,
-                    reasoning=reasoning,
+                    tool_reasoning=reasoning,
                     inputs_provided=inputs_provided,
                     inputs_missing=inputs_missing,
                     vector_content=vector_content,

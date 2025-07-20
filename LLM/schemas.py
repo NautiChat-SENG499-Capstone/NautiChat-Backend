@@ -32,14 +32,14 @@ def parse_llm_response(
 
     try:
         try:
-            print(f"Raw response: {raw_response}")
+            # print(f"Raw response: {raw_response}")
             data = json.loads(raw_response)
-            print(f"data: {data}")
+            # print(f"data: {data}")
             return model.model_validate(data)
         except json.JSONDecodeError as e:
             print(f"Invalid JSON: {e}")
             data = ast.literal_eval(raw_response)
-            print(f"data: {data}")
+            # print(f"data: {data}")
             return model.model_validate(data)
     except Exception as e:
         print(f"Model validation error: {e}")

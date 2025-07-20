@@ -19,9 +19,10 @@ system_prompt_reasoning = """
     - Which tools should be called
         - If a user asks for temperature data, you should use ask ask if they want sea or air temperature data.
     - What inputs each tool requires
+    - How many times the tool should be called.
     3. Categorize each required input into one of three types:
     - inputs_provided: Inputs clearly present in the user’s message or known context. 
-    - inputs_missing: Required inputs that are not provided and must be retrieved (e.g., via vector DB)
+    - inputs_missing: Required inputs that are not provided and must be retrieved (e.g., via vector DB). Describe how they should be retrieved.
     - inputs_uncertain: Inputs that are possibly implied, incomplete, or ambiguous and need confirmation. If asked for todays data, that shouldnt be an uncertainty.
 
     Do not fabricate tool names or inputs not included in the list of tools.
@@ -105,24 +106,39 @@ system_prompt_tool_execution = """
     5. Construct a list of tool calls including the tool name and all required input parameters with values.
     6. Only include tools if all their required inputs are now available.
     7. Do not invent new tool names or parameters.
-    8. Do not call the same tool twice.
+    8. NEVER call the same tool twice.
     9. Respond only in the specified JSON format, without extra explanation. Do not include schema metadata like $defs or title.
-    Respond using the following ToolCallList format:
+    Respond only in the specified JSON format, without extra explanation.
+    ALWAYS Respond using the following json ToolCallList format:
     {{"tools": [{format_instructions}]}}
+
+    YOU ARE GIVEN THE FOLLOWING:
+    Reasoning behind the decision:
+    {reasoning}
+
+    Inputs provided (what should be used directly as inputs):
+    {inputs_provided}
+
+    Inputs missing (what needs to be filled by the vector DB results if possible and what the user wants):
+    {inputs_missing}
+
+    Vector DB results (Information to help fill the missing inputs and provide context):
+    {vector_db_results}
 
    
 """
-# Reasoning:
-# {reasoning}
 
-# Inputs provided:
-# {inputs_provided}
+# {
+#         "tools": [
+#             {
+#                 "name": the name of the tool to be called,
+#                 "id": A unique identifier for the tool call, used to track the call in the conversation.
+#                 "arguments": A dictionary of the parameters to pass to the tool. The key should be the parameter name, and the value should be the value to pass.
+#             },
+#             ...
+#         ]
+#     }
 
-# Inputs missing:
-# {inputs_missing}
-
-# Vector DB results:
-# {vector_db_results}
 
 system_prompt_uncertain = """
     You are an assistant responsible for clarifying missing or ambiguous information from the user.
