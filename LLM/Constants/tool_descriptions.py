@@ -226,6 +226,7 @@ toolDescriptions = [
                             "csv",
                             "pdf",
                             "jpg",
+                            "qaqc",
                         ],
                         "description": "The file format in which the data product should be delivered.",
                     },

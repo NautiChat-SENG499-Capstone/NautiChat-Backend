@@ -169,9 +169,11 @@ class LLM:
         self,
         currentDate,
         tool_reasoning,
-        inputs_provided,
-        inputs_missing,
-        vector_content,
+        # inputs_provided,
+        # inputs_missing,
+        vector_content: str,
+        user_prompt: str,
+        chat_history,
         user_onc_token=None,
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
     ) -> dict:
@@ -181,16 +183,22 @@ class LLM:
                 "current_date": currentDate,
                 # "format_instructions": formatToolCallingInstructions,
                 "reasoning": tool_reasoning,
-                "inputs_provided": inputs_provided,
-                "inputs_missing": inputs_missing,
-                "vector_db_results": vector_content,
+                # "inputs_provided": inputs_provided,
+                # "inputs_missing": inputs_missing,
+                # "vector_db_results": vector_content,
             },
-        )
+        )  # May need to let the LLM choose the tools to use the old way here and not worry about having to parse its response.
 
         messages = [
             {
                 "role": "system",
                 "content": systemPromptToolExecution,
+            },
+            {"role": "assistant", "content": vector_content},
+            *chat_history,
+            {
+                "role": "user",
+                "content": user_prompt,
             },
         ]
 
@@ -198,23 +206,30 @@ class LLM:
             model=self.model,  # LLM to use
             messages=messages,  # Includes Conversation history
             stream=False,
-            # tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
-            # tool_choice="auto",  # Let our LLM decide when to use tools
+            tools=toolDescriptions,  # Available tools (i.e. functions) for our LLM to use
+            tool_choice="required",  # Let our LLM decide when to use tools
             max_completion_tokens=1024,  # Maximum number of tokens to allow in our response
             temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
         )
-        response_message = response.choices[0].message.content
-        print("Response from tool calling LLM:", response_message)
-        tool_calls = parse_llm_response(response_message, ToolCallList)
-
+        response_message = response.choices[0].message
+        print("Response from tool calling LLM:", response_message.content)
+        # tool_calls = parse_llm_response(response_message, ToolCallList)
+        tool_calls = response_message.tool_calls
         doing_data_download = False
-        tool_calls = tool_calls.tools
-        print("Tool Calls:", tool_calls)
+        # tool_calls = tool_calls.tools
+        # print("Tool Calls:", tool_calls)
         if tool_calls:
-            print("Tool calls detected, processing...")
-            print("tools calls:", tool_calls)
+            # print("Tool calls detected, processing...")
+            # print("tools calls:", tool_calls)
+            # tool_calls = list(
+            #     OrderedDict(((call.name), call) for call in tool_calls).values()
+            # )
+            # print("Unique tool calls:", tool_calls)
             tool_calls = list(
-                OrderedDict(((call.name), call) for call in tool_calls).values()
+                OrderedDict(
+                    ((call.id, call.function.name, call.function.arguments), call)
+                    for call in tool_calls
+                ).values()
             )
             print("Unique tool calls:", tool_calls)
             toolMessages = []
@@ -223,9 +238,9 @@ class LLM:
             for tool_call in tool_calls:
                 # print(tool_call)
                 # print()
-                function_name = tool_call.name
-                print("Function name:", function_name)
-                print("Function arguments:", tool_call.arguments)
+                function_name = tool_call.function.name
+                # print("Function name:", function_name)
+                # print("Function arguments:", tool_call.arguments)
                 # tool_call_json = tool_call.model_dump_json(indent=2)
                 # print("Tool call JSON:", tool_call_json)
                 # print("Function name:", tool_call_json["name"])
@@ -237,7 +252,7 @@ class LLM:
                         print("Generating download codes...")
                         doing_data_download = True
                     try:
-                        function_args = tool_call.arguments
+                        function_args = json.loads(tool_call.function.arguments)
                     except json.JSONDecodeError:
                         function_args = {}
                     print(
@@ -459,9 +474,11 @@ class LLM:
                 response = await self.handle_tool_calls(
                     currentDate=currentDate,
                     tool_reasoning=reasoning,
-                    inputs_provided=inputs_provided,
-                    inputs_missing=inputs_missing,
+                    # inputs_provided=inputs_provided,
+                    # inputs_missing=inputs_missing,
                     vector_content=vector_content,
+                    user_prompt=user_prompt,
+                    chat_history=chat_history,
                     user_onc_token=user_onc_token,
                     obtained_params=obtained_params,
                 )
