@@ -26,6 +26,7 @@ from .schemas import (
     PDFUploadRequest,
     RawTextUploadRequest,
     UploadResponse,
+    VectorDocumentOut,
 )
 
 router = APIRouter()
@@ -41,6 +42,16 @@ async def create_admin_user(
 ) -> auth_schemas.UserOut:
     """Create new admin"""
     return await create_new_user(new_admin, db, is_admin=True)
+
+
+@router.get("/users", response_model=list[auth_schemas.UserOut])
+async def list_admin_users(
+    _: Annotated[auth_models.User, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[auth_schemas.UserOut]:
+    """List all admin users"""
+    result = await db.execute(select(auth_models.User).where(auth_models.User.is_admin))
+    return result.scalars().all()
 
 
 @router.delete("/users/{id}", status_code=204)
@@ -162,6 +173,25 @@ async def json_data_upload(
     )
 
     return UploadResponse(detail="JSON uploaded successfully")
+
+
+@router.get("/documents", response_model=list[VectorDocumentOut])
+async def get_all_documents(
+    _: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[VectorDocumentOut]:
+    """Return metadata for all vector documents."""
+    return await service.get_all_documents(db)
+
+
+@router.get("/documents/{source}", response_model=VectorDocumentOut)
+async def get_document_by_source(
+    source: str,
+    _: Annotated[auth_schemas.UserOut, Depends(get_admin_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> VectorDocumentOut:
+    """Return metadata for a specific vector document by source."""
+    return await service.get_document_by_source(source, db)
 
 
 @router.delete("/documents/{source}", status_code=204)
