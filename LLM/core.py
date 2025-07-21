@@ -150,30 +150,30 @@ class LLM:
                     "role": "system",
                     "content": startingPrompt,
                 },
-                {"role": "assistant", "content": vector_content},
-                *chat_history,
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
             ]
 
             if qa_reference:
                 styling_prompt = f"""
                 The following are examples of question-answer pairs that represent the desired style, tone, and preferred phrasing for your responses.
-                Do NOT use these as factual context or directly answer from them.
-                Instead, analyze them to understand the preferred phrasing, level of detail, and overall stylistic conventions
+                These examples are **CRUCIALLY ONLY for stylistic guidance** and do **NOT** represent current factual information, data availability, tool usage, or required parameters.
+                You **MUST NOT** use these examples as factual context or directly answer from them.
+                Instead, analyze them **solely** to understand the preferred phrasing, level of detail, and overall stylistic conventions
                 when formulating your own answers based on other retrieved information and tool outputs.
+                **Absolutely DO NOT** initiate any tool calls based on the content or patterns found within these styling examples.
 
                 Examples for styling guidance:
                 {qa_reference}
                 """
                 messages.append({"role": "system", "content": styling_prompt})
 
-            messages.append({
-                "role": "user",
-                "content": user_prompt,
-            })
+            messages.extend([
+                {"role": "assistant", "content": vector_content}, # Vector search results (factual context)
+                *chat_history, # Previous conversation history
+                {
+                    "role": "user", # The actual user's current prompt
+                    "content": user_prompt,
+                },
+            ])
 
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
@@ -367,6 +367,10 @@ class LLM:
                     {
                         "role": "system",
                         "content": secondLLMCallStartingPrompt,
+                    },
+                    {  
+                        "role": "system",
+                        "content": styling_prompt,
                     },
                     {"role": "assistant", "content": vector_content},
                     *toolMessages,  # Add tool messages to the conversation

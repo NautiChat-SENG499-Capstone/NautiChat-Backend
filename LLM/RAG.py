@@ -126,12 +126,17 @@ class RAG:
             for hit in filtered_hits
         ]        
 
+        if not knowledge_docs:
+            reranked_documents = [] # Set to empty list if no docs to rerank
+        else:
+            # Rerank using the CrossEncoderReranker
+            reranked_documents = self.compressor.compress_documents(knowledge_docs, query=question)
+
+
         # No documents were above threshold
         if not knowledge_docs and not qa_docs: # Check both lists
             return pd.DataFrame({"contents": []}), [], pd.DataFrame({"contents": []}) # Return empty dfs and empty list of qa_ids
-        # Rerank using the CrossEncoderReranker
-        reranked_documents = self.compressor.compress_documents(knowledge_docs, query=question)
-
+    
         #Ensure there is only a maximum of around 2000 tokens of data
         max_tokens = 2000
         total_tokens = 0
