@@ -44,15 +44,13 @@ async def create_admin_user(
     return await create_new_user(new_admin, db, is_admin=True)
 
 
-@router.get("/users", response_model=List[UserOut])
+@router.get("/users", response_model=list[auth_schemas.UserOut])
 async def list_admin_users(
     _: Annotated[auth_models.User, Depends(get_admin_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> List[UserOut]:
+) -> list[auth_schemas.UserOut]:
     """List all admin users"""
-    result = await db.execute(
-        select(auth_models.User).where(auth_models.User.is_admin == True)
-    )
+    result = await db.execute(select(auth_models.User).where(auth_models.User.is_admin))
     return result.scalars().all()
 
 

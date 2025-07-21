@@ -16,23 +16,23 @@ toolDescriptions = [
     #         },
     #     },
     # },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_properties_at_cambridge_bay",
-            "description": "Get a list of properties available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "User's ONC token for API access. This is required to access the data.",
-                    # }
-                },
-            },
-            "required": [],
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "get_properties_at_cambridge_bay",
+    #         "description": "Get a list of properties available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 # "user_onc_token": {
+    #                 #     "type": "string",
+    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
+    #                 # }
+    #             },
+    #         },
+    #         "required": [],
+    #     },
+    # },
     {
         "type": "function",
         "function": {

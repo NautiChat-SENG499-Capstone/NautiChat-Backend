@@ -16,7 +16,7 @@ from LLM.tools_sprint1 import (
     # get_time_range_of_available_data,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
-    get_properties_at_cambridge_bay,
+    # get_properties_at_cambridge_bay,
 )
 from LLM.tools_sprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
@@ -38,7 +38,7 @@ class LLM:
         self.model = env.get_model()
         self.RAG_instance: RAG = RAG_instance or RAG(env=self.env)
         self.available_functions = {
-            "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
+            # "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
             "get_active_instruments_at_cambridge_bay": get_active_instruments_at_cambridge_bay,
@@ -108,9 +108,13 @@ class LLM:
 
                 You may use tools when required to answer user questions. Do not describe what you *will* do — only use tools if needed.
 
+                You MUST explicitly include the name “Cambridge Bay” in your response whenever tool results are based on data from that location. Do not use vague phrases like “the Arctic” or “polar regions.” You must also clearly state the date range used in the tool query (e.g., dateFrom and dateTo). If the dateFrom and dateTo values fall on the same day, say that the data was sampled on that day rather than referring to a date range. 
+
                 When a tool is used, do not guess or assume what it might return. Do not speculate or reason beyond the returned result. However, you may output the tool’s result in your response and format it clearly for the user, as long as you do not add new interpretations or steps.
 
                 You are NEVER required to generate code in any language.
+
+                NEVER use a dateFrom or dateTo value that is in the future.
 
                 Do NOT add follow-up suggestions, guesses, or recommendations.
 
@@ -335,7 +339,11 @@ class LLM:
 
                     When a tool is used, do not guess or assume what it might return. Do not speculate or reason beyond the returned result. However, you may output the tool’s result in your response and format it clearly for the user, as long as you do not add new interpretations or steps.
 
+                    You MUST explicitly include the name “Cambridge Bay” in your response whenever tool results are based on data from that location. Do not use vague phrases like “the Arctic” or “polar regions.” You must also clearly state the date range used in the tool query (e.g., dateFrom and dateTo). If the dateFrom and dateTo values fall on the same day, say that the data was sampled on that day rather than referring to a date range.
+
                     You are NEVER required to generate code in any language.
+
+                    NEVER use a dateFrom or dateTo value that is in the future.
 
                     Do NOT add follow-up suggestions, guesses, or recommendations.
 
