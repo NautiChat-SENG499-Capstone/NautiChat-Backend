@@ -29,7 +29,8 @@ async def get_scalar_data(
 
         This function performs a data request to the ONC API, then returns the data to the LLM.
         If this function is called, the LLM will only provide the parameters the user has explicitly given.
-        Do not guess, assume, or invent any missing parameters.
+        DO NOT guess, assume, or invent any parameters.
+        DO NOT add any parameters unless they're explicitly given.
         If parameters are missing, the function will handle asking the user for them.
         If there that device isn't deployed at that time, the LLM will respond with the deployment times.
         If there is no data from the device during a deployed time, the LLM will tell the user, and not invent data.
@@ -91,28 +92,33 @@ async def get_scalar_data(
         print("OBTAINED PARAMS: ", ObtainedParamsDictionary(**allObtainedParams))
         param_keys = ", ".join(
             k if k != "dataProductCode" else "propertyCode"
-            for k in allObtainedParams.keys()
+            for k, v in allObtainedParams.items()
+            if v != ""
         )
-        return {
-            "status": StatusCode.PARAMS_NEEDED,
-            "response": f"Hey! It looks like you are requesting scalar data! So far I have the following parameters: {param_keys}. However, I still need you to please provide the following missing parameters so I can complete the scalar data request: {', '.join(neededParams)}. Thank you!",
-            "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
-            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
-            "urlParamsUsed": allParamsNeeded,
-        }
+        if param_keys == "":
+            return {
+                "status": StatusCode.PARAMS_NEEDED,
+                "response": f"Hey! It looks like you are requesting scalar data! I don't have any parameters so far. I still need you to please provide the following missing parameters so I can complete the scalar data request: {', '.join(neededParams)}. Thank you!",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
+                "urlParamsUsed": allParamsNeeded,
+            }
+        else:
+            return {
+                "status": StatusCode.PARAMS_NEEDED,
+                "response": f"Hey! It looks like you are requesting scalar data! So far I have the following parameters: {param_keys}. However, I still need you to please provide the following missing parameters so I can complete the scalar data request: {', '.join(neededParams)}. Thank you!",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
+                "urlParamsUsed": allParamsNeeded,
+            }
 
     try:
         response = onc.getScalardataByLocation(allParamsNeeded)
         print(f"Response from ONC: {response}")
-        allParamsNeeded["token"] = user_onc_token
-        datetimedateFrom = datetime.strptime(dateFrom, "%Y-%m-%d %H:%M")
-        datetimedateTo = datetime.strptime(dateTo, "%Y-%m-%d %H:%M")
-        begin = datetimedateFrom.strftime("%B {day}, %Y at %I:%M%p").format(
-            day=dateFrom.day
-        )
-        end = datetimedateTo.strftime("%B {day}, %Y at %I:%M%p").format(
-            day=datetimedateTo.day
-        )
+        datetimedateFrom = datetime.strptime(dateFrom, "%Y-%m-%dT%H:%M:%S.%fZ")
+        datetimedateTo = datetime.strptime(dateTo, "%Y-%m-%dT%H:%M:%S.%fZ")
+        begin = datetimedateFrom.strftime("%B %d, %Y at %I:%M%p")
+        end = datetimedateTo.strftime("%B %d, %Y at %I:%M%p")
         if response["sensorData"]:
             return {
                 "response": response,

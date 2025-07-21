@@ -127,9 +127,6 @@ class LLM:
             # print("Messages: ", messages)
 
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
-            # pd.set_option("display.max_colwidth", None)      # Show full column contents
-            # pd.set_option("display.max_rows", None)          # Show all rows (optional)
-            # pd.set_option("display.width", 0)                # Auto-wrap instead of cutting off
             print("Vector DB Response:", vectorDBResponse)
             sources = []
             if isinstance(vectorDBResponse, pd.DataFrame):
@@ -293,8 +290,6 @@ class LLM:
                                 obtained_params: ObtainedParamsDictionary = (
                                     function_response.get("obtainedParams", {})
                                 )
-                                print("Obtained parameters:", obtained_params)
-                                print("Obtained parameters:", type(obtained_params))
                                 # Return a response indicating that Paramaters are needed
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
@@ -308,8 +303,6 @@ class LLM:
                                 obtained_params: ObtainedParamsDictionary = (
                                     function_response.get("obtainedParams", {})
                                 )
-                                print("Obtained parameters:", obtained_params)
-                                print("Obtained parameters:", type(obtained_params))
                                 print(function_response.get("result"))
                                 # Return a response indicating that Paramaters are needed
                                 return RunConversationResponse(
