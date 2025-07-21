@@ -18,6 +18,9 @@ from unstructured.partition.pdf import partition_pdf
 
 from LLM.RAG import JinaEmbeddings, QdrantClientWrapper
 
+import datetime
+from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
 """
 Series of functions to preprocess PDF files, extract structured text chunks,
 and embeds them using a Jina Model. Includes handler to upload embedded data to a vector database.
@@ -280,6 +283,7 @@ def prepare_embedding_input_from_preformatted(
     results = []
 
     for section in input:
+
         full_text = " ".join(section["paragraphs"])
         chunks = chunk_text(full_text)
 
@@ -291,7 +295,8 @@ def prepare_embedding_input_from_preformatted(
             results.append(
                 {
                     "embedding": embedding.tolist(),
-                    "text": chunk,
+                    # "text": chunk,
+                    "text":full_text,
                     "metadata": {
                         "source": section["source"],
                         "page": section["page"],
@@ -336,10 +341,19 @@ def get_device_info_from_onc_for_vdb(location_code):
             if "uri" in j:
                 j["description"] = getDeviceDefnFromURI(j["uri"])
                 del j["uri"]
+        
+        #If "dateTo" is None, replace with today's date
+        if "dataRating" in i and isinstance(i["dataRating"], list):
+            for rating_entry in i["dataRating"]:
+                if isinstance(rating_entry, dict) and rating_entry.get("dateTo") is None:
+                    today = datetime.datetime.now().isoformat()
+                    rating_entry["dateTo"] = today
+            
+
         results.append(
             {"paragraphs": [str(i)], "page": [], "source": "ONC OCEANS 3.0 API"}
         )
-
+      
     return results
 
 
@@ -357,3 +371,33 @@ def upload_to_vector_db(resultsList: list, qdrant: QdrantClientWrapper):
     qdrant.qdrant_client.upload_points(
         collection_name=qdrant.collection_name, points=points
     )
+
+
+def sayHello():
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Hello from scheduled_vector_db_update!")
+
+#Function gets called through APScheduler jobs to delete existing "ONC OCEANS 3.0 API" points and reupload with today's date
+def vdb_auto_upload(app_state):
+
+    qdrant_client_wrapper = app_state.rag.qdrant_client_wrapper
+
+    filter_condition = Filter(
+        must=[FieldCondition(key="source", match=MatchValue(value="ONC OCEANS 3.0 API"))]
+    )
+   
+    qdrant_client_wrapper.qdrant_client.delete( 
+        qdrant_client_wrapper.collection_name, points_selector=filter_condition
+    )
+
+    locationcodes = ["CBY", "CBYDS", "CBYIJ.J1", "CBYIJ.J2", "CBYIP", "CBYIP.D1", "CBYIP.D2", "CBYIP.D3", "CBYIP.D4", "CBYIP.K1", "CBYIP.K2", "CBYIP.K3", "CBYIU", "CBYIU.AC1", "CBYIU.AC2", "CBYIU.AC3",
+                 "CBYIU.AC4", "CBYIU.AC5", "CBYSP", "CBYSS", "CBYSS.M1", "CBYSS.M2", "CBYSU", "CBYSU.AC1", "CBYSU.AC2", "CF240"]
+
+    inputs = []
+    for location_code in locationcodes:
+        inputs.extend(get_device_info_from_onc_for_vdb(location_code=location_code)) 
+
+    prepare_embedding_input = prepare_embedding_input_from_preformatted(input=inputs, embedding_model=JinaEmbeddings())
+
+    upload_to_vector_db(prepare_embedding_input, qdrant_client_wrapper)
+
+

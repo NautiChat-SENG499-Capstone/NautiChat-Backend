@@ -10,6 +10,9 @@ from src.database import DatabaseSessionManager
 from src.logger import logger
 from src.settings import get_settings
 
+from LLM.vectorDBUpload import vdb_auto_upload
+from apscheduler.schedulers.background import BackgroundScheduler # Import APScheduler
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,6 +43,21 @@ async def lifespan(app: FastAPI):
         logger.info("Getting RAG instance...")
         app.state.rag = app.state.llm.RAG_instance
         logger.info("RAG instance initialized successfully.")
+        
+        logger.info("Initializing APScheduler...")
+        scheduler = BackgroundScheduler()
+
+        scheduler.add_job(
+            vdb_auto_upload,
+            'interval',
+            hours = 24,
+            id='vdb auto upload',
+            args=[app.state], 
+            
+        )
+
+        scheduler.start()
+        logger.info("APScheduler started in the background.")
 
     except Exception as e:
         logger.error(f"Startup failed with error: {str(e)}")
