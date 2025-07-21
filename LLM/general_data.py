@@ -66,9 +66,7 @@ async def get_scalar_data(
 
         delta_seconds = (end - begin).total_seconds()
 
-        resample_period = min(
-            resample_periods, key=lambda x: abs(x - (delta_seconds / 10))
-        )
+        resample_period = min(resample_periods, key=lambda x: abs(x - (delta_seconds)))
 
     allParamsNeeded = {
         "deviceCategoryCode": deviceCategoryCode,
@@ -122,7 +120,7 @@ async def get_scalar_data(
         if response["sensorData"]:
             return {
                 "response": response,
-                "description": f"Here is the scalar data you requested from the {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}",
+                "description": f"Here is the minimum/maximum/average scalar data you requested from the {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}",
                 "status": StatusCode.REGULAR_MESSAGE,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
                 "urlParamsUsed": allParamsNeeded,

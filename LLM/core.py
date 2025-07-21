@@ -397,6 +397,14 @@ class LLM:
                     |    YYYY-MM-DD HH:MM:SS    | [value1]                   |
                     |    YYYY-MM-DD HH:MM:SS    | [value2]                   |
 
+                    If minimum/maximum/average is in the tool response, YOU MUST format it this way. DO NOT include any other tables of data. Minimum/Maximum/Average data must be formatted in the following format:
+
+                    | Measurement               | Time                      | [Measurement Name] (units) |
+                    |---------------------------|---------------------------|----------------------------|
+                    |    Minimum                |    YYYY-MM-DD HH:MM:SS    | [min]                      |
+                    |    Maximum                |    YYYY-MM-DD HH:MM:SS    | [max]                      |
+                    |    Average                |                           | [average]                  |
+
                     Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
 
                     IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
