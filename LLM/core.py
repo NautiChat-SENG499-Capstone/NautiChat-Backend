@@ -397,7 +397,7 @@ class LLM:
                     |    YYYY-MM-DD HH:MM:SS    | [value1]                   |
                     |    YYYY-MM-DD HH:MM:SS    | [value2]                   |
 
-                    If minimum/maximum/average is in the tool response, YOU MUST format it this way. DO NOT include any other tables of data. Minimum/Maximum/Average data must be formatted in the following format:
+                    If minimum/maximum/average is in the tool response, YOU MUST format it this way. DO NOT include any other tables of data. Make sure the columns are lined up. Minimum/Maximum/Average data must be formatted in the following format:
 
                     | Measurement               | Time                      | [Measurement Name] (units) |
                     |---------------------------|---------------------------|----------------------------|
