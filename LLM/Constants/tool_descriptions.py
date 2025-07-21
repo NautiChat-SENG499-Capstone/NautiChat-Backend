@@ -346,6 +346,7 @@ toolDescriptions = [
                     "deviceCategoryCode": {
                         "type": "string",
                         "enum": [
+                            "",
                             "DIVE_COMPUTER",
                             "ROV_CAMERA",
                             "NAV",
@@ -381,6 +382,7 @@ toolDescriptions = [
                     "locationCode": {
                         "type": "string",
                         "enum": [
+                            "",
                             "CBY",
                             "CBYDS",
                             "CBYIJ.J1",
@@ -413,6 +415,7 @@ toolDescriptions = [
                     "propertyCode": {
                         "type": "string",
                         "enum": [
+                            "",
                             "depth",
                             "latitude",
                             "longitude",

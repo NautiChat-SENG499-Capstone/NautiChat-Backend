@@ -82,7 +82,9 @@ async def get_scalar_data(
         "token": user_onc_token,
     }  # Only the necessary parameters for a data download request.
     neededParams = [
-        param for param, value in allParamsNeeded.items() if value is None
+        param
+        for param, value in allParamsNeeded.items()
+        if value is None or value == ""
     ]  # List of paramaters that are needed but not set.
 
     if len(neededParams) > 0:  # If need one or more parameters
@@ -95,7 +97,7 @@ async def get_scalar_data(
             "status": StatusCode.PARAMS_NEEDED,
             "response": f"Hey! It looks like you are requesting scalar data! So far I have the following parameters: {param_keys}. However, I still need you to please provide the following missing parameters so I can complete the scalar data request: {', '.join(neededParams)}. Thank you!",
             "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
-            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+            "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
             "urlParamsUsed": allParamsNeeded,
         }
 
@@ -103,20 +105,28 @@ async def get_scalar_data(
         response = onc.getScalardataByLocation(allParamsNeeded)
         print(f"Response from ONC: {response}")
         allParamsNeeded["token"] = user_onc_token
+        datetimedateFrom = datetime.strptime(dateFrom, "%Y-%m-%d %H:%M")
+        datetimedateTo = datetime.strptime(dateTo, "%Y-%m-%d %H:%M")
+        begin = datetimedateFrom.strftime("%B {day}, %Y at %I:%M%p").format(
+            day=dateFrom.day
+        )
+        end = datetimedateTo.strftime("%B {day}, %Y at %I:%M%p").format(
+            day=datetimedateTo.day
+        )
         if response["sensorData"]:
             return {
                 "response": response,
-                "description": f"Here is the scalar data you requested from the {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {dateFrom} to {dateTo}",
+                "description": f"Here is the scalar data you requested from the {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}",
                 "status": StatusCode.REGULAR_MESSAGE,
-                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
                 "urlParamsUsed": allParamsNeeded,
             }
         else:
             return {
                 "response": response,
-                "description": f"There is no scalar data at {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {dateFrom} to {dateTo}.",
+                "description": f"There is no scalar data at {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}.",
                 "status": StatusCode.NO_DATA,
-                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
                 "urlParamsUsed": allParamsNeeded,
             }
     except Exception as e:
@@ -140,10 +150,10 @@ async def get_scalar_data(
                 zend = datetime.fromisoformat(
                     deployment_range["end"].replace("Z", "+00:00")
                 )
-                begin = zbegin.strftime("%B {day}th, %Y at %I:%M%p").format(
+                begin = zbegin.strftime("%B {day}, %Y at %I:%M%p").format(
                     day=zbegin.day
                 )
-                end = zend.strftime("%B {day}th, %Y at %I:%M%p").format(day=zend.day)
+                end = zend.strftime("%B {day}, %Y at %I:%M%p").format(day=zend.day)
                 deployment_string += f"Begin: {begin}, End: {end}\n"
             allObtainedParams["dateTo"] = ""
             allObtainedParams["dateFrom"] = ""
@@ -151,13 +161,13 @@ async def get_scalar_data(
                 "response": f"Device was not deployed during the requested period. Here are the periods that that device has been deployed:\n{deployment_string}",
                 "status": StatusCode.DEPLOYMENT_ERROR,
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
-                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
                 "urlParamsUsed": allParamsNeeded,
             }
         else:
             return {
                 "status": StatusCode.SCALAR_REQUEST_ERROR,
                 "response": f"Error: {str(e)}",
-                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location",
+                "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
                 "urlParamsUsed": allParamsNeeded,
             }
