@@ -164,7 +164,7 @@ async def get_scalar_data(
             allObtainedParams["dateTo"] = ""
             allObtainedParams["dateFrom"] = ""
             return {
-                "response": f"Device was not deployed during the requested period. Here are the periods that that device has been deployed:\n{deployment_string}",
+                "response": f"Device was not deployed during the requested period. Here are the periods that {deviceCategoryCode} at {locationCode} has been deployed:\n{deployment_string}",
                 "status": StatusCode.DEPLOYMENT_ERROR,
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
