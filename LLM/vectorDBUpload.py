@@ -372,10 +372,6 @@ def upload_to_vector_db(resultsList: list, qdrant: QdrantClientWrapper):
         collection_name=qdrant.collection_name, points=points
     )
 
-
-def sayHello():
-    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Hello from scheduled_vector_db_update!")
-
 #Function gets called through APScheduler jobs to delete existing "ONC OCEANS 3.0 API" points and reupload with today's date
 def vdb_auto_upload(app_state):
 
