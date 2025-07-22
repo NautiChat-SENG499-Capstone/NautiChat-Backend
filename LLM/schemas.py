@@ -13,6 +13,7 @@ class ObtainedParamsDictionary(BaseModel):
     deviceCategoryCode: Optional[str] = None
     locationCode: Optional[str] = None
     dataProductCode: Optional[str] = None
+    propertyCode: Optional[str] = None
     extension: Optional[str] = None
     dateFrom: Optional[str] = None
     dateTo: Optional[str] = None

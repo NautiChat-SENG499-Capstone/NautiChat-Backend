@@ -361,10 +361,6 @@ class LLM:
                                         "https://data.oceannetworks.ca/api/scalardata/location",
                                     ),
                                 )
-                            elif scalarRequestStatus == StatusCode.REGULAR_MESSAGE:
-                                obtained_params: ObtainedParamsDictionary = (
-                                    ObtainedParamsDictionary()
-                                )
                         # Not doing data download or scalar request is successful so clearing the obtainedParams
                         obtained_params: ObtainedParamsDictionary = (
                             ObtainedParamsDictionary()

@@ -187,6 +187,7 @@ toolDescriptions = [
                         "type": "string",
                         "enum": [
                             "txt",
+                            "qaqc",
                             "json",
                             "mat",
                             "png",
