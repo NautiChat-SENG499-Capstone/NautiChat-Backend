@@ -365,11 +365,10 @@ class LLM:
                                 obtained_params: ObtainedParamsDictionary = (
                                     ObtainedParamsDictionary()
                                 )
-                        else:
-                            # Not doing data download or scalar request is successful so clearing the obtainedParams
-                            obtained_params: ObtainedParamsDictionary = (
-                                ObtainedParamsDictionary()
-                            )
+                        # Not doing data download or scalar request is successful so clearing the obtainedParams
+                        obtained_params: ObtainedParamsDictionary = (
+                            ObtainedParamsDictionary()
+                        )
 
                         toolMessages.append(
                             {
