@@ -1,5 +1,7 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from fastapi import status
+from fastapi import HTTPException, status
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +10,8 @@ from src.auth.service import get_password_hash, get_user
 from src.settings import get_settings
 
 
-class TestRegisteration:
+@patch("src.auth.service.validate_onc_token")
+class TestRegistration:
     def _create_user_request(
         self,
         username: str = "tester",
@@ -33,9 +36,12 @@ class TestRegisteration:
 
     @pytest.mark.asyncio
     async def test_register_new_user(
-        self, client: AsyncClient, async_session: AsyncSession
+        self, mock_validate: AsyncMock, client: AsyncClient, async_session: AsyncSession
     ):
         """Test registering a new user"""
+
+        mock_validate.return_value = None  # mock valid onc token
+
         new_user = self._create_user_request(username="lebron", password="cavs")
 
         response = await client.post("/auth/register", json=new_user.model_dump())
@@ -53,9 +59,13 @@ class TestRegisteration:
 
     @pytest.mark.asyncio
     async def test_register_existing_user(
-        self, client: AsyncClient, async_session: AsyncSession
+        self, mock_validate: AsyncMock, client: AsyncClient, async_session: AsyncSession
     ):
         """Test adding a user that already exists"""
+
+        # Mock the ONC token validation
+        mock_validate.return_value = None  # mock valid onc token
+
         # Add user that should exist in db first
         existing_user = self._create_user_model(username="lebron", password="cavs")
         async_session.add(existing_user)
@@ -75,11 +85,15 @@ class TestRegisteration:
 
     @pytest.mark.asyncio
     async def test_register_invalid_onc_token(
-        self, client: AsyncClient, async_session: AsyncSession
+        self, mock_validate: AsyncMock, client: AsyncClient, async_session: AsyncSession
     ):
         """Test registering user with invalid onc token"""
         invalid = self._create_user_request(
             username="lebron", password="cavs", token="invalid_token"
+        )
+
+        mock_validate.side_effect = HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ONC token"
         )
 
         response = await client.post("/auth/register", json=invalid.model_dump())
