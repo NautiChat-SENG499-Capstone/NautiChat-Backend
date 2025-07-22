@@ -85,6 +85,8 @@ class LLM:
 
                 Do not guess. Only set `dpo_resample` if the user's language clearly matches one of these resampling strategies. Otherwise, omit it or use "none".
 
+                Only set `propertyCode` if the user's language clearly matches one of the options presented in the earlier assistant message. Otherwise, omit it.
+
                 Listing or describing sensors is enough to answer most conceptual questions — you should NOT follow up by trying to download or offer data unless the user has clearly asked for it.
 
                 If the user wants an example of data, you should return the data retrieved from the relevant tools or APIs.

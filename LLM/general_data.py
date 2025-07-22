@@ -7,7 +7,7 @@ from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.utils import resample_periods, sync_param
 from LLM.schemas import ObtainedParamsDictionary
 
-ROW_LIMIT = "8000"
+ROW_LIMIT = "100"
 
 
 async def get_scalar_data(
@@ -17,10 +17,8 @@ async def get_scalar_data(
     propertyCode: Optional[str] = None,
     dateFrom: Optional[str] = None,
     dateTo: Optional[str] = None,
-    obtainedParams: ObtainedParamsDictionary = None,
+    obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary(),
 ):
-    if obtainedParams is None:
-        obtainedParams = ObtainedParamsDictionary()
     onc = ONC(user_onc_token)
     """
         Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode with a resamplePeriod and resampleType,
@@ -67,6 +65,7 @@ async def get_scalar_data(
         delta_seconds = (end - begin).total_seconds()
 
         resample_period = min(resample_periods, key=lambda x: abs(x - (delta_seconds)))
+        print(f"Resample period determined: {resample_period}")
 
     allParamsNeeded = {
         "deviceCategoryCode": deviceCategoryCode,
@@ -75,7 +74,7 @@ async def get_scalar_data(
         "locationCode": locationCode,
         "propertyCode": propertyCode,
         "resampleType": "avgMinMax",
-        "resamplePeriod": resample_period,
+        "resamplePeriod": str(resample_period),
         "outputFormat": "object",
         "rowLimit": ROW_LIMIT,
         "token": user_onc_token,
@@ -95,7 +94,7 @@ async def get_scalar_data(
                 "response": f"Hey! It looks like you are requesting scalar data! I don't have any parameters so far. I still need you to please provide the following missing parameters so I can complete the scalar data request: {', '.join(neededParams)}. Thank you!",
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
-                "urlParamsUsed": allObtainedParams,
+                "urlParamsUsed": allParamsNeeded,
             }
         else:
             return {
@@ -103,23 +102,36 @@ async def get_scalar_data(
                 "response": f"Hey! It looks like you are requesting scalar data! So far I have the following parameters: {param_keys}. However, I still need you to please provide the following missing parameters so I can complete the scalar data request: {', '.join(neededParams)}. Thank you!",
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
-                "urlParamsUsed": allObtainedParams,
+                "urlParamsUsed": allParamsNeeded,
             }
 
     try:
-        response = onc.getScalardataByLocation(allObtainedParams)
+        response = onc.getScalardataByLocation(allParamsNeeded)
         print(f"Response from ONC: {response}")
         datetimedateFrom = datetime.strptime(dateFrom, "%Y-%m-%dT%H:%M:%S.%fZ")
         datetimedateTo = datetime.strptime(dateTo, "%Y-%m-%dT%H:%M:%S.%fZ")
         begin = datetimedateFrom.strftime("%B %d, %Y at %I:%M%p")
         end = datetimedateTo.strftime("%B %d, %Y at %I:%M%p")
+        print("RESPONSE FROM ONC: ", response)
         if response["sensorData"]:
             return {
-                "response": response,
-                "description": f"Here is the minimum/maximum/average scalar data you requested from the {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}",
+                "response": {
+                    "description": f"Here is the minimum/maximum/average scalar data you requested from the {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}",
+                    "data": {
+                        "minimum": response["sensorData"][0]["data"][0]["minimum"],
+                        "Time of minimum value obtained": response["sensorData"][0][
+                            "data"
+                        ][0]["minTime"],
+                        "maximum": response["sensorData"][0]["data"][0]["maximum"],
+                        "Time of maximum value obtained": response["sensorData"][0][
+                            "data"
+                        ][0]["maxTime"],
+                        "average": response["sensorData"][0]["data"][0]["value"],
+                    },
+                },
                 "status": StatusCode.REGULAR_MESSAGE,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
-                "urlParamsUsed": allObtainedParams,
+                "urlParamsUsed": allParamsNeeded,
             }
         else:
             return {
@@ -127,7 +139,7 @@ async def get_scalar_data(
                 "description": f"There is no scalar data at {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}.",
                 "status": StatusCode.NO_DATA,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
-                "urlParamsUsed": allObtainedParams,
+                "urlParamsUsed": allParamsNeeded,
             }
     except Exception as e:
         error_message = str(e)
@@ -163,12 +175,12 @@ async def get_scalar_data(
                 "status": StatusCode.DEPLOYMENT_ERROR,
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
-                "urlParamsUsed": allObtainedParams,
+                "urlParamsUsed": allParamsNeeded,
             }
         else:
             return {
                 "status": StatusCode.SCALAR_REQUEST_ERROR,
                 "response": f"Error: {str(e)}",
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
-                "urlParamsUsed": allObtainedParams,
+                "urlParamsUsed": allParamsNeeded,
             }
