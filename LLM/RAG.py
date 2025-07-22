@@ -33,7 +33,10 @@ class QdrantClientWrapper:
         self.qdrant_client = QdrantClient(
             url=env.get_qdrant_url(), api_key=env.get_qdrant_api_key()
         )
-        self.collection_name = env.get_collection_name()
+        self.general_collection_name = env.get_general_collection_name()
+        self.function_calling_collection_name = (
+            env.get_function_calling_collection_name()
+        )
 
 
 class RAG:
@@ -43,35 +46,47 @@ class RAG:
     ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
         self.qdrant_client = self.qdrant_client_wrapper.qdrant_client
-        self.collection_name = self.qdrant_client_wrapper.collection_name
+        self.general_collection_name = (
+            self.qdrant_client_wrapper.general_collection_name
+        )
+        self.function_calling_collection_name = (
+            self.qdrant_client_wrapper.function_calling_collection_name
+        )
         self.embedding = JinaEmbeddings()
+        self.k = 20
 
         self.qdrant = Qdrant(
             client=self.qdrant_client,
-            collection_name=self.collection_name,
+            collection_name=self.general_collection_name,
             embeddings=self.embedding,
             content_payload_key="text",
         )
-        # Qdrant Retriever
-        print("Creating Qdrant retriever...")
-        self.retriever = self.qdrant.as_retriever(search_kwargs={"k": 100})
         # Reranker (from RerankerNoGroq notebook)
         print("Creating CrossEncoder model...")
         self.model = HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base")
         self.compressor = CrossEncoderReranker(model=self.model, top_n=15)
 
     def get_documents(self, question: str):
+        general_results = self.get_documents_helper(
+            question, self.general_collection_name, 2
+        )
+        function_calling_results = self.get_documents_helper(
+            question, self.function_calling_collection_name, 2
+        )
+        all_results = general_results._append(function_calling_results)
+        return all_results
+
+    def get_documents_helper(
+        self, question: str, collection_name: str, max_returns: int
+    ):
         query_embedding = self.embedding.embed_query(question)
         search_results = self.qdrant_client.search(
-            collection_name=self.collection_name,
+            collection_name=collection_name,
             query_vector=query_embedding,
-            limit=100,  # same as k in retriever
+            limit=self.k,  # same as k in retriever
             with_payload=True,
             with_vectors=False,
         )
-
-        # Filter results by score threshold
-        filtered_hits = [hit for hit in search_results if hit.score >= 0.4]
 
         documents = [
             Document(
@@ -81,7 +96,7 @@ class RAG:
                     "source": hit.payload.get("source", "unknown"),
                 },
             )
-            for hit in filtered_hits
+            for hit in search_results
         ]
 
         # No documents were above threshold
@@ -108,4 +123,5 @@ class RAG:
         compression_contents = [doc.page_content for doc in selected_docs]
         sources = [doc.metadata.get("source", "unknown") for doc in selected_docs]
         df = pd.DataFrame({"contents": compression_contents, "sources": sources})
+        df = df[:max_returns]
         return df

@@ -18,6 +18,10 @@ class Environment:
         self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.qdrant_url = os.getenv("QDRANT_URL")
         self.collection_name = os.getenv("QDRANT_COLLECTION_NAME")
+        self.general_collection_name = os.getenv("QDRANT_GENERAL_COLLECTION_NAME")
+        self.function_calling_collection_name = os.getenv(
+            "QDRANT_FUNCTION_CALLING_COLLECTION_NAME"
+        )
         self.qdrant_api_key = os.getenv("QDRANT_API_KEY")
 
     def get_onc_token(self):
@@ -35,8 +39,11 @@ class Environment:
     def get_qdrant_url(self):
         return self.qdrant_url
 
-    def get_collection_name(self):
-        return self.collection_name
+    def get_general_collection_name(self):
+        return self.general_collection_name
+
+    def get_function_calling_collection_name(self):
+        return self.function_calling_collection_name
 
     def get_qdrant_api_key(self):
         return self.qdrant_api_key
