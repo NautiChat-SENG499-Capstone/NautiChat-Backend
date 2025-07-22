@@ -45,13 +45,9 @@ async def main():
                 print("Download request initiated. Request ID:", response.dpRequestId)
                 print("DOI:", response.doi)
                 print("Citation:", response.citation)
-                obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
-            elif response.status == StatusCode.PARAMS_NEEDED:
-                print("Error:", response.response)
-                obtainedParams = response.obtainedParams
-                print("Obtained parameters:", obtainedParams)
-            else:
-                print("Response:", response.response)
+            obtainedParams = response.obtainedParams
+            print("Response:", response.response)
+            print("Obtained parameters:", obtainedParams)
             print("URL Params Used:", response.urlParamsUsed)
             print("Base URL:", response.baseUrl)
             response = {"role": "assistant", "content": response.response}

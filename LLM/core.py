@@ -245,7 +245,9 @@ class LLM:
                                 citation = function_response.get(
                                     "citation", "No citation available"
                                 )
-                                obtained_params = ObtainedParamsDictionary()
+                                obtained_params: ObtainedParamsDictionary = (
+                                    ObtainedParamsDictionary()
+                                )
                                 # Return a response indicating that the download is being processed
                                 return RunConversationResponse(
                                     status=StatusCode.PROCESSING_DATA_DOWNLOAD,
@@ -255,6 +257,7 @@ class LLM:
                                     dpRequestId=dpRequestId,
                                     doi=doi,
                                     citation=citation,
+                                    obtainedParams=obtained_params,
                                     urlParamsUsed=function_response.get(
                                         "urlParamsUsed", {}
                                     ),
@@ -470,6 +473,7 @@ class LLM:
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response,
+                    obtainedParams=obtained_params,
                     urlParamsUsed=function_response.get("urlParamsUsed", {}),
                     baseUrl=function_response.get(
                         "baseUrl",
@@ -483,12 +487,14 @@ class LLM:
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response_message.content,
                     sources=sources,
+                    obtainedParams=obtained_params,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
             return RunConversationResponse(
                 status=StatusCode.LLM_ERROR,
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
+                obtainedParams=obtained_params,
             )
 
     async def call_tool(self, fn, args, user_onc_token):
