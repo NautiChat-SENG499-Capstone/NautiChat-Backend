@@ -74,13 +74,16 @@ class RAG:
         self.compressor = CrossEncoderReranker(model=self.model, top_n=15)
 
     def get_documents(self, question: str):
+        query_embedding = self.embedding.embed_query(question)
         general_results = self.get_documents_helper(
+            query_embedding,
             question,
             self.general_collection_name,
             documentFilteringType.Score,
             min_score=0.4,
         )
         function_calling_results = self.get_documents_helper(
+            query_embedding,
             question,
             self.function_calling_collection_name,
             documentFilteringType.MaxDocuments,
@@ -91,13 +94,13 @@ class RAG:
 
     def get_documents_helper(
         self,
+        query_embedding,
         question: str,
         collection_name: str,
         filtering_type: documentFilteringType,
         min_score: float = 0.4,
         max_returns: int = 1,
     ):
-        query_embedding = self.embedding.embed_query(question)
         search_results = self.qdrant_client.search(
             collection_name=collection_name,
             query_vector=query_embedding,
