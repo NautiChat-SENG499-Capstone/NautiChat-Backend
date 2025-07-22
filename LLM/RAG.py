@@ -1,3 +1,5 @@
+from enum import Enum
+
 import pandas as pd
 from langchain.embeddings.base import Embeddings
 from langchain.retrievers.document_compressors import CrossEncoderReranker
@@ -8,6 +10,11 @@ from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
 from LLM.Environment import Environment
+
+
+class documentFilteringType(Enum):
+    Score = 1
+    MaxDocuments = 2
 
 
 class JinaEmbeddings(Embeddings):
@@ -68,16 +75,27 @@ class RAG:
 
     def get_documents(self, question: str):
         general_results = self.get_documents_helper(
-            question, self.general_collection_name, 2
+            question,
+            self.general_collection_name,
+            documentFilteringType.Score,
+            min_score=0.4,
         )
         function_calling_results = self.get_documents_helper(
-            question, self.function_calling_collection_name, 2
+            question,
+            self.function_calling_collection_name,
+            documentFilteringType.MaxDocuments,
+            max_returns=1,
         )
         all_results = general_results._append(function_calling_results)
         return all_results
 
     def get_documents_helper(
-        self, question: str, collection_name: str, max_returns: int
+        self,
+        question: str,
+        collection_name: str,
+        filtering_type: documentFilteringType,
+        min_score: float = 0.4,
+        max_returns: int = 1,
     ):
         query_embedding = self.embedding.embed_query(question)
         search_results = self.qdrant_client.search(
@@ -87,6 +105,9 @@ class RAG:
             with_payload=True,
             with_vectors=False,
         )
+
+        if filtering_type == documentFilteringType.Score:
+            search_results = [hit for hit in search_results if hit.score >= min_score]
 
         documents = [
             Document(
@@ -123,5 +144,6 @@ class RAG:
         compression_contents = [doc.page_content for doc in selected_docs]
         sources = [doc.metadata.get("source", "unknown") for doc in selected_docs]
         df = pd.DataFrame({"contents": compression_contents, "sources": sources})
-        df = df[:max_returns]
+        if filtering_type == documentFilteringType.MaxDocuments:
+            df = df[:max_returns]
         return df
