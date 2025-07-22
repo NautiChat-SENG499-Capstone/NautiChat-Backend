@@ -148,17 +148,18 @@ async def get_scalar_data(
             ]
             deployment_string = ""
             for deployment_range in deployment_ranges:
-                zbegin = datetime.fromisoformat(
-                    deployment_range["begin"].replace("Z", "+00:00")
-                )
-                zend = datetime.fromisoformat(
-                    deployment_range["end"].replace("Z", "+00:00")
-                )
-                begin = zbegin.strftime("%B {day}, %Y at %I:%M%p").format(
-                    day=zbegin.day
-                )
-                end = zend.strftime("%B {day}, %Y at %I:%M%p").format(day=zend.day)
-                deployment_string += f"Begin: {begin}, End: {end}\n"
+                if deployment_range["begin"] and deployment_range["end"]:
+                    zbegin = datetime.fromisoformat(
+                        deployment_range["begin"].replace("Z", "+00:00")
+                    )
+                    zend = datetime.fromisoformat(
+                        deployment_range["end"].replace("Z", "+00:00")
+                    )
+                    begin = zbegin.strftime("%B {day}, %Y at %I:%M%p").format(
+                        day=zbegin.day
+                    )
+                    end = zend.strftime("%B {day}, %Y at %I:%M%p").format(day=zend.day)
+                    deployment_string += f"Begin: {begin}, End: {end}\n"
             allObtainedParams["dateTo"] = ""
             allObtainedParams["dateFrom"] = ""
             return {
