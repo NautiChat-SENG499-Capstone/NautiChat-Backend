@@ -2,7 +2,7 @@ import asyncio
 
 from fastapi import HTTPException, Request, status
 from qdrant_client.http.models import FieldCondition, Filter, MatchValue, UpdateStatus
-from sqlalchemy import delete, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -211,6 +211,25 @@ async def source_remove_from_vdb(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+
+async def get_all_documents(db: AsyncSession) -> list[VectorDocument]:
+    """Return all vector documents from the database."""
+    result = await db.execute(select(VectorDocument).order_by(VectorDocument.id))
+    return result.scalars().all()
+
+
+async def get_document_by_source(source: str, db: AsyncSession) -> VectorDocument:
+    """Return a specific vector document by its source."""
+    result = await db.execute(
+        select(VectorDocument).where(VectorDocument.source == source)
+    )
+    document = result.scalar_one_or_none()
+    if not document:
+        raise HTTPException(
+            status_code=404, detail=f"No document found for source '{source}'"
+        )
+    return document
 
 
 async def increment_usage(sources: list[str], db: AsyncSession) -> None:
