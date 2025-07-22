@@ -19,7 +19,7 @@ from unstructured.partition.pdf import partition_pdf
 from LLM.RAG import JinaEmbeddings, QdrantClientWrapper
 
 import datetime
-from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+from qdrant_client.http.models import FieldCondition, Filter, MatchValue, PayloadSchemaType
 
 """
 Series of functions to preprocess PDF files, extract structured text chunks,
@@ -380,6 +380,13 @@ def sayHello():
 def vdb_auto_upload(app_state):
 
     qdrant_client_wrapper = app_state.rag.qdrant_client_wrapper
+
+    #Create a payload index for "source" field (can't filter without this)
+    qdrant_client_wrapper.qdrant_client.create_payload_index(
+        collection_name=qdrant_client_wrapper.collection_name,
+        field_name="source",
+        field_schema=PayloadSchemaType.KEYWORD,
+    )
 
     filter_condition = Filter(
         must=[FieldCondition(key="source", match=MatchValue(value="ONC OCEANS 3.0 API"))]

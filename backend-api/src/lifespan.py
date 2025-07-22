@@ -43,10 +43,8 @@ async def lifespan(app: FastAPI):
         logger.info("Getting RAG instance...")
         app.state.rag = app.state.llm.RAG_instance
         logger.info("RAG instance initialized successfully.")
-        
-        logger.info("Initializing APScheduler...")
-        scheduler = BackgroundScheduler()
 
+        scheduler = BackgroundScheduler()
         scheduler.add_job(
             vdb_auto_upload,
             'interval',
@@ -55,9 +53,8 @@ async def lifespan(app: FastAPI):
             args=[app.state], 
             
         )
-
         scheduler.start()
-        logger.info("APScheduler started in the background.")
+        logger.info("Started vector database auto upload job every 24 hours")
 
     except Exception as e:
         logger.error(f"Startup failed with error: {str(e)}")
