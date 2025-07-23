@@ -9,20 +9,19 @@ import pandas as pd
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.tool_descriptions import toolDescriptions
 from LLM.data_download import generate_download_codes
+from LLM.general_data import get_scalar_data
 from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 from LLM.tools_sprint1 import (
     get_active_instruments_at_cambridge_bay,
-    # get_time_range_of_available_data,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
-    get_properties_at_cambridge_bay,
+    # get_properties_at_cambridge_bay,
 )
 from LLM.tools_sprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_ice_thickness,
     get_oxygen_data_24h,
-    # get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
 )
 
@@ -38,16 +37,16 @@ class LLM:
         self.model = env.get_model()
         self.RAG_instance: RAG = RAG_instance or RAG(env=self.env)
         self.available_functions = {
-            "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
+            # "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
             "get_active_instruments_at_cambridge_bay": get_active_instruments_at_cambridge_bay,
             "generate_download_codes": generate_download_codes,
             "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
             "get_oxygen_data_24h": get_oxygen_data_24h,
-            # "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
+            "get_scalar_data": get_scalar_data,
         }
 
     async def run_conversation(
@@ -86,6 +85,8 @@ class LLM:
 
                 Do not guess. Only set `dpo_resample` if the user's language clearly matches one of these resampling strategies. Otherwise, omit it or use "none".
 
+                Only set `propertyCode` if the user's language clearly matches one of the options presented in the earlier assistant message. Otherwise, omit it.
+
                 Listing or describing sensors is enough to answer most conceptual questions — you should NOT follow up by trying to download or offer data unless the user has clearly asked for it.
 
                 If the user wants an example of data, you should return the data retrieved from the relevant tools or APIs.
@@ -108,9 +109,13 @@ class LLM:
 
                 You may use tools when required to answer user questions. Do not describe what you *will* do — only use tools if needed.
 
+                You MUST explicitly include the name “Cambridge Bay” in your response whenever tool results are based on data from that location. Do not use vague phrases like “the Arctic” or “polar regions.” You must also clearly state the date range used in the tool query (e.g., dateFrom and dateTo). If the dateFrom and dateTo values fall on the same day, say that the data was sampled on that day rather than referring to a date range. 
+
                 When a tool is used, do not guess or assume what it might return. Do not speculate or reason beyond the returned result. However, you may output the tool’s result in your response and format it clearly for the user, as long as you do not add new interpretations or steps.
 
                 You are NEVER required to generate code in any language.
+
+                NEVER use a dateFrom or dateTo value that is in the future.
 
                 Do NOT add follow-up suggestions, guesses, or recommendations.
 
@@ -119,15 +124,17 @@ class LLM:
                 DO NOT guess what the tool might return.  
                 DO NOT say "I will now use the tool."  
                 DO NOT try to reason about data availability.
-
-                If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
+                DO NOT infer some dateTo or dateFrom, if it is given use it, if it is not, leave it blank.
+                If there are similar entries in the vector database for a device, DO NOT pick one, ask the user to clarify which device they want.
+                If no tool can reliably answer the question, tell the user you can't answer the question.
             """
+            # If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
 
             # print("Messages: ", messages)
-
+            sources = []
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
             print("Vector DB Response:", vectorDBResponse)
-            sources = []
+
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -168,6 +175,7 @@ class LLM:
             print("First Response from LLM:", response_message.content)
             # print(tool_calls)
             doing_data_download = False
+            doing_scalar_request = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 # print("tools calls:", tool_calls)
@@ -189,6 +197,9 @@ class LLM:
                             # Special case for download codes
                             print("Generating download codes...")
                             doing_data_download = True
+                        if function_name == "get_scalar_data":
+                            print("Doing Scalar request...")
+                            doing_scalar_request = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
                         except json.JSONDecodeError:
@@ -196,7 +207,7 @@ class LLM:
                         print(
                             f"Calling function: {function_name} with args: {function_args}"
                         )
-                        if doing_data_download:
+                        if doing_data_download or doing_scalar_request:
                             print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
                             function_args["obtained_params"] = obtained_params
@@ -222,7 +233,8 @@ class LLM:
                                 return RunConversationResponse(
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
-                                    obtained_params=obtained_params,
+                                    obtainedParams=obtained_params,
+                                    sources=sources,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -234,6 +246,9 @@ class LLM:
                                 citation = function_response.get(
                                     "citation", "No citation available"
                                 )
+                                obtained_params: ObtainedParamsDictionary = (
+                                    ObtainedParamsDictionary()
+                                )
                                 # Return a response indicating that the download is being processed
                                 return RunConversationResponse(
                                     status=StatusCode.PROCESSING_DATA_DOWNLOAD,
@@ -243,6 +258,7 @@ class LLM:
                                     dpRequestId=dpRequestId,
                                     doi=doi,
                                     citation=citation,
+                                    obtainedParams=obtained_params,
                                     urlParamsUsed=function_response.get(
                                         "urlParamsUsed", {}
                                     ),
@@ -250,6 +266,7 @@ class LLM:
                                         "baseUrl",
                                         "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
+                                    sources=sources,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -274,12 +291,92 @@ class LLM:
                                         "baseUrl",
                                         "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
+                                    sources=sources,
                                 )
-                        else:
-                            # Not doing data download so clearing the obtained_params
-                            obtained_params: ObtainedParamsDictionary = (
-                                ObtainedParamsDictionary()
-                            )
+                        elif doing_scalar_request:
+                            scalarRequestStatus = function_response.get("status")
+                            if scalarRequestStatus == StatusCode.PARAMS_NEEDED:
+                                print(
+                                    "Scalar request parameters needed, returning response now"
+                                )
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.PARAMS_NEEDED,
+                                    response=function_response.get("response"),
+                                    obtainedParams=obtained_params,
+                                    sources=sources,
+                                )
+                            elif scalarRequestStatus == StatusCode.DEPLOYMENT_ERROR:
+                                print(
+                                    "Scalar request parameters needed, returning response now"
+                                )
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print(function_response.get("result"))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.DEPLOYMENT_ERROR,
+                                    response=function_response.get("response"),
+                                    obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
+                                    sources=sources,
+                                )
+                            elif scalarRequestStatus == StatusCode.NO_DATA:
+                                print("No data returned.")
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.DEPLOYMENT_ERROR,
+                                    response=function_response.get("description"),
+                                    obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
+                                    sources=sources,
+                                )
+                            elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
+                                print("No data returned.")
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.SCALAR_REQUEST_ERROR,
+                                    response=function_response.get("response"),
+                                    obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
+                                    sources=sources,
+                                )
+                        # Not doing data download or scalar request is successful so clearing the obtainedParams
+                        obtained_params: ObtainedParamsDictionary = (
+                            ObtainedParamsDictionary()
+                        )
 
                         toolMessages.append(
                             {
@@ -311,6 +408,14 @@ class LLM:
                     |    YYYY-MM-DD HH:MM:SS    | [value1]                   |
                     |    YYYY-MM-DD HH:MM:SS    | [value2]                   |
 
+                    If minimum/maximum/average is in the tool response, YOU MUST format it this way. DO NOT include any other tables of data. Make sure the columns are lined up. Minimum/Maximum/Average data must be formatted in the following format:
+
+                    | Measurement               | Time                      | [Measurement Name] (units) |
+                    |---------------------------|---------------------------|----------------------------|
+                    |    Minimum                |    YYYY-MM-DD HH:MM:SS    | [min]                      |
+                    |    Maximum                |    YYYY-MM-DD HH:MM:SS    | [max]                      |
+                    |    Average                |                           | [average]                  |
+
                     Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
 
                     IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
@@ -335,7 +440,11 @@ class LLM:
 
                     When a tool is used, do not guess or assume what it might return. Do not speculate or reason beyond the returned result. However, you may output the tool’s result in your response and format it clearly for the user, as long as you do not add new interpretations or steps.
 
+                    You MUST explicitly include the name “Cambridge Bay” in your response whenever tool results are based on data from that location. Do not use vague phrases like “the Arctic” or “polar regions.” You must also clearly state the date range used in the tool query (e.g., dateFrom and dateTo). If the dateFrom and dateTo values fall on the same day, say that the data was sampled on that day rather than referring to a date range.
+
                     You are NEVER required to generate code in any language.
+
+                    NEVER use a dateFrom or dateTo value that is in the future.
 
                     Do NOT add follow-up suggestions, guesses, or recommendations.
 
@@ -343,6 +452,8 @@ class LLM:
 
                     DO NOT say "I will now use the tool."  
                     DO NOT try to reason about data availability.
+
+                    DO NOT MAKE UP DATA. Only use data returned from the tools.
                 """
                 messagesNoContext = [
                     {
@@ -369,6 +480,7 @@ class LLM:
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response,
+                    obtainedParams=obtained_params,
                     urlParamsUsed=function_response.get("urlParamsUsed", {}),
                     baseUrl=function_response.get(
                         "baseUrl",
@@ -382,12 +494,15 @@ class LLM:
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response_message.content,
                     sources=sources,
+                    obtainedParams=obtained_params,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
             return RunConversationResponse(
                 status=StatusCode.LLM_ERROR,
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
+                obtainedParams=obtained_params,
+                sources=sources,
             )
 
     async def call_tool(self, fn, args, user_onc_token):

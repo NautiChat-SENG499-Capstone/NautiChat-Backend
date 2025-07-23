@@ -52,6 +52,7 @@ class ObtainedParamsDictionary(BaseModel):
     deviceCategoryCode: Optional[str] = None
     locationCode: Optional[str] = None
     dataProductCode: Optional[str] = None
+    propertyCode: Optional[str] = None
     extension: Optional[str] = None
     dateFrom: Optional[str] = None
     dateTo: Optional[str] = None
@@ -76,7 +77,7 @@ class RunConversationResponse(BaseModel):
 
     status: StatusCode
     response: str
-    obtained_params: Optional[ObtainedParamsDictionary] = Field(
+    obtainedParams: ObtainedParamsDictionary = Field(
         default_factory=ObtainedParamsDictionary
     )
     dpRequestId: Optional[int] = None
