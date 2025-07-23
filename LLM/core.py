@@ -131,10 +131,10 @@ class LLM:
             # If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
 
             # print("Messages: ", messages)
-
+            sources = []
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
             print("Vector DB Response:", vectorDBResponse)
-            sources = []
+
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -234,6 +234,7 @@ class LLM:
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
                                     obtainedParams=obtained_params,
+                                    sources=sources,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -265,6 +266,7 @@ class LLM:
                                         "baseUrl",
                                         "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
+                                    sources=sources,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -289,6 +291,7 @@ class LLM:
                                         "baseUrl",
                                         "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
+                                    sources=sources,
                                 )
                         elif doing_scalar_request:
                             scalarRequestStatus = function_response.get("status")
@@ -304,6 +307,7 @@ class LLM:
                                     status=StatusCode.PARAMS_NEEDED,
                                     response=function_response.get("response"),
                                     obtainedParams=obtained_params,
+                                    sources=sources,
                                 )
                             elif scalarRequestStatus == StatusCode.DEPLOYMENT_ERROR:
                                 print(
@@ -325,6 +329,7 @@ class LLM:
                                         "baseUrl",
                                         "https://data.oceannetworks.ca/api/scalardata/location",
                                     ),
+                                    sources=sources,
                                 )
                             elif scalarRequestStatus == StatusCode.NO_DATA:
                                 print("No data returned.")
@@ -345,6 +350,7 @@ class LLM:
                                         "baseUrl",
                                         "https://data.oceannetworks.ca/api/scalardata/location",
                                     ),
+                                    sources=sources,
                                 )
                             elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
                                 print("No data returned.")
@@ -365,6 +371,7 @@ class LLM:
                                         "baseUrl",
                                         "https://data.oceannetworks.ca/api/scalardata/location",
                                     ),
+                                    sources=sources,
                                 )
                         # Not doing data download or scalar request is successful so clearing the obtainedParams
                         obtained_params: ObtainedParamsDictionary = (
@@ -495,6 +502,7 @@ class LLM:
                 status=StatusCode.LLM_ERROR,
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
                 obtainedParams=obtained_params,
+                sources=sources,
             )
 
     async def call_tool(self, fn, args, user_onc_token):
