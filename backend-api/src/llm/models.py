@@ -28,6 +28,9 @@ class Conversation(Base):
     obtained_params: Mapped[dict[str, Any]] = mapped_column(
         JSON, default=dict, nullable=False
     )
+    previous_vdb_ids: Mapped[list[str]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
 
     # Many-to-one: links to user who 'owns' conversation
     user: Mapped["User"] = relationship(back_populates="conversations")
