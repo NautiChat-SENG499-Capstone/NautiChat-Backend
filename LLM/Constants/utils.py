@@ -1,3 +1,6 @@
+from LLM.Constants.status_codes import StatusCode
+from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
+
 resample_periods = [
     1,
     5,
@@ -38,3 +41,137 @@ def sync_param(field_name: str, local_value, params_model, allObtainedParams: di
     if local_value is not None:
         allObtainedParams[field_name] = local_value
     return local_value
+
+
+def handle_scalar_request(
+    function_response: dict, sources: list, scalarRequestStatus: int
+):
+    if scalarRequestStatus == StatusCode.PARAMS_NEEDED:
+        print("Scalar request parameters needed, returning response now")
+        obtained_params: ObtainedParamsDictionary = function_response.get(
+            "obtainedParams", {}
+        )
+        # Return a response indicating that Paramaters are needed
+        return RunConversationResponse(
+            status=StatusCode.PARAMS_NEEDED,
+            response=function_response.get("response"),
+            obtainedParams=obtained_params,
+            sources=sources,
+        )
+    elif scalarRequestStatus == StatusCode.DEPLOYMENT_ERROR:
+        print("Scalar request parameters needed, returning response now")
+        obtained_params: ObtainedParamsDictionary = function_response.get(
+            "obtainedParams", {}
+        )
+        print(function_response.get("result"))
+        # Return a response indicating that Paramaters are needed
+        return RunConversationResponse(
+            status=StatusCode.DEPLOYMENT_ERROR,
+            response=function_response.get("response"),
+            obtainedParams=obtained_params,
+            urlParamsUsed=function_response.get("urlParamsUsed", {}),
+            baseUrl=function_response.get(
+                "baseUrl",
+                "https://data.oceannetworks.ca/api/scalardata/location",
+            ),
+            sources=sources,
+        )
+    elif scalarRequestStatus == StatusCode.NO_DATA:
+        print("No data returned.")
+        obtained_params: ObtainedParamsDictionary = function_response.get(
+            "obtainedParams", {}
+        )
+        print("Obtained parameters:", obtained_params)
+        print("Obtained parameters:", type(obtained_params))
+        # Return a response indicating that Paramaters are needed
+        return RunConversationResponse(
+            status=StatusCode.DEPLOYMENT_ERROR,
+            response=function_response.get("description"),
+            obtainedParams=obtained_params,
+            urlParamsUsed=function_response.get("urlParamsUsed", {}),
+            baseUrl=function_response.get(
+                "baseUrl",
+                "https://data.oceannetworks.ca/api/scalardata/location",
+            ),
+            sources=sources,
+        )
+    elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
+        print("No data returned.")
+        obtained_params: ObtainedParamsDictionary = function_response.get(
+            "obtainedParams", {}
+        )
+        print("Obtained parameters:", obtained_params)
+        print("Obtained parameters:", type(obtained_params))
+        # Return a response indicating that Paramaters are needed
+        return RunConversationResponse(
+            status=StatusCode.SCALAR_REQUEST_ERROR,
+            response=function_response.get("response"),
+            obtainedParams=obtained_params,
+            urlParamsUsed=function_response.get("urlParamsUsed", {}),
+            baseUrl=function_response.get(
+                "baseUrl",
+                "https://data.oceannetworks.ca/api/scalardata/location",
+            ),
+            sources=sources,
+        )
+
+
+def handle_data_download(function_response: dict, sources: list):
+    DataDownloadStatus = function_response.get("status")
+    if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
+        print("Download parameters needed, returning response now")
+        obtained_params: ObtainedParamsDictionary = function_response.get(
+            "obtainedParams", {}
+        )
+        print("Obtained parameters:", obtained_params)
+        print("Obtained parameters:", type(obtained_params))
+        # Return a response indicating that Paramaters are needed
+        return RunConversationResponse(
+            status=StatusCode.PARAMS_NEEDED,
+            response=function_response.get("response"),
+            obtainedParams=obtained_params,
+            sources=sources,
+        )
+    elif DataDownloadStatus == StatusCode.PROCESSING_DATA_DOWNLOAD:
+        print("download done so returning response now")
+        dpRequestId = function_response.get("dpRequestId")
+        doi = function_response.get("doi", "No DOI available")
+        citation = function_response.get("citation", "No citation available")
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary()
+        # Return a response indicating that the download is being processed
+        return RunConversationResponse(
+            status=StatusCode.PROCESSING_DATA_DOWNLOAD,
+            response=function_response.get(
+                "response", "Your download is being processed."
+            ),
+            dpRequestId=dpRequestId,
+            doi=doi,
+            citation=citation,
+            obtainedParams=obtained_params,
+            urlParamsUsed=function_response.get("urlParamsUsed", {}),
+            baseUrl=function_response.get(
+                "baseUrl",
+                "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
+            ),
+            sources=sources,
+        )
+    elif DataDownloadStatus == StatusCode.ERROR_WITH_DATA_DOWNLOAD:
+        print("Download error so returning response now")
+        obtained_params: ObtainedParamsDictionary = function_response.get(
+            "obtainedParams", {}
+        )
+        # Return a response indicating that there was an error with the download
+        return RunConversationResponse(
+            status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+            response=function_response.get(
+                "response",
+                "An error occurred while processing your download request.",
+            ),
+            obtainedParams=obtained_params,
+            urlParamsUsed=function_response.get("urlParamsUsed", {}),
+            baseUrl=function_response.get(
+                "baseUrl",
+                "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
+            ),
+            sources=sources,
+        )

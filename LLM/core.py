@@ -13,6 +13,7 @@ from LLM.Constants.system_prompts import (
     second_LLM_prompt,
 )
 from LLM.Constants.tool_descriptions import toolDescriptions
+from LLM.Constants.utils import handle_data_download, handle_scalar_request
 from LLM.data_download import generate_download_codes
 from LLM.general_data import get_scalar_data
 from LLM.RAG import RAG
@@ -135,7 +136,6 @@ class LLM:
 
                     if function_name in self.available_functions:
                         if function_name == "generate_download_codes":
-                            # Special case for download codes
                             print("Generating download codes...")
                             doing_data_download = True
                         if function_name == "get_scalar_data":
@@ -150,7 +150,6 @@ class LLM:
                         )
                         if doing_data_download or doing_scalar_request:
                             print("function_args: ", function_args)
-                            # print("**function_args: ",**function_args)
                             function_args["obtainedParams"] = obtained_params
 
                         function_response = await self.call_tool(
@@ -160,159 +159,12 @@ class LLM:
                         )
                         print("Function response:", function_response)
                         if doing_data_download:
-                            DataDownloadStatus = function_response.get("status")
-                            if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
-                                print(
-                                    "Download parameters needed, returning response now"
-                                )
-                                obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
-                                )
-                                print("Obtained parameters:", obtained_params)
-                                print("Obtained parameters:", type(obtained_params))
-                                # Return a response indicating that Paramaters are needed
-                                return RunConversationResponse(
-                                    status=StatusCode.PARAMS_NEEDED,
-                                    response=function_response.get("response"),
-                                    obtainedParams=obtained_params,
-                                    sources=sources,
-                                )
-                            elif (
-                                DataDownloadStatus
-                                == StatusCode.PROCESSING_DATA_DOWNLOAD
-                            ):
-                                print("download done so returning response now")
-                                dpRequestId = function_response.get("dpRequestId")
-                                doi = function_response.get("doi", "No DOI available")
-                                citation = function_response.get(
-                                    "citation", "No citation available"
-                                )
-                                obtained_params: ObtainedParamsDictionary = (
-                                    ObtainedParamsDictionary()
-                                )
-                                # Return a response indicating that the download is being processed
-                                return RunConversationResponse(
-                                    status=StatusCode.PROCESSING_DATA_DOWNLOAD,
-                                    response=function_response.get(
-                                        "response", "Your download is being processed."
-                                    ),
-                                    dpRequestId=dpRequestId,
-                                    doi=doi,
-                                    citation=citation,
-                                    obtainedParams=obtained_params,
-                                    urlParamsUsed=function_response.get(
-                                        "urlParamsUsed", {}
-                                    ),
-                                    baseUrl=function_response.get(
-                                        "baseUrl",
-                                        "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
-                                    ),
-                                    sources=sources,
-                                )
-                            elif (
-                                DataDownloadStatus
-                                == StatusCode.ERROR_WITH_DATA_DOWNLOAD
-                            ):
-                                print("Download error so returning response now")
-                                obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
-                                )
-                                # Return a response indicating that there was an error with the download
-                                return RunConversationResponse(
-                                    status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
-                                    response=function_response.get(
-                                        "response",
-                                        "An error occurred while processing your download request.",
-                                    ),
-                                    obtainedParams=obtained_params,
-                                    urlParamsUsed=function_response.get(
-                                        "urlParamsUsed", {}
-                                    ),
-                                    baseUrl=function_response.get(
-                                        "baseUrl",
-                                        "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
-                                    ),
-                                    sources=sources,
-                                )
+                            return handle_data_download(function_response, sources)
                         elif doing_scalar_request:
                             scalarRequestStatus = function_response.get("status")
-                            if scalarRequestStatus == StatusCode.PARAMS_NEEDED:
-                                print(
-                                    "Scalar request parameters needed, returning response now"
-                                )
-                                obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
-                                )
-                                # Return a response indicating that Paramaters are needed
-                                return RunConversationResponse(
-                                    status=StatusCode.PARAMS_NEEDED,
-                                    response=function_response.get("response"),
-                                    obtainedParams=obtained_params,
-                                    sources=sources,
-                                )
-                            elif scalarRequestStatus == StatusCode.DEPLOYMENT_ERROR:
-                                print(
-                                    "Scalar request parameters needed, returning response now"
-                                )
-                                obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
-                                )
-                                print(function_response.get("result"))
-                                # Return a response indicating that Paramaters are needed
-                                return RunConversationResponse(
-                                    status=StatusCode.DEPLOYMENT_ERROR,
-                                    response=function_response.get("response"),
-                                    obtainedParams=obtained_params,
-                                    urlParamsUsed=function_response.get(
-                                        "urlParamsUsed", {}
-                                    ),
-                                    baseUrl=function_response.get(
-                                        "baseUrl",
-                                        "https://data.oceannetworks.ca/api/scalardata/location",
-                                    ),
-                                    sources=sources,
-                                )
-                            elif scalarRequestStatus == StatusCode.NO_DATA:
-                                print("No data returned.")
-                                obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
-                                )
-                                print("Obtained parameters:", obtained_params)
-                                print("Obtained parameters:", type(obtained_params))
-                                # Return a response indicating that Paramaters are needed
-                                return RunConversationResponse(
-                                    status=StatusCode.DEPLOYMENT_ERROR,
-                                    response=function_response.get("description"),
-                                    obtainedParams=obtained_params,
-                                    urlParamsUsed=function_response.get(
-                                        "urlParamsUsed", {}
-                                    ),
-                                    baseUrl=function_response.get(
-                                        "baseUrl",
-                                        "https://data.oceannetworks.ca/api/scalardata/location",
-                                    ),
-                                    sources=sources,
-                                )
-                            elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
-                                print("No data returned.")
-                                obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
-                                )
-                                print("Obtained parameters:", obtained_params)
-                                print("Obtained parameters:", type(obtained_params))
-                                # Return a response indicating that Paramaters are needed
-                                return RunConversationResponse(
-                                    status=StatusCode.SCALAR_REQUEST_ERROR,
-                                    response=function_response.get("response"),
-                                    obtainedParams=obtained_params,
-                                    urlParamsUsed=function_response.get(
-                                        "urlParamsUsed", {}
-                                    ),
-                                    baseUrl=function_response.get(
-                                        "baseUrl",
-                                        "https://data.oceannetworks.ca/api/scalardata/location",
-                                    ),
-                                    sources=sources,
+                            if scalarRequestStatus != StatusCode.REGULAR_MESSAGE:
+                                return handle_scalar_request(
+                                    function_response, sources, scalarRequestStatus
                                 )
                         # Not doing data download or scalar request is successful so clearing the obtainedParams
                         obtained_params: ObtainedParamsDictionary = (
