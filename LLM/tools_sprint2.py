@@ -1,27 +1,8 @@
-import asyncio
 import sys
 from datetime import datetime, timedelta
-
 import httpx
-import matplotlib.pyplot as plt
-import numpy as np
 from onc import ONC
-from scipy.io import wavfile
-
-# import os
-# from dotenv import load_dotenv
-# from pathlib import Path
-
-# # Load API key and location code from .env
-# env_path = Path(__file__).resolve().parent / ".env"
-# load_dotenv(dotenv_path=env_path)
-# ONC_TOKEN = os.getenv("ONC_TOKEN")
-# CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")  # Change for a different location
-# cambridgeBayLocations = ["CBY", "CBYDS", "CBYIP", "CBYIJ", "CBYIU", "CBYSP", "CBYSS", "CBYSU", "CF240"]
-
-# # Create ONC object
-# onc = ONC(ONC_TOKEN)
-
+import os
 
 # What was the air temperature in Cambridge Bay on this day last year?
 async def get_daily_air_temperature_stats_cambridge_bay(
