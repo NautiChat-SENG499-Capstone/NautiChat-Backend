@@ -78,7 +78,8 @@ class LLM:
             sources = []
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
             print("Vector DB Response:", vectorDBResponse)
-
+            sources = []
+            point_ids = []
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -86,6 +87,9 @@ class LLM:
                     if "sources" in vectorDBResponse.columns:
                         # we need a list of sources to return with the LLM response
                         sources = vectorDBResponse["sources"].tolist()
+                    if "point_ids" in vectorDBResponse.columns:
+                        # we need a list of point_ids to return with the LLM response
+                        point_ids = vectorDBResponse["point_ids"].tolist()
                     # Convert DataFrame to a more readable format
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
@@ -222,6 +226,7 @@ class LLM:
                         "",
                     ),
                     sources=sources,
+                    point_ids=point_ids,
                 )
             else:
                 print(response_message)
@@ -230,6 +235,7 @@ class LLM:
                     response=response_message.content,
                     sources=sources,
                     obtainedParams=obtained_params,
+                    point_ids=point_ids,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
@@ -238,6 +244,7 @@ class LLM:
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
                 obtainedParams=obtained_params,
                 sources=sources,
+                point_ids=point_ids,
             )
 
     async def call_tool(self, fn, args, user_onc_token):
