@@ -130,12 +130,11 @@ class LLM:
 
             # print("Messages: ", messages)
             sources = []
-            vectorDBResponse = self.RAG_instance.get_documents(
+            (vectorDBResponse, point_ids) = self.RAG_instance.get_documents(
                 user_prompt, previous_vdb_ids
             )
             print("Vector DB Response:", vectorDBResponse)
             sources = []
-            point_ids = []
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -143,9 +142,6 @@ class LLM:
                     if "sources" in vectorDBResponse.columns:
                         # we need a list of sources to return with the LLM response
                         sources = vectorDBResponse["sources"].tolist()
-                    if "point_ids" in vectorDBResponse.columns:
-                        # we need a list of point_ids to return with the LLM response
-                        point_ids = vectorDBResponse["point_ids"].tolist()
                     # Convert DataFrame to a more readable format
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
