@@ -212,7 +212,7 @@ def upload_to_vector_db(resultsList: list, qdrant: QdrantClientWrapper):
         )
 
     qdrant.qdrant_client.upload_points(
-        collection_name=qdrant.collection_name, points=points
+        collection_name=qdrant.general_collection_name, points=points
     )
 
 

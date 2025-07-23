@@ -187,8 +187,3 @@ cython_debug/
 
 # LLM gitignores
 /LLM/testing/*
-
-venv.bat
-deployments.py
-propertyCodes.py
-result.txt
