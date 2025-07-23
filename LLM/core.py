@@ -132,7 +132,7 @@ class LLM:
                 },
                 {
                     "role": "user",
-                    "content": user_prompt,
+                    "content": f"Using the above information as context answer the following: {user_prompt}",
                 },
             ]
 

@@ -12,28 +12,28 @@ def obtain_data_product_code(extension: str, deviceCategoryCode: str):
     for device in dataDownloadCodes:
         if device["deviceCategoryCode"] == deviceCategoryCode:
             for product in device["possibleDataProducts"]:
-                if extension in product["extension"]:
+                if extension in product["availableExtensions"]:
                     return product["dataProductCode"]
     return None
 
 
 def find_possible_extensions(deviceCategoryCode: str):
-    extensions = []
+    possibleDataProducts = []
     for device in dataDownloadCodes:
         if device["deviceCategoryCode"] == deviceCategoryCode:
             for product in device["possibleDataProducts"]:
-                extensions.append(
+                possibleDataProducts.append(
                     {
                         "dataProduct": product["dataProduct"],
                         "dataProductCode": product["dataProductCode"],
-                        "extension": product["extension"],
+                        "extension": product["availableExtensions"],
                     }
                 )
 
-    if len(extensions) > 0:
+    if len(possibleDataProducts) > 0:
         product_info_list = [
-            f"{product['dataProduct']} ({product['dataProductCode']}): {', '.join(product['extension'])}"
-            for product in extensions
+            f"{dataProduct['dataProduct']} ({dataProduct['dataProductCode']}): {', '.join(dataProduct['extension'])}"
+            for dataProduct in possibleDataProducts
         ]
         products_str = "; ".join(product_info_list)
         return products_str
@@ -117,20 +117,26 @@ async def generate_download_codes(
         "locationCode", locationCode, obtainedParams, allObtainedParams
     )
     extension = sync_param("extension", extension, obtainedParams, allObtainedParams)
-
+    dataProductCode = sync_param(
+        "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
+    )
+    if dataProductCode is not None and extension is None:
+        dataProductCode = None
+        obtainedParams.dataProductCode = None
     if (
         extension is not None and deviceCategoryCode is not None
     ):  # and dataProductCode is None
         dataProductCode = obtain_data_product_code(extension, deviceCategoryCode)
+        dataProductCode = sync_param(
+            "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
+        )
         if dataProductCode is None:
             return {
                 "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
                 "response": f"Error: No data product code found for extension '{extension}' and device category code '{deviceCategoryCode}'.",
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
             }
-    dataProductCode = sync_param(
-        "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
-    )
+
     dateFrom = sync_param("dateFrom", dateFrom, obtainedParams, allObtainedParams)
     dateTo = sync_param("dateTo", dateTo, obtainedParams, allObtainedParams)
     #  "dpo_qualityControl": "1", #1 means to clean the data, 0 means to not clean the data. Cleaning the data will use qaqc flags 3,4 and 6 to be replaced with Nans when dpo)dataGaps is set to 1. If its set to 0, then the data will be removed.
