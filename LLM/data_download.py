@@ -2,9 +2,42 @@ from typing import Optional
 
 from onc import ONC
 
+from LLM.Constants.dataDownloadCodes import dataDownloadCodes
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.utils import sync_param
 from LLM.schemas import ObtainedParamsDictionary
+
+
+def obtain_data_product_code(extension: str, deviceCategoryCode: str):
+    for device in dataDownloadCodes:
+        if device["deviceCategoryCode"] == deviceCategoryCode:
+            for product in device["possibleDataProducts"]:
+                if extension in product["extension"]:
+                    return product["dataProductCode"]
+    return None
+
+
+def find_possible_extensions(deviceCategoryCode: str):
+    extensions = []
+    for device in dataDownloadCodes:
+        if device["deviceCategoryCode"] == deviceCategoryCode:
+            for product in device["possibleDataProducts"]:
+                extensions.append(
+                    {
+                        "dataProduct": product["dataProduct"],
+                        "dataProductCode": product["dataProductCode"],
+                        "extension": product["extension"],
+                    }
+                )
+
+    if len(extensions) > 0:
+        product_info_list = [
+            f"{product['dataProduct']} ({product['dataProductCode']}): {', '.join(product['extension'])}"
+            for product in extensions
+        ]
+        products_str = "; ".join(product_info_list)
+        return products_str
+    return None
 
 
 async def generate_download_codes(
@@ -83,10 +116,21 @@ async def generate_download_codes(
     locationCode = sync_param(
         "locationCode", locationCode, obtainedParams, allObtainedParams
     )
+    extension = sync_param("extension", extension, obtainedParams, allObtainedParams)
+
+    if (
+        extension is not None and deviceCategoryCode is not None
+    ):  # and dataProductCode is None
+        dataProductCode = obtain_data_product_code(extension, deviceCategoryCode)
+        if dataProductCode is None:
+            return {
+                "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+                "response": f"Error: No data product code found for extension '{extension}' and device category code '{deviceCategoryCode}'.",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
     dataProductCode = sync_param(
         "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
     )
-    extension = sync_param("extension", extension, obtainedParams, allObtainedParams)
     dateFrom = sync_param("dateFrom", dateFrom, obtainedParams, allObtainedParams)
     dateTo = sync_param("dateTo", dateTo, obtainedParams, allObtainedParams)
     #  "dpo_qualityControl": "1", #1 means to clean the data, 0 means to not clean the data. Cleaning the data will use qaqc flags 3,4 and 6 to be replaced with Nans when dpo)dataGaps is set to 1. If its set to 0, then the data will be removed.
@@ -139,6 +183,21 @@ async def generate_download_codes(
 
     if len(neededParams) > 0:  # If need one or more parameters
         print("OBTAINED PARAMS: ", ObtainedParamsDictionary(**allObtainedParams))
+        if extension is None and deviceCategoryCode is not None:
+            possibleExtensionStr = find_possible_extensions(deviceCategoryCode)
+            if possibleExtensionStr:
+                return {
+                    "status": StatusCode.PARAMS_NEEDED,
+                    "response": (
+                        f"Hey! It looks like you want to do a data download! So far I have the following parameters: "
+                        f"{', '.join(allObtainedParams.keys())}. "
+                        f"However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. "
+                        f"Some possible extensions for data download are also as follows: {possibleExtensionStr}. "
+                        f"Thank you!"
+                    ),
+                    "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+                }
+
         return {
             "status": StatusCode.PARAMS_NEEDED,
             "response": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(allObtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
