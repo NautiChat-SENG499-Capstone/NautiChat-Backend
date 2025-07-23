@@ -242,7 +242,6 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
     )
 
     params = {
-        "method": "GET",
         "locationCode": "CBYIP",
         "deviceCategoryCode": "HYDROPHONE",
         "dataProductCode": "HSD",
