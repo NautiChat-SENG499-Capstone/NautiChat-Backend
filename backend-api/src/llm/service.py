@@ -186,7 +186,6 @@ async def generate_response(
         )
 
     existing_conversation.obtained_params = llm_result.obtainedParams.model_dump()
-    print("Service: " + str(llm_result.point_ids))
     if llm_result.point_ids:
         existing_conversation.previous_vdb_ids = [
             llm_result.point_ids[0]

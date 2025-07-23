@@ -83,16 +83,17 @@ class RAG:
             max_returns=10,
         )
 
-        (function_calling_results, function_calling_point_ids) = self.get_documents_helper(
-            query_embedding,
-            question,
-            self.function_calling_collection_name,
-            min_score=0.3,
-            max_returns=1,
-            previous_points=previous_points,
+        (function_calling_results, function_calling_point_ids) = (
+            self.get_documents_helper(
+                query_embedding,
+                question,
+                self.function_calling_collection_name,
+                min_score=0.3,
+                max_returns=1,
+                previous_points=previous_points,
+            )
         )
         all_results = general_results._append(function_calling_results)
-        print("RAG: " + str(function_calling_point_ids))
         return (all_results, function_calling_point_ids)
 
     def get_documents_helper(
@@ -146,7 +147,7 @@ class RAG:
 
         # No documents were above threshold
         if documents == []:
-            return pd.DataFrame({"contents": []})
+            return (pd.DataFrame({"contents": []}), [])
 
         # Rerank using the CrossEncoderReranker
         reranked_documents = self.compressor.compress_documents(
@@ -168,7 +169,13 @@ class RAG:
         compression_contents = [doc.page_content for doc in selected_docs]
         sources = [doc.metadata.get("source", "unknown") for doc in selected_docs]
         point_ids = [doc.metadata.get("point_id", "unknown") for doc in selected_docs]
-        df = pd.DataFrame({"contents": compression_contents, "sources": sources, "point_ids": point_ids})
+        df = pd.DataFrame(
+            {
+                "contents": compression_contents,
+                "sources": sources,
+                "point_ids": point_ids,
+            }
+        )
         df = df[:max_returns]
         if previous_points:
             df = pd.concat([df, prev_df], ignore_index=True)
