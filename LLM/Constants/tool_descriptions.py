@@ -376,7 +376,11 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_daily_air_temperature_stats_cambridge_bay",
-            "description": "Get daily air temperature statistics (date, min, max, average, sample count) for Cambridge Bay on a given date. Temperature should be expressed in degrees Celsius. If no data exists for that time range then tell the user that no data exists for that time range.",
+            "description": (
+            "Get daily air temperature statistics (date, min, max, average, sample count) for Cambridge Bay on a given date."
+            "Temperature should be expressed in degrees Celsius. If no data exists for that time range then tell the user that"
+            "no data exists for that time range."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -397,7 +401,12 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_oxygen_data_24h",
-            "description": "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals. The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of '2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user that no data exists for that time range. ",
+            "description": (
+            "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals."
+            "The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of"
+            "'2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user"
+            "that no data exists for that time range."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -431,12 +440,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window."
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC API access token."
-                    }
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC API access token."
+                    # }
                 },
-                "required": ["date_from_str", "user_onc_token"]
+                "required": ["date_from_str"]
             },
         },
     },
@@ -456,12 +465,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window."
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "User's ONC API access token."
-                    }
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "User's ONC API access token."
+                    # }
                 },
-                "required": ["date_str", "user_onc_token"]
+                "required": ["date_str"]
             },
         },
     },
@@ -469,7 +478,11 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_wind_speed_at_timestamp",
-            "description": "Get wind speed (m/s) at Cambridge Bay for a given day and Hour of that day, returning the exact or nearest sample. Wind speed is expressed in meters per second (m/s). If no data exists for that time range then tell the user that no data exists for that time range.",
+            "description": (
+            "Get wind speed (m/s) at Cambridge Bay for a given day and Hour of that day, returning the exact or nearest sample."
+            "Wind speed is expressed in meters per second (m/s). If no data exists for that time range then tell the user that"
+            "no data exists for that time range."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -494,7 +507,11 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_ice_thickness",
-            "description": "Get the average daily sea-ice thickness the days provided (inclusive) for Cambridge Bay. Returns the average ice thickness representing the mean ice thickness (in meters) for the days given (inclusive), or -1 if no data is found. If you get the -1 value returned tell the user that no data exists for that time range.",
+            "description": (
+            "Get the average daily sea-ice thickness the days provided (inclusive) for Cambridge Bay."
+            "Returns the average ice thickness representing the mean ice thickness (in meters) for the days given (inclusive),"
+            "or -1 if no data is found. If you get the -1 value returned tell the user that no data exists for that time range."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -533,12 +550,12 @@ toolDescriptions = [
                         "type": "string",
                         "description": "Month in YYYY-MM format (e.g., '2025-07') to retrieve water depth cast data for."
                     },
-                    "user_onc_token": {
-                        "type": "string",
-                        "description": "A valid Ocean Networks Canada API access token."
-                    }
+                    # "user_onc_token": {
+                    #     "type": "string",
+                    #     "description": "A valid Ocean Networks Canada API access token."
+                    # }
                 },
-                "required": ["month_str", "user_onc_token"]
+                "required": ["month_str"]
             },
         },
     },
