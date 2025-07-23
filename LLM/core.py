@@ -56,6 +56,7 @@ class LLM:
         user_onc_token: str,
         chat_history: list[dict] = [],
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        previous_vdb_ids: list[str] = [],
     ) -> RunConversationResponse:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -129,7 +130,9 @@ class LLM:
 
             # print("Messages: ", messages)
             sources = []
-            vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
+            vectorDBResponse = self.RAG_instance.get_documents(
+                user_prompt, previous_vdb_ids
+            )
             print("Vector DB Response:", vectorDBResponse)
             sources = []
             point_ids = []
