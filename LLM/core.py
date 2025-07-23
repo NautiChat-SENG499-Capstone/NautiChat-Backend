@@ -131,7 +131,8 @@ class LLM:
             sources = []
             vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
             print("Vector DB Response:", vectorDBResponse)
-
+            sources = []
+            point_ids = []
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -139,6 +140,9 @@ class LLM:
                     if "sources" in vectorDBResponse.columns:
                         # we need a list of sources to return with the LLM response
                         sources = vectorDBResponse["sources"].tolist()
+                    if "point_ids" in vectorDBResponse.columns:
+                        # we need a list of point_ids to return with the LLM response
+                        point_ids = vectorDBResponse["point_ids"].tolist()
                     # Convert DataFrame to a more readable format
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
@@ -228,6 +232,7 @@ class LLM:
                                     response=function_response.get("response"),
                                     obtainedParams=obtained_params,
                                     sources=sources,
+                                    point_ids=point_ids,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -257,6 +262,7 @@ class LLM:
                                         "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
                                     sources=sources,
+                                    point_ids=point_ids,
                                 )
                             elif (
                                 DataDownloadStatus
@@ -282,12 +288,96 @@ class LLM:
                                         "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                     ),
                                     sources=sources,
+                                    point_ids=point_ids,
                                 )
-                        else:
-                            # Not doing data download so clearing the obtainedParams
-                            obtained_params: ObtainedParamsDictionary = (
-                                ObtainedParamsDictionary()
-                            )
+                        elif doing_scalar_request:
+                            scalarRequestStatus = function_response.get("status")
+                            if scalarRequestStatus == StatusCode.PARAMS_NEEDED:
+                                print(
+                                    "Scalar request parameters needed, returning response now"
+                                )
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.PARAMS_NEEDED,
+                                    response=function_response.get("response"),
+                                    obtainedParams=obtained_params,
+                                    sources=sources,
+                                    point_ids=point_ids,
+                                )
+                            elif scalarRequestStatus == StatusCode.DEPLOYMENT_ERROR:
+                                print(
+                                    "Scalar request parameters needed, returning response now"
+                                )
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print(function_response.get("result"))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.DEPLOYMENT_ERROR,
+                                    response=function_response.get("response"),
+                                    obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
+                                    sources=sources,
+                                    point_ids=point_ids,
+                                )
+                            elif scalarRequestStatus == StatusCode.NO_DATA:
+                                print("No data returned.")
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.DEPLOYMENT_ERROR,
+                                    response=function_response.get("description"),
+                                    obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
+                                    sources=sources,
+                                    point_ids=point_ids,
+                                )
+                            elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
+                                print("No data returned.")
+                                obtained_params: ObtainedParamsDictionary = (
+                                    function_response.get("obtainedParams", {})
+                                )
+                                print("Obtained parameters:", obtained_params)
+                                print("Obtained parameters:", type(obtained_params))
+                                # Return a response indicating that Paramaters are needed
+                                return RunConversationResponse(
+                                    status=StatusCode.SCALAR_REQUEST_ERROR,
+                                    response=function_response.get("response"),
+                                    obtainedParams=obtained_params,
+                                    urlParamsUsed=function_response.get(
+                                        "urlParamsUsed", {}
+                                    ),
+                                    baseUrl=function_response.get(
+                                        "baseUrl",
+                                        "https://data.oceannetworks.ca/api/scalardata/location",
+                                    ),
+                                    sources=sources,
+                                    point_ids=point_ids,
+                                )
+                        # Not doing data download or scalar request is successful so clearing the obtainedParams
+                        obtained_params: ObtainedParamsDictionary = (
+                            ObtainedParamsDictionary()
+                        )
 
                         toolMessages.append(
                             {
@@ -388,6 +478,7 @@ class LLM:
                         "",
                     ),
                     sources=sources,
+                    point_ids=point_ids,
                 )
             else:
                 print(response_message)
@@ -396,6 +487,7 @@ class LLM:
                     response=response_message.content,
                     sources=sources,
                     obtainedParams=obtained_params,
+                    point_ids=point_ids,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
@@ -404,6 +496,7 @@ class LLM:
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
                 obtainedParams=obtained_params,
                 sources=sources,
+                point_ids=point_ids,
             )
 
     async def call_tool(self, fn, args, user_onc_token):

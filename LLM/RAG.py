@@ -116,6 +116,7 @@ class RAG:
                 metadata={
                     "score": hit.score,
                     "source": hit.payload.get("source", "unknown"),
+                    "point_id": hit.id,
                 },
             )
             for hit in search_results
@@ -144,6 +145,7 @@ class RAG:
 
         compression_contents = [doc.page_content for doc in selected_docs]
         sources = [doc.metadata.get("source", "unknown") for doc in selected_docs]
-        df = pd.DataFrame({"contents": compression_contents, "sources": sources})
+        point_ids = [doc.metadata.get("point_id", "unknown") for doc in selected_docs]
+        df = pd.DataFrame({"contents": compression_contents, "sources": sources, "point_ids": point_ids})
         df = df[:max_returns]
         return df

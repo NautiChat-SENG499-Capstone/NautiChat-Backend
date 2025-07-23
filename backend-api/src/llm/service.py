@@ -46,6 +46,7 @@ async def create_conversation(
         user_id=conversation.user_id,
         title=conversation.title,
         messages=[],  # New conversation has no messages yet
+        previous_vdb_ids=[],  # New conversation has no vdb ids yet
     )
 
 
@@ -184,6 +185,13 @@ async def generate_response(
         )
 
     existing_conversation.obtained_params = llm_result.obtainedParams.model_dump()
+    if llm_result.point_ids:
+        if existing_conversation.previous_vdb_ids:
+            existing_conversation.previous_vdb_ids = [
+                existing_conversation.previous_vdb_ids[-1] + llm_result.point_ids[0]
+            ]
+        else:
+            existing_conversation.previous_vdb_ids = [llm_result.point_ids[0]]
 
     db.add(message)
     await db.commit()
