@@ -42,6 +42,7 @@ class Conversation(BaseModel):
     obtained_params: ObtainedParamsDictionary = Field(
         default_factory=ObtainedParamsDictionary
     )
+    previous_vdb_ids: list[str] = Field(default_factory=list)
 
 
 class CreateConversationBody(BaseModel):

@@ -319,30 +319,40 @@ async def get_active_instruments_at_cambridge_bay(user_onc_token: str):
     }
 
 
-# async def get_time_range_of_available_data(deviceCategoryCode: str):
-#     """
-#     Get all deployment time ranges (begin and end times) at Cambridge Bay for a specific device category.
-#     Returns:
-#         JSON string: Sorted list of (begin, end) tuples as ISO strings.
-#     """
-#     onc = ONC(user_onc_token)
-#     time_ranges = []
+async def get_time_range_of_available_data(
+    deviceCategoryCode: str, user_onc_token: str
+):
+    """
+    Get all deployment time ranges (begin and end times) at Cambridge Bay for a specific device category.
+    Returns:
+        JSON string: Sorted list of (begin, end) tuples as ISO strings.
+    """
+    onc = ONC(user_onc_token)
+    time_ranges = []
 
-#     for locationCode in cambridgeBayLocations:
-#         params = {
-#             "locationCode": locationCode,
-#             "deviceCategoryCode": deviceCategoryCode,
-#         }
-#         try:
-#             deployments = onc.getDeployments(params)
-#         except Exception:
-#             continue  # Skip any errors silently
+    for locationCode in cambridgeBayLocations:
+        params = {
+            "locationCode": locationCode,
+            "deviceCategoryCode": deviceCategoryCode,
+        }
+        try:
+            deployments = onc.getDeployments(params)
+        except Exception:
+            continue  # Skip any errors silently
 
-#         for device in deployments:
-#             begin = device.get("begin")
-#             end = device.get("end")
-#             if begin:
-#                 time_ranges.append((begin, end))
+        for device in deployments:
+            begin = device.get("begin")
+            end = device.get("end")
+            if begin:
+                time_ranges.append((begin, end))
 
-#     time_ranges.sort(key=lambda x: datetime.fromisoformat(x[0].replace("Z", "+00:00")))
-#     return {"response": time_ranges}
+    time_ranges.sort(key=lambda x: datetime.fromisoformat(x[0].replace("Z", "+00:00")))
+    return {
+        "response": time_ranges,
+        "urlParamsUsed": {
+            "deviceCategoryCode": deviceCategoryCode,
+            "token": user_onc_token,
+            "locationCodes": cambridgeBayLocations,
+        },
+        "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
+    }
