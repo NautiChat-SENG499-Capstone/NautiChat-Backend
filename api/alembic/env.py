@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 from src.admin import models  # noqa
 from src.auth import models  # noqa
+from src.chat import models  # noqa
 from src.database import Base
-from src.llm import models  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

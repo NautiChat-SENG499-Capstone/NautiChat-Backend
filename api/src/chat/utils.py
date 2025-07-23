@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.llm.models import Conversation, Message
+from src.chat.models import Conversation, Message
 
 
 # Pydantic models for better autocomplete within this file. Could be nice for AI LLM code to also use pydantic models

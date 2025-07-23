@@ -16,9 +16,9 @@ from src.auth import models as auth_models
 from src.auth import schemas as auth_schemas
 from src.auth.dependencies import get_admin_user
 from src.auth.service import create_new_user, delete_user
+from src.chat import models as llm_models
+from src.chat import schemas as llm_schemas
 from src.database import get_db_session
-from src.llm import models as llm_models
-from src.llm import schemas as llm_schemas
 
 from . import service
 from .schemas import (

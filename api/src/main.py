@@ -2,8 +2,8 @@ from fastapi import FastAPI
 
 from src.admin.router import router as admin_router
 from src.auth.router import router as auth_router
+from src.chat.router import router as llm_router
 from src.lifespan import lifespan
-from src.llm.router import router as llm_router
 from src.logger import logger
 from src.middleware import init_middleware
 

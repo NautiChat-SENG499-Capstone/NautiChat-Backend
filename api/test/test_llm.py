@@ -4,9 +4,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.models import User
-from src.llm import schemas
-from src.llm.models import Conversation, Message
-from src.llm.utils import get_context
+from src.chat import schemas
+from src.chat.models import Conversation, Message
+from src.chat.utils import get_context
 from src.settings import get_settings
 
 

@@ -8,7 +8,7 @@ from src.database import Base
 # want to expose import for type checkers but don't want circular import
 if TYPE_CHECKING:
     from src.admin.models import VectorDocument
-    from src.llm.models import Conversation
+    from src.chat.models import Conversation
 
 
 class User(Base):
