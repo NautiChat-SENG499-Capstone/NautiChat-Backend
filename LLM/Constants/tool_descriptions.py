@@ -47,25 +47,25 @@ toolDescriptions = [
             },
         },
     },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "get_time_range_of_available_data",
-    #         "description": (
-    #             "Returns a sorted list of deployment time ranges for instruments at Cambridge Bay for a given device category.\n Each time range includes:\n - begin (str): ISO 8601 deployment start time\n - end (str | null): ISO 8601 deployment end time (null if ongoing)\n This function helps identify periods when specific device types were deployed."
-    #         ),
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "deviceCategoryCode": {
-    #                     "type": "string",
-    #                     "description": "The device category code to filter deployments by (e.g., 'CTD', 'OXYSENSOR')."
-    #                 }
-    #             },
-    #             "required": ["deviceCategoryCode"]
-    #         }
-    #     }
-    # },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_time_range_of_available_data",
+            "description": (
+                "Returns a sorted list of deployment time ranges for instruments at Cambridge Bay for a given device category. Deployment times do not necessarily relate to availability of data, make sure this is clear in the response.\n Each time range includes:\n - begin (str): ISO 8601 deployment start time\n - end (str | null): ISO 8601 deployment end time (null if ongoing)\n This function helps identify periods when specific device types were deployed. The data returned by this function represents the deployments accessed through the ONC API"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "deviceCategoryCode": {
+                        "type": "string",
+                        "description": "The device category code to filter deployments by (e.g., 'CTD', 'OXYSENSOR').",
+                    }
+                },
+                "required": ["deviceCategoryCode"],
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
