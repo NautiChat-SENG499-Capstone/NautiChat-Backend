@@ -12,11 +12,6 @@ from sentence_transformers import SentenceTransformer
 from LLM.Environment import Environment
 
 
-class documentFilteringType(Enum):
-    Score = 1
-    MaxDocuments = 2
-
-
 class JinaEmbeddings(Embeddings):
     def __init__(self, task="retrieval.passage"):
         print("Creating Jina Embeddings instance...")
@@ -53,6 +48,7 @@ class RAG:
     ):
         self.qdrant_client_wrapper = QdrantClientWrapper(env)
         self.qdrant_client = self.qdrant_client_wrapper.qdrant_client
+
         self.general_collection_name = (
             self.qdrant_client_wrapper.general_collection_name
         )
@@ -79,14 +75,14 @@ class RAG:
             query_embedding,
             question,
             self.general_collection_name,
-            documentFilteringType.Score,
             min_score=0.4,
+            max_returns=10,
         )
         function_calling_results = self.get_documents_helper(
             query_embedding,
             question,
             self.function_calling_collection_name,
-            documentFilteringType.MaxDocuments,
+            min_score=0.3,
             max_returns=1,
         )
         all_results = general_results._append(function_calling_results)
@@ -97,7 +93,6 @@ class RAG:
         query_embedding,
         question: str,
         collection_name: str,
-        filtering_type: documentFilteringType,
         min_score: float = 0.4,
         max_returns: int = 1,
     ):
@@ -109,8 +104,7 @@ class RAG:
             with_vectors=False,
         )
 
-        if filtering_type == documentFilteringType.Score:
-            search_results = [hit for hit in search_results if hit.score >= min_score]
+        search_results = [hit for hit in search_results if hit.score >= min_score]
 
         documents = [
             Document(
@@ -147,6 +141,5 @@ class RAG:
         compression_contents = [doc.page_content for doc in selected_docs]
         sources = [doc.metadata.get("source", "unknown") for doc in selected_docs]
         df = pd.DataFrame({"contents": compression_contents, "sources": sources})
-        if filtering_type == documentFilteringType.MaxDocuments:
-            df = df[:max_returns]
+        df = df[:max_returns]
         return df
