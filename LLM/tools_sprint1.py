@@ -347,4 +347,12 @@ async def get_time_range_of_available_data(
                 time_ranges.append((begin, end))
 
     time_ranges.sort(key=lambda x: datetime.fromisoformat(x[0].replace("Z", "+00:00")))
-    return {"response": time_ranges}
+    return {
+        "response": time_ranges,
+        "urlParamsUsed": {
+            "deviceCategoryCode": deviceCategoryCode,
+            "token": user_onc_token,
+            "locationCodes": cambridgeBayLocations,
+        },
+        "baseUrl": "https://data.oceannetworks.ca/api/deployments?",
+    }
