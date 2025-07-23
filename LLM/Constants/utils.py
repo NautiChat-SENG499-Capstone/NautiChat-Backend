@@ -26,12 +26,12 @@ resample_periods = [
 ]
 
 
-def sync_param(field_name: str, local_value, params_model, allObtainedParams: dict):
+def sync_param(field_name: str, local_value, params_model, all_obtained_params: dict):
     """
     Sync a local variable with a field in a Pydantic model:
     - If local_value is None, try to pull from model.
     - If local_value is not None, update model with it.
-    - Update allObtainedParams with the field_name and local_value when local_value is not None.
+    - Update all_obtained_params with the field_name and local_value when local_value is not None.
     Returns the resolved value.
     """
     if local_value is None:
@@ -39,14 +39,14 @@ def sync_param(field_name: str, local_value, params_model, allObtainedParams: di
     else:
         setattr(params_model, field_name, local_value)
     if local_value is not None:
-        allObtainedParams[field_name] = local_value
+        all_obtained_params[field_name] = local_value
     return local_value
 
 
 def handle_scalar_request(
-    function_response: dict, sources: list, scalarRequestStatus: int
-):
-    if scalarRequestStatus == StatusCode.PARAMS_NEEDED:
+    function_response: dict, sources: list, scalar_request_status: int
+) -> RunConversationResponse:
+    if scalar_request_status == StatusCode.PARAMS_NEEDED:
         print("Scalar request parameters needed, returning response now")
         obtained_params: ObtainedParamsDictionary = function_response.get(
             "obtainedParams", {}
@@ -58,7 +58,7 @@ def handle_scalar_request(
             obtainedParams=obtained_params,
             sources=sources,
         )
-    elif scalarRequestStatus == StatusCode.DEPLOYMENT_ERROR:
+    elif scalar_request_status == StatusCode.DEPLOYMENT_ERROR:
         print("Scalar request parameters needed, returning response now")
         obtained_params: ObtainedParamsDictionary = function_response.get(
             "obtainedParams", {}
@@ -76,7 +76,7 @@ def handle_scalar_request(
             ),
             sources=sources,
         )
-    elif scalarRequestStatus == StatusCode.NO_DATA:
+    elif scalar_request_status == StatusCode.NO_DATA:
         print("No data returned.")
         obtained_params: ObtainedParamsDictionary = function_response.get(
             "obtainedParams", {}
@@ -95,7 +95,7 @@ def handle_scalar_request(
             ),
             sources=sources,
         )
-    elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
+    elif scalar_request_status == StatusCode.SCALAR_REQUEST_ERROR:
         print("No data returned.")
         obtained_params: ObtainedParamsDictionary = function_response.get(
             "obtainedParams", {}
@@ -116,9 +116,11 @@ def handle_scalar_request(
         )
 
 
-def handle_data_download(function_response: dict, sources: list):
-    DataDownloadStatus = function_response.get("status")
-    if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
+def handle_data_download(
+    function_response: dict, sources: list
+) -> RunConversationResponse:
+    data_download_status = function_response.get("status")
+    if data_download_status == StatusCode.PARAMS_NEEDED:
         print("Download parameters needed, returning response now")
         obtained_params: ObtainedParamsDictionary = function_response.get(
             "obtainedParams", {}
@@ -132,7 +134,7 @@ def handle_data_download(function_response: dict, sources: list):
             obtainedParams=obtained_params,
             sources=sources,
         )
-    elif DataDownloadStatus == StatusCode.PROCESSING_DATA_DOWNLOAD:
+    elif data_download_status == StatusCode.PROCESSING_DATA_DOWNLOAD:
         print("download done so returning response now")
         dpRequestId = function_response.get("dpRequestId")
         doi = function_response.get("doi", "No DOI available")
@@ -155,7 +157,7 @@ def handle_data_download(function_response: dict, sources: list):
             ),
             sources=sources,
         )
-    elif DataDownloadStatus == StatusCode.ERROR_WITH_DATA_DOWNLOAD:
+    elif data_download_status == StatusCode.ERROR_WITH_DATA_DOWNLOAD:
         print("Download error so returning response now")
         obtained_params: ObtainedParamsDictionary = function_response.get(
             "obtainedParams", {}
