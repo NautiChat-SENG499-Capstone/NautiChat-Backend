@@ -15,7 +15,7 @@ from LLM.Constants.system_prompts import (
     system_prompt_tool_execution,
     system_prompt_uncertain,
 )
-from LLM.Constants.tool_descriptions import toolDescriptions  # , toolDescriptionsShort
+from LLM.Constants.tool_descriptions import toolDescriptions, toolDescriptionsShort
 from LLM.data_download import generate_download_codes
 
 # from LLM.utils import update_date_to
@@ -25,7 +25,7 @@ from LLM.schemas import (
     PlanningResponse,
     RunConversationResponse,
     ToolCall,
-    ToolCallList,
+    # ToolCallList,
     parse_llm_response,
 )
 from LLM.tools_sprint1 import (
@@ -86,7 +86,7 @@ class LLM:
                     obtained_params.model_dump(exclude_none=True)
                 ),
                 "format_instructions": formatPlanningInstructions,
-                "tool_descriptions": json.dumps(toolDescriptions),
+                "tool_descriptions": json.dumps(toolDescriptionsShort),
             },
         )
         messages = [
@@ -195,7 +195,7 @@ class LLM:
                 "content": systemPromptToolExecution,
             },
             {"role": "assistant", "content": vector_content},
-            *chat_history,
+            # *chat_history,
             {
                 "role": "user",
                 "content": user_prompt,
@@ -216,6 +216,7 @@ class LLM:
         # tool_calls = parse_llm_response(response_message, ToolCallList)
         tool_calls = response_message.tool_calls
         doing_data_download = False
+        doing_scalar_request = False
         # tool_calls = tool_calls.tools
         # print("Tool Calls:", tool_calls)
         if tool_calls:
@@ -251,6 +252,9 @@ class LLM:
                         # Special case for download codes
                         print("Generating download codes...")
                         doing_data_download = True
+                    if function_name == "get_scalar_data":
+                        print("Doing Scalar request...")
+                        doing_scalar_request = True
                     try:
                         function_args = json.loads(tool_call.function.arguments)
                     except json.JSONDecodeError:
@@ -337,11 +341,86 @@ class LLM:
                                     "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
                                 ),
                             }
-                    else:
-                        # Not doing data download so clearing the obtained_params
-                        obtained_params: ObtainedParamsDictionary = (
-                            ObtainedParamsDictionary()
-                        )
+                    elif doing_scalar_request:
+                        scalarRequestStatus = function_response.get("status")
+                        if scalarRequestStatus == StatusCode.PARAMS_NEEDED:
+                            print(
+                                "Scalar request parameters needed, returning response now"
+                            )
+                            obtained_params: ObtainedParamsDictionary = (
+                                function_response.get("obtainedParams", {})
+                            )
+                            # Return a response indicating that Paramaters are needed
+                            return {
+                                "status": StatusCode.PARAMS_NEEDED,
+                                "response": function_response.get("response"),
+                                "obtainedParams": obtained_params,
+                            }
+                        elif scalarRequestStatus == StatusCode.DEPLOYMENT_ERROR:
+                            print(
+                                "Scalar request parameters needed, returning response now"
+                            )
+                            obtained_params: ObtainedParamsDictionary = (
+                                function_response.get("obtainedParams", {})
+                            )
+                            print(function_response.get("result"))
+                            # Return a response indicating that Paramaters are needed
+                            return {
+                                "status": StatusCode.DEPLOYMENT_ERROR,
+                                "response": function_response.get("response"),
+                                "obtainedParams": obtained_params,
+                                "urlParamsUsed": function_response.get(
+                                    "urlParamsUsed", {}
+                                ),
+                                "baseUrl": function_response.get(
+                                    "baseUrl",
+                                    "https://data.oceannetworks.ca/api/scalardata/location",
+                                ),
+                            }
+                        elif scalarRequestStatus == StatusCode.NO_DATA:
+                            print("No data returned.")
+                            obtained_params: ObtainedParamsDictionary = (
+                                function_response.get("obtainedParams", {})
+                            )
+                            print("Obtained parameters:", obtained_params)
+                            print("Obtained parameters:", type(obtained_params))
+                            # Return a response indicating that Paramaters are needed
+                            return {
+                                "status": StatusCode.DEPLOYMENT_ERROR,
+                                "response": function_response.get("description"),
+                                "obtainedParams": obtained_params,
+                                "urlParamsUsed": function_response.get(
+                                    "urlParamsUsed", {}
+                                ),
+                                "baseUrl": function_response.get(
+                                    "baseUrl",
+                                    "https://data.oceannetworks.ca/api/scalardata/location",
+                                ),
+                            }
+                        elif scalarRequestStatus == StatusCode.SCALAR_REQUEST_ERROR:
+                            print("No data returned.")
+                            obtained_params: ObtainedParamsDictionary = (
+                                function_response.get("obtainedParams", {})
+                            )
+                            print("Obtained parameters:", obtained_params)
+                            print("Obtained parameters:", type(obtained_params))
+                            # Return a response indicating that Paramaters are needed
+                            return {
+                                "status": StatusCode.SCALAR_REQUEST_ERROR,
+                                "response": function_response.get("response"),
+                                "obtainedParams": obtained_params,
+                                "urlParamsUsed": function_response.get(
+                                    "urlParamsUsed", {}
+                                ),
+                                "baseUrl": function_response.get(
+                                    "baseUrl",
+                                    "https://data.oceannetworks.ca/api/scalardata/location",
+                                ),
+                            }
+                    # Not doing data download or scalar request is successful so clearing the obtainedParams
+                    obtained_params: ObtainedParamsDictionary = (
+                        ObtainedParamsDictionary()
+                    )
 
                     toolMessages.append(
                         {
