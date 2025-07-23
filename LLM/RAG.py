@@ -69,14 +69,15 @@ class RAG:
 
     def get_documents(self, question: str, previous_points: list[str]):
         query_embedding = self.embedding.embed_query(question)
-        general_results = self.get_documents_helper(
+        (general_results, general_point_ids) = self.get_documents_helper(
             query_embedding,
             question,
             self.general_collection_name,
             min_score=0.4,
             max_returns=10,
         )
-        function_calling_results = self.get_documents_helper(
+
+        (function_calling_results, function_calling_point_ids) = self.get_documents_helper(
             query_embedding,
             question,
             self.function_calling_collection_name,
@@ -85,7 +86,8 @@ class RAG:
             previous_points=previous_points,
         )
         all_results = general_results._append(function_calling_results)
-        return all_results
+        print("RAG: " + str(function_calling_point_ids))
+        return (all_results, function_calling_point_ids)
 
     def get_documents_helper(
         self,
@@ -113,13 +115,15 @@ class RAG:
             )
             # Get only most recent result from previous data points
             prev_df = pd.DataFrame(
-                {
-                    "contents": previous_point_search[0].payload["text"],
-                    "sources": previous_point_search[0].payload.get(
-                        "source", "unknown"
-                    ),
-                    "point_ids": previous_point_search[0].id,
-                }
+                [
+                    {
+                        "contents": previous_point_search[0].payload["text"],
+                        "sources": previous_point_search[0].payload.get(
+                            "source", "unknown"
+                        ),
+                        "point_ids": previous_point_search[0].id,
+                    }
+                ]
             )
 
         documents = [
@@ -168,4 +172,4 @@ class RAG:
         df = df[:max_returns]
         if previous_points:
             df = pd.concat([df, prev_df], ignore_index=True)
-        return df
+        return (df, df["point_ids"])
