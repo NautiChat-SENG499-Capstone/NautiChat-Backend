@@ -175,6 +175,7 @@ async def generate_response(
             obtained_params=ObtainedParamsDictionary(
                 **existing_conversation.obtained_params
             ),
+            previous_vdb_ids=existing_conversation.previous_vdb_ids,
         )
 
         await populate_message_from_response(llm_result, message, db)
@@ -186,12 +187,7 @@ async def generate_response(
 
     existing_conversation.obtained_params = llm_result.obtainedParams.model_dump()
     if llm_result.point_ids:
-        if existing_conversation.previous_vdb_ids:
-            existing_conversation.previous_vdb_ids = [
-                existing_conversation.previous_vdb_ids[-1] + llm_result.point_ids[0]
-            ]
-        else:
-            existing_conversation.previous_vdb_ids = [llm_result.point_ids[0]]
+        existing_conversation.previous_vdb_ids = [llm_result.point_ids[0]]
 
     db.add(message)
     await db.commit()
