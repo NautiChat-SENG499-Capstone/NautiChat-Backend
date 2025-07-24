@@ -146,7 +146,7 @@ class RAG:
         df = df[:max_returns]
         return df
 
-
+    #Retrieve Q&A pairs for feedback loop
     def get_qa_docs( 
         self,
         question:str):

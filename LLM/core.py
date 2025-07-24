@@ -101,13 +101,8 @@ class LLM:
                     qa_reference = qa_docs.to_string(index=False)
             else:
                 qa_reference = str(qa_docs)
+            styling_prompt = ""
 
-            messages = [
-                {
-                    "role": "system",
-                    "content": startingPrompt,
-                }
-            ]
             if qa_reference:
                 styling_prompt = f"""
                 The following are examples of question-answer pairs that represent the desired style, tone, and preferred phrasing for your responses.
@@ -120,17 +115,23 @@ class LLM:
                 Examples for styling guidance:
                 {qa_reference}
                 """
-                messages.append({"role": "system", "content": styling_prompt})
 
-            messages.extend([
-                {"role": "assistant", "content": vector_content},
+            messages = [
+                {
+                    "role": "system",
+                    "content": startingPrompt,
+                },
+                {
+                    "role":"system",
+                    "content": styling_prompt,
+                },
+                 {"role": "assistant", "content": vector_content},
                 *chat_history,
                 {
                     "role": "user",
                     "content": user_prompt,
                 },
-            ])
-
+            ]
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
                 messages=messages,  # Includes Conversation history
@@ -221,6 +222,10 @@ class LLM:
                     {
                         "role": "system",
                         "content": secondLLMCallStartingPrompt,
+                    },
+                    {
+                        "role":"system",
+                        "content":styling_prompt, #from Q&A docs
                     },
                     {"role": "assistant", "content": vector_content},
                     *toolMessages,  # Add tool messages to the conversation
