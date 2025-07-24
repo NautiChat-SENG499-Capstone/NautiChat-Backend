@@ -29,7 +29,10 @@ from LLM.tools_sprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_ice_thickness,
     get_oxygen_data_24h,
+    get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
+    plot_spectrogram_for_date,
+    plot_monthly_water_depth,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,10 +54,11 @@ class LLM:
             "generate_download_codes": generate_download_codes,
             "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
             "get_oxygen_data_24h": get_oxygen_data_24h,
+            "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
-            "get_scalar_data": get_scalar_data,
-            "get_time_range_of_available_data": get_time_range_of_available_data,
+            "plot_spectrogram_for_date": plot_spectrogram_for_date,
+            "plot_monthly_water_depth": plot_monthly_water_depth,
         }
 
     async def run_conversation(
