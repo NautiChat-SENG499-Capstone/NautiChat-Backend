@@ -372,35 +372,53 @@ def upload_to_vector_db(resultsList: list, qdrant: QdrantClientWrapper):
         collection_name=qdrant.collection_name, points=points
     )
 
+def get_current_time():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+
 #Function gets called through APScheduler jobs to delete existing "ONC OCEANS 3.0 API" points and reupload with today's date
 def vdb_auto_upload(app_state):
+    try:
+        print(f"{get_current_time()} vector DB auto upload - START")
+        qdrant_client_wrapper = app_state.rag.qdrant_client_wrapper
 
-    qdrant_client_wrapper = app_state.rag.qdrant_client_wrapper
+        #Create a payload index for "source" field (can't filter without this)
+        qdrant_client_wrapper.qdrant_client.create_payload_index(
+            collection_name=qdrant_client_wrapper.collection_name,
+            field_name="source",
+            field_schema=PayloadSchemaType.KEYWORD,
+        )
 
-    #Create a payload index for "source" field (can't filter without this)
-    qdrant_client_wrapper.qdrant_client.create_payload_index(
-        collection_name=qdrant_client_wrapper.collection_name,
-        field_name="source",
-        field_schema=PayloadSchemaType.KEYWORD,
-    )
+        filter_condition = Filter(
+            must=[FieldCondition(key="source", match=MatchValue(value="ONC OCEANS 3.0 API"))]
+        )
+    
+        #Getting a count of how many points we're deleting just to print 
+        filtered_points = qdrant_client_wrapper.qdrant_client.count(
+            collection_name=qdrant_client_wrapper.collection_name,
+            count_filter = filter_condition,
+            exact=True 
+        )
+        
+        print(f"{get_current_time()} vector DB auto upload - Deleting {filtered_points.count} points")
+        qdrant_client_wrapper.qdrant_client.delete( 
+            qdrant_client_wrapper.collection_name, points_selector=filter_condition
+        )
 
-    filter_condition = Filter(
-        must=[FieldCondition(key="source", match=MatchValue(value="ONC OCEANS 3.0 API"))]
-    )
-   
-    qdrant_client_wrapper.qdrant_client.delete( 
-        qdrant_client_wrapper.collection_name, points_selector=filter_condition
-    )
+        locationcodes = ["CBY", "CBYDS", "CBYIJ.J1", "CBYIJ.J2", "CBYIP", "CBYIP.D1", "CBYIP.D2", "CBYIP.D3", "CBYIP.D4", "CBYIP.K1", "CBYIP.K2", "CBYIP.K3", "CBYIU", "CBYIU.AC1", "CBYIU.AC2", "CBYIU.AC3",
+                    "CBYIU.AC4", "CBYIU.AC5", "CBYSP", "CBYSS", "CBYSS.M1", "CBYSS.M2", "CBYSU", "CBYSU.AC1", "CBYSU.AC2", "CF240"]
 
-    locationcodes = ["CBY", "CBYDS", "CBYIJ.J1", "CBYIJ.J2", "CBYIP", "CBYIP.D1", "CBYIP.D2", "CBYIP.D3", "CBYIP.D4", "CBYIP.K1", "CBYIP.K2", "CBYIP.K3", "CBYIU", "CBYIU.AC1", "CBYIU.AC2", "CBYIU.AC3",
-                 "CBYIU.AC4", "CBYIU.AC5", "CBYSP", "CBYSS", "CBYSS.M1", "CBYSS.M2", "CBYSU", "CBYSU.AC1", "CBYSU.AC2", "CF240"]
+        print(f"{get_current_time()} vector DB auto upload - Calling ONC API for devices")
+        inputs = []
+        for location_code in locationcodes:
+            inputs.extend(get_device_info_from_onc_for_vdb(location_code=location_code)) 
 
-    inputs = []
-    for location_code in locationcodes:
-        inputs.extend(get_device_info_from_onc_for_vdb(location_code=location_code)) 
+        prepare_embedding_input = prepare_embedding_input_from_preformatted(input=inputs, embedding_model=JinaEmbeddings())
 
-    prepare_embedding_input = prepare_embedding_input_from_preformatted(input=inputs, embedding_model=JinaEmbeddings())
+        print(f"{get_current_time()} vector DB auto upload - Uploading {len(prepare_embedding_input)} points")
+        upload_to_vector_db(prepare_embedding_input, qdrant_client_wrapper)
+        print(f"{get_current_time()} vector DB auto upload - END")
+    except Exception as e:
+        print(f"{get_current_time()} vector DB auto upload - ERROR: An error occurred: {e}")
 
-    upload_to_vector_db(prepare_embedding_input, qdrant_client_wrapper)
 
 
