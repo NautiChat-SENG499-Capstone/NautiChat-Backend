@@ -93,7 +93,7 @@ class LLM:
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
-            # print("Vector DB Response:", vector_content)
+            print("Vector DB Response:", vector_content)
             messages = [
                 {
                     "role": "system",
@@ -164,12 +164,17 @@ class LLM:
                         )
                         print("Function response:", function_response)
                         if doing_data_download:
-                            return handle_data_download(function_response, sources)
+                            return handle_data_download(
+                                function_response, sources, point_ids=point_ids
+                            )
                         elif doing_scalar_request:
                             scalarRequestStatus = function_response.get("status")
                             if scalarRequestStatus != StatusCode.REGULAR_MESSAGE:
                                 return handle_scalar_request(
-                                    function_response, sources, scalarRequestStatus
+                                    function_response,
+                                    sources,
+                                    scalarRequestStatus,
+                                    point_ids=point_ids,
                                 )
                         # Not doing data download or scalar request is successful so clearing the obtainedParams
                         obtained_params: ObtainedParamsDictionary = (
