@@ -454,12 +454,13 @@ toolDescriptions = [
         "function": {
             "name": "plot_spectrogram_for_date",
             "description": (
-            "Retrieve a pre-generated spectrogram image for hydrophone data from Cambridge Bay. "
-            "This function downloads a PNG spectrogram (data product code 'HSD') from the Ocean Networks Canada API "
-            "for a 24-hour period starting from the given date. It returns the image as a PIL.Image.Image object if successful."
+            "Submit a request for a pre-generated ship noise spectrogram (data product code 'HSD') "
+            "from hydrophone data at Cambridge Bay using the Ocean Networks Canada API. "
+            "This function initiates an order for a PNG spectrogram covering a 24-hour period starting "
+            "from the given date, and returns metadata about the request, including order details and parameters used."
             ),
             "parameters": {
-                "type": "object",
+            "type": "object",
                 "properties": {
                     "date_str": {
                         "type": "string",
@@ -470,7 +471,7 @@ toolDescriptions = [
                     #     "description": "User's ONC API access token."
                     # }
                 },
-                "required": ["date_str"]
+            "required": ["date_str"]
             },
         },
     },
