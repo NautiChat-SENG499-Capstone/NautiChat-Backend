@@ -52,7 +52,11 @@ def init_middleware(app):
     This function is called during application startup.
     """
 
-    origins = ["http://localhost:3000", "https://nautichat.vercel.app"]
+    origins = [
+        "http://localhost:3000",
+        "https://nautichat.vercel.app",
+        "http://nautichat-backend-tunnel-fun.shop",
+    ]
 
     # Add CORS middleware  to enable frontend-backend communications
     app.add_middleware(
