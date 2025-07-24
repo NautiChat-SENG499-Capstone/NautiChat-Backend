@@ -450,70 +450,68 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 
 
 # I would like a plot which shows the water depth so I can get an idea of tides in the Arctic for July 2023
-"""
-async def plot_monthly_water_depth(month_str: str, user_onc_token: str) -> dict:
-    """ Retrieve the NetCDF (.nc) file of water depth data for Cambridge Bay for a given month
-    using the 'Cast Scalar Profile Plot and Data' (CSPPD) data product.
-    Args:
-        month_str (str): Month in YYYY‑MM format (e.g. "2025-07")
-        user_onc_token (str): ONC API access token
-    Returns:
-        dict: {
-            "response": {
-                "orders": List of order results from ONC,
-                "description": Human-readable summary of the request
-            },
-            "urlParamsUsed": Dictionary of API request parameters including token,
-            "baseUrl": Base URL used for the data product request
-        }
-    """
-    onc = ONC(user_onc_token)
-
-    # Build monthly date range
-    year, month = map(int, month_str.split("-"))
-    date_from = f"{year:04d}-{month:02d}-01"
-    if month == 12:
-        next_year, next_month = year + 1, 1
-    else:
-        next_year, next_month = year, month + 1
-    date_to = f"{next_year:04d}-{next_month:02d}-01"
-
-    # Order the data product
-    params = {
-        "locationCode": "CBYIP",
-        "deviceCategoryCode": "CTD",
-        "propertyCode": "depth",
-        "dataProductCode": "CSPPD", #CTD only has LF data product
-        "extension": "png",
-        "dateFrom": date_from,
-        "dateTo": date_to,
-    }
-
-    max_retries = 80
-    download_results_only = False
-    include_metadata_file = False
-
-    try:
-        orders = onc.orderDataProduct(
-            params, max_retries, download_results_only, include_metadata_file
-        )
-    except Exception as e:
-        print(
-            f"Error: failed to order Cast Scalar Profile Plot and Data after {max_retries} attempts:\n  {e}",
-            file=sys.stderr,
-        )
-        # Exit the entire program with a non‑zero status
-        sys.exit(1)
-
-    return {
-        "response": {
-            "orders": orders,
-            "description": (
-                f"Cast Scalar Profile Plot and Data order for Cambridge Bay "
-                f"from {date_from} to {date_to}"
-            ),
-        },
-        "urlParamsUsed": {**params, "token": user_onc_token},
-        "baseUrl": "https://data.oceannetworks.ca/api/ctd/orderDataProduct?",
-    }
-    """
+# async def plot_monthly_water_depth(month_str: str, user_onc_token: str) -> dict:
+#     """ Retrieve the NetCDF (.nc) file of water depth data for Cambridge Bay for a given month
+#     using the 'Cast Scalar Profile Plot and Data' (CSPPD) data product.
+#     Args:
+#         month_str (str): Month in YYYY‑MM format (e.g. "2025-07")
+#         user_onc_token (str): ONC API access token
+#     Returns:
+#         dict: {
+#             "response": {
+#                 "orders": List of order results from ONC,
+#                 "description": Human-readable summary of the request
+#             },
+#             "urlParamsUsed": Dictionary of API request parameters including token,
+#             "baseUrl": Base URL used for the data product request
+#         }
+#     """
+#     onc = ONC(user_onc_token)
+# 
+#     # Build monthly date range
+#     year, month = map(int, month_str.split("-"))
+#     date_from = f"{year:04d}-{month:02d}-01"
+#     if month == 12:
+#         next_year, next_month = year + 1, 1
+#     else:
+#         next_year, next_month = year, month + 1
+#     date_to = f"{next_year:04d}-{next_month:02d}-01"
+# 
+#     # Order the data product
+#     params = {
+#         "locationCode": "CBYIP",
+#         "deviceCategoryCode": "CTD",
+#         "propertyCode": "depth",
+#         "dataProductCode": "CSPPD", #CTD only has LF data product
+#         "extension": "png",
+#         "dateFrom": date_from,
+#         "dateTo": date_to,
+#     }
+# 
+#     max_retries = 80
+#     download_results_only = False
+#     include_metadata_file = False
+# 
+#     try:
+#         orders = onc.orderDataProduct(
+#             params, max_retries, download_results_only, include_metadata_file
+#         )
+#     except Exception as e:
+#         print(
+#             f"Error: failed to order Cast Scalar Profile Plot and Data after {max_retries} attempts:\n  {e}",
+#             file=sys.stderr,
+#         )
+#         # Exit the entire program with a non‑zero status
+#         sys.exit(1)
+# 
+#     return {
+#         "response": {
+#             "orders": orders,
+#             "description": (
+#                 f"Cast Scalar Profile Plot and Data order for Cambridge Bay "
+#                 f"from {date_from} to {date_to}"
+#             ),
+#         },
+#         "urlParamsUsed": {**params, "token": user_onc_token},
+#         "baseUrl": "https://data.oceannetworks.ca/api/ctd/orderDataProduct?",
+#     }
