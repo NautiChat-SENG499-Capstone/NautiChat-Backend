@@ -37,7 +37,7 @@ async def main():
                 user_onc_token=onc_token,
                 chat_history=chatHistory,
                 obtained_params=obtainedParams,
-                point_ids=point_ids,
+                previous_vdb_ids=point_ids,
             )
             print()
             print()

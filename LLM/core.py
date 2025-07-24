@@ -93,7 +93,7 @@ class LLM:
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
                 vector_content = str(vectorDBResponse)
-            print("Vector DB Response:", vector_content)
+            # print("Vector DB Response:", vector_content)
             messages = [
                 {
                     "role": "system",
