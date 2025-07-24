@@ -32,7 +32,7 @@ from LLM.tools_sprint2 import (
     get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
     plot_spectrogram_for_date,
-    plot_monthly_water_depth,
+    # plot_monthly_water_depth,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class LLM:
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
             "plot_spectrogram_for_date": plot_spectrogram_for_date,
-            "plot_monthly_water_depth": plot_monthly_water_depth,
+            # "plot_monthly_water_depth": plot_monthly_water_depth,
         }
 
     async def run_conversation(
