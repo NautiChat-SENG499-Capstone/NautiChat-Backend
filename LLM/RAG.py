@@ -141,6 +141,8 @@ class RAG:
 
         # No documents were above threshold
         if documents == []:
+            if previous_points:
+                return (prev_df, prev_df["point_ids"])
             return (pd.DataFrame({"contents": []}), [])
 
         # Rerank using the CrossEncoderReranker
