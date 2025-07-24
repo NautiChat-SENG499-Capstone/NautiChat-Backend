@@ -1,26 +1,12 @@
+import sys
 from datetime import datetime, timedelta
-
+import httpx
 from onc import ONC
-
-# import os
-# from dotenv import load_dotenv
-# from pathlib import Path
-
-# # Load API key and location code from .env
-# env_path = Path(__file__).resolve().parent / ".env"
-# load_dotenv(dotenv_path=env_path)
-# ONC_TOKEN = os.getenv("ONC_TOKEN")
-# CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")  # Change for a different location
-# cambridgeBayLocations = ["CBY", "CBYDS", "CBYIP", "CBYIJ", "CBYIU", "CBYSP", "CBYSS", "CBYSU", "CF240"]
-
-# # Create ONC object
-# onc = ONC(ONC_TOKEN)
+import os
 
 
 # What was the air temperature in Cambridge Bay on this day last year?
-async def get_daily_air_temperature_stats_cambridge_bay(
-    date_from_str: str, user_onc_token: str
-):
+async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user_onc_token: str):
     """
     Get daily air temperature statistics for Cambridge Bay.
     Args:
@@ -36,6 +22,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(
           }
     """
     onc = ONC(user_onc_token)
+    
     # Build 24-hour window
     date_to_str = (
         datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
@@ -100,9 +87,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(
 
 
 # Can you give me an example of 24 hours of oxygen data?
-async def get_oxygen_data_24h(
-    user_onc_token: str, date_from_str: str = "2024-06-24"
-):  # Date guaranteed to have data
+async def get_oxygen_data_24h(user_onc_token: str, date_from_str: str = "2024-06-24"):  # Date guaranteed to have data
     """
     Get 24 hours of dissolved oxygen data for Cambridge Bay.
     Args:
@@ -111,8 +96,9 @@ async def get_oxygen_data_24h(
         pandas DataFrame with datetime + oxygen_ml_per_l columns,
         sampled at 10 minute intervals.
     """
-    # Build 24-hour window
     onc = ONC(user_onc_token)
+    
+    # Build 24-hour window
     date_to_str = (
         datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
     ).strftime("%Y-%m-%d")
@@ -170,44 +156,141 @@ async def get_oxygen_data_24h(
 
 
 # I’m interested in data on ship noise for July 31, 2024 / Get me the acoustic data for the last day in July of 2024
-# async def get_ship_noise_acoustic_for_date(day_str: str,  user_onc_token: str):
-#     """
-#     Get 24 hours of ship noise data for Cambridge Bay on a specific date.
-#     Args:
-#         day_str (str): Date in YYYY-MM-DD format
-#     Returns:
-#         JSON string of the scalar data response
-#     """
-#     onc = ONC(user_onc_token)
-#     # Define 24 hour window
-#     date_from_str = day_str
-#     # Parse into datetime object to add 1 day (accounts for 24-hour period)
-#     date_to = datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days = 1)
-#     date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
+async def get_ship_noise_acoustic_for_date(date_from_str: str, user_onc_token: str):
+    """
+    Get 24 hours of ship noise acoustic data for Cambridge Bay.
+    Args:
+        date_from_str (str): Date in YYYY‑MM‑DD format
+        user_onc_token (str): ONC API access token
+    Returns:
+        dict: {
+            "response": {
+                "orders": <orderDataProduct result>,
+                "description": "...",
+            },
+            "urlParamsUsed": { ... },
+            "baseUrl": "...orderDataProduct?",
+        }
+    """
+    onc = ONC(user_onc_token)
 
-#     # Fetch relevant data through API request
-#     params = {
-#         "locationCode": {CAMBRIDGE_LOCATION_CODE},
-#         "deviceCategoryCode": "HYDROPHONE",
-#         "propertyCode": "voltage",
-#         "dateFrom": {date_from_str},
-#         "dateTo": {date_to_str},
-#         "rowLimit": 250,
-#         "token": {ONC_TOKEN}
-#     }
-#     data = onc.getScalardata(params)
+    # Build 24-hour window
+    date_to_str = (
+        datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
+    ).strftime("%Y-%m-%d")
 
-#     return {"response": data}
+    params = {
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "HYDROPHONE",
+        "dataProductCode": "AD",  # Acoustic data
+        "extension": "wav",
+        "dateFrom": date_from_str,
+        "dateTo": date_to_str,
+        "dpo_audioDownsample": -1,  # Return data with its original sampling rate
+        # Set to 1 below to allow search to fill in any data files for the requested
+        # format that are not already in the archive. Takes about an hour to process for 1 day.
+        "dpo_audioFormatConversion": 0,
+    }
+
+    max_retries = 80
+    download_results_only = False
+    include_metadata_file = False
+
+    try:
+        orders = onc.orderDataProduct(
+            params, max_retries, download_results_only, include_metadata_file
+        )
+    except Exception as e:
+        print(
+            f"Error: failed to order hydrophone data after {max_retries} attempts:\n  {e}",
+            file=sys.stderr,
+        )
+        # Exit the entire program with a non‑zero status
+        sys.exit(1)
+
+    return {
+        "response": {
+            "orders": orders,
+            "description": (
+                f"Ship noise acoustic data order for Cambridge Bay "
+                f"from {date_from_str} to {date_to_str}"
+            ),
+        },
+        "urlParamsUsed": {**params, "token": user_onc_token},
+        "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+    }
 
 
 # Can I see the noise data for July 31, 2024 as a spectogram?
-# TO DO data download
+async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
+    """
+    Submit a request to Ocean Networks Canada's dataProductDelivery API for a 
+    ship noise spectrogram image from the Cambridge Bay hydrophone for a given date.
+    This function requests the pre-generated spectrogram (PNG format) covering a
+    24-hour period and returns the order metadata from ONC. Note: This does not 
+    download or return the actual image; instead, it initiates the request and 
+    returns order details for follow-up retrieval.
+    Args:
+        date_str (str): The date of interest in YYYY-MM-DD format (e.g., "2024-07-31").
+        user_onc_token (str): ONC API access token required for authentication.
+    Returns:
+        dict: {
+            "response": {
+                "orders": List of order results from ONC,
+                "description": Human-readable summary of the request
+            },
+            "urlParamsUsed": Dictionary of API request parameters including token,
+            "baseUrl": Base URL used for the data product request
+        }
+    """
+    onc = ONC(user_onc_token)
+
+    # Define 24-hour window
+    date_from = date_str
+    date_to = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
+
+    params = {
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "HYDROPHONE",
+        "dataProductCode": "HSD",
+        "extension": "png",
+        "dateFrom": date_from,
+        "dateTo": date_to,
+    }
+
+    max_retries = 1000
+    download_results_only = False
+    include_metadata_file = False
+
+    try:
+        orders = onc.orderDataProduct(
+            params, max_retries, download_results_only, include_metadata_file
+        )
+    except Exception as e:
+        print(
+            f"Error: failed to order noise spectrogram data after {max_retries} attempts:\n  {e}",
+            file=sys.stderr,
+        )
+        # Exit the entire program with a non‑zero status
+        sys.exit(1)
+
+    return {
+        "response": {
+            "orders": orders,
+            "description": (
+                f"Ship noise spectrogram data order for Cambridge Bay "
+                f"from {date_from} to {date_to}"
+            ),
+        },
+        "urlParamsUsed": {**params, "token": user_onc_token},
+        "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+    }
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
-async def get_wind_speed_at_timestamp(
-    date_from_str: str, user_onc_token: str, hourInterval: int = 12
-):
+async def get_wind_speed_at_timestamp(date_from_str: str, user_onc_token: str, hourInterval: int = 12):
     """
     Get wind speed at Cambridge Bay (in m/s) at the specified timestamp.
     Args:
@@ -217,6 +300,7 @@ async def get_wind_speed_at_timestamp(
         float: windspeed at that time (in m/s), or the nearest sample.
     """
     onc = ONC(user_onc_token)
+    
     # Parse into datetime and get the date
     date_time_date_from_str = datetime.strptime(date_from_str, "%Y-%m-%d")
     # Parse into datetime object to add 1 day (accounts for 24-hour period)
@@ -288,12 +372,7 @@ async def get_wind_speed_at_timestamp(
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
-
-
-# I’m doing a school project on Arctic fish. Does the platform have any underwater
-# imagery and could I see an example?
-# TO DO data download
-
+    
 
 # How thick was the ice in February this year?
 async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token: str):
@@ -305,6 +384,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
         JSON string of the scalar data response
     """
     onc = ONC(user_onc_token)
+    
     # Include the full end_date by adding one day (API dateTo is exclusive)
     # date_to_str = (
     #     datetime.strptime(date_from_str, "%Y-%m-%d")
@@ -314,6 +394,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
         date_to_str = (
             datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
         ).strftime("%Y-%m-%d")
+
     params = {
         "locationCode": "CBYIP",
         "deviceCategoryCode": "ICEPROFILER",
@@ -369,8 +450,70 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 
 
 # I would like a plot which shows the water depth so I can get an idea of tides in the Arctic for July 2023
-# TO DO data download
+"""
+async def plot_monthly_water_depth(month_str: str, user_onc_token: str) -> dict:
+    """ Retrieve the NetCDF (.nc) file of water depth data for Cambridge Bay for a given month
+    using the 'Cast Scalar Profile Plot and Data' (CSPPD) data product.
+    Args:
+        month_str (str): Month in YYYY‑MM format (e.g. "2025-07")
+        user_onc_token (str): ONC API access token
+    Returns:
+        dict: {
+            "response": {
+                "orders": List of order results from ONC,
+                "description": Human-readable summary of the request
+            },
+            "urlParamsUsed": Dictionary of API request parameters including token,
+            "baseUrl": Base URL used for the data product request
+        }
+    """
+    onc = ONC(user_onc_token)
 
+    # Build monthly date range
+    year, month = map(int, month_str.split("-"))
+    date_from = f"{year:04d}-{month:02d}-01"
+    if month == 12:
+        next_year, next_month = year + 1, 1
+    else:
+        next_year, next_month = year, month + 1
+    date_to = f"{next_year:04d}-{next_month:02d}-01"
 
-# Can you show me a recent video from the shore camera?
-# TO DO data download
+    # Order the data product
+    params = {
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "CTD",
+        "propertyCode": "depth",
+        "dataProductCode": "CSPPD", #CTD only has LF data product
+        "extension": "png",
+        "dateFrom": date_from,
+        "dateTo": date_to,
+    }
+
+    max_retries = 80
+    download_results_only = False
+    include_metadata_file = False
+
+    try:
+        orders = onc.orderDataProduct(
+            params, max_retries, download_results_only, include_metadata_file
+        )
+    except Exception as e:
+        print(
+            f"Error: failed to order Cast Scalar Profile Plot and Data after {max_retries} attempts:\n  {e}",
+            file=sys.stderr,
+        )
+        # Exit the entire program with a non‑zero status
+        sys.exit(1)
+
+    return {
+        "response": {
+            "orders": orders,
+            "description": (
+                f"Cast Scalar Profile Plot and Data order for Cambridge Bay "
+                f"from {date_from} to {date_to}"
+            ),
+        },
+        "urlParamsUsed": {**params, "token": user_onc_token},
+        "baseUrl": "https://data.oceannetworks.ca/api/ctd/orderDataProduct?",
+    }
+    """
