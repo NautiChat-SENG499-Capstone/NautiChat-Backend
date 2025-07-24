@@ -533,31 +533,31 @@ toolDescriptions = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "plot_monthly_water_depth",
-            "description": (
-            "Retrieve a NetCDF (.nc) file containing CTD cast profile data for water depth "
-            "in Cambridge Bay for a given month. The file is generated using Ocean Networks Canada's "
-            "'Cast Scalar Profile Plot and Data' (CSPPD) product, which includes profiles of "
-            "temperature, salinity, depth, and other measurements collected during the month. "
-            "Returns the local file path to the downloaded NetCDF file."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "month_str": {
-                        "type": "string",
-                        "description": "Month in YYYY-MM format (e.g., '2025-07') to retrieve water depth cast data for."
-                    },
-                    # "user_onc_token": {
-                    #     "type": "string",
-                    #     "description": "A valid Ocean Networks Canada API access token."
-                    # }
-                },
-                "required": ["month_str"]
-            },
-        },
-    },
+    # {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "plot_monthly_water_depth",
+    #         "description": (
+    #         "Retrieve a NetCDF (.nc) file containing CTD cast profile data for water depth "
+    #         "in Cambridge Bay for a given month. The file is generated using Ocean Networks Canada's "
+    #         "'Cast Scalar Profile Plot and Data' (CSPPD) product, which includes profiles of "
+    #         "temperature, salinity, depth, and other measurements collected during the month. "
+    #         "Returns the local file path to the downloaded NetCDF file."
+    #         ),
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "month_str": {
+    #                     "type": "string",
+    #                     "description": "Month in YYYY-MM format (e.g., '2025-07') to retrieve water depth cast data for."
+    #                 },
+    #                 # "user_onc_token": {
+    #                 #     "type": "string",
+    #                 #     "description": "A valid Ocean Networks Canada API access token."
+    #                 # }
+    #             },
+    #             "required": ["month_str"]
+    #         },
+    #     },
+    # },
 ]
