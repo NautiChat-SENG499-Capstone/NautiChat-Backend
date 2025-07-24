@@ -91,18 +91,45 @@ class LLM:
             else:
                 vector_content = str(vectorDBResponse)
             # print("Vector DB Response:", vector_content)
+
+            qa_docs = self.RAG_instance.get_qa_docs(user_prompt)
+
+            if isinstance(qa_docs, pd.DataFrame):
+                if qa_docs.empty:
+                    qa_reference = "" 
+                else:
+                    qa_reference = qa_docs.to_string(index=False)
+            else:
+                qa_reference = str(qa_docs)
+
             messages = [
                 {
                     "role": "system",
                     "content": startingPrompt,
-                },
+                }
+            ]
+            if qa_reference:
+                styling_prompt = f"""
+                The following are examples of question-answer pairs that represent the desired style, tone, and preferred phrasing for your responses.
+                These examples are **CRUCIALLY ONLY for stylistic guidance** and do **NOT** represent current factual information, data availability, tool usage, or required parameters.
+                You **MUST NOT** use these examples as factual context or directly answer from them.
+                Instead, analyze them **solely** to understand the preferred phrasing, level of detail, and overall stylistic conventions
+                when formulating your own answers based on other retrieved information and tool outputs.
+                **Absolutely DO NOT** initiate any tool calls based on the content or patterns found within these styling examples.
+
+                Examples for styling guidance:
+                {qa_reference}
+                """
+                messages.append({"role": "system", "content": styling_prompt})
+
+            messages.extend([
                 {"role": "assistant", "content": vector_content},
                 *chat_history,
                 {
                     "role": "user",
                     "content": user_prompt,
                 },
-            ]
+            ])
 
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use

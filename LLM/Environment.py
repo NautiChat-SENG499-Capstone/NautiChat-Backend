@@ -18,6 +18,7 @@ class Environment:
         self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.qdrant_url = os.getenv("QDRANT_URL")
         self.collection_name = os.getenv("QDRANT_COLLECTION_NAME")
+        self.QA_collection_name = os.getenv("QDRANT_QA_COLLECTION_NAME")
         self.general_collection_name = os.getenv("QDRANT_GENERAL_COLLECTION_NAME")
         self.function_calling_collection_name = os.getenv(
             "QDRANT_FUNCTION_CALLING_COLLECTION_NAME"
@@ -38,6 +39,9 @@ class Environment:
 
     def get_qdrant_url(self):
         return self.qdrant_url
+    
+    def get_QA_collection_name(self):
+        return self.QA_collection_name
 
     def get_general_collection_name(self):
         return self.general_collection_name
