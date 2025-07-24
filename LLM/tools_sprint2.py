@@ -5,9 +5,7 @@ from onc import ONC
 import os
 
 # What was the air temperature in Cambridge Bay on this day last year?
-async def get_daily_air_temperature_stats_cambridge_bay(
-    date_from_str: str, user_onc_token: str
-):
+async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user_onc_token: str):
     """
     Get daily air temperature statistics for Cambridge Bay.
     Args:
@@ -224,14 +222,27 @@ async def get_ship_noise_acoustic_for_date(date_from_str: str, user_onc_token: s
 # Can I see the noise data for July 31, 2024 as a spectogram?
 async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
     """
-    Download and return the pre-generated ONC spectrogram image for a given date.
+    Submit a request to Ocean Networks Canada's dataProductDelivery API for a 
+    ship noise spectrogram image from the Cambridge Bay hydrophone for a given date.
+
+    This function requests the pre-generated spectrogram (PNG format) covering a
+    24-hour period and returns the order metadata from ONC. Note: This does not 
+    download or return the actual image; instead, it initiates the request and 
+    returns order details for follow-up retrieval.
 
     Args:
-        date_str (str): Date in YYYY-MM-DD format
-        user_onc_token (str): ONC API access token
+        date_str (str): The date of interest in YYYY-MM-DD format (e.g., "2024-07-31").
+        user_onc_token (str): ONC API access token required for authentication.
 
     Returns:
-        PIL.Image.Image | None: Spectrogram image object, or None if download fails.
+        dict: {
+            "response": {
+                "orders": List of order results from ONC,
+                "description": Human-readable summary of the request
+            },
+            "urlParamsUsed": Dictionary of API request parameters including token,
+            "baseUrl": Base URL used for the data product request
+        }
     """
     base_url = "https://data.oceannetworks.ca/api/dataProductDelivery"
 
@@ -248,33 +259,40 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
         "extension": "png",
         "dateFrom": date_from,
         "dateTo": date_to,
-        "token": user_onc_token,
-        "outputFormat": "zip",
+        "dpo_audioDownsample": -1,  # Return data with its original sampling rate
+        # Set to 1 below to allow search to fill in any data files for the requested
+        # format that are not already in the archive. Takes about an hour to process for 1 day.
+        "dpo_audioFormatConversion": 0,
     }
 
-    response = requests.get(base_url, params=params)
+    max_retries = 80
+    download_results_only = False
+    include_metadata_file = False
 
-    if response.status_code != 200:
-        print(f"Failed to retrieve spectrogram. Status code: {response.status_code}")
-        print(response.text)
-        return None
+    try:
+        orders = onc.orderDataProduct(
+            params, max_retries, download_results_only, include_metadata_file
+        )
+    except Exception as e:
+        print(
+            f"Error: failed to order noise spectrogram data after {max_retries} attempts:\n  {e}",
+            file=sys.stderr,
+        )
+        # Exit the entire program with a non‑zero status
+        sys.exit(1)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        zip_path = os.path.join(tmpdir, "spectrogram.zip")
-        with open(zip_path, "wb") as f:
-            f.write(response.content)
+    return {
+        "response": {
+            "orders": orders,
+            "description": (
+                f"Ship noise spectrogram data order for Cambridge Bay "
+                f"from {date_from} to {date_to}"
+            ),
+        },
+        "urlParamsUsed": {**params, "token": user_onc_token},
+        "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+    }
 
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(tmpdir)
-
-        png_files = [f for f in os.listdir(tmpdir) if f.endswith(".png")]
-        if not png_files:
-            print("No PNG spectrogram files found in the archive.")
-            return None
-
-        image_path = os.path.join(tmpdir, png_files[0])
-        image = Image.open(image_path).copy()  # Copy to persist after tmpdir is deleted
-        return image
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
@@ -361,12 +379,7 @@ async def get_wind_speed_at_timestamp(
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
-
-
-# I’m doing a school project on Arctic fish. Does the platform have any underwater
-# imagery and could I see an example?
-# TO DO data download
-
+    
 
 # How thick was the ice in February this year?
 async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token: str):
@@ -498,7 +511,3 @@ async def plot_monthly_water_depth(month_str: str, user_onc_token: str) -> str:
 
     print(f"Saved NetCDF file to {filename}")
     return filename
-
-
-# Can you show me a recent video from the shore camera?
-# TO DO data download
