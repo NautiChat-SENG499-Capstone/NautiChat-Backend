@@ -38,10 +38,10 @@ toolDescriptions = [
         "function": {
             "name": "get_active_instruments_at_cambridge_bay",
             "description": (
-                'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a'
-                ' curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string:'
+                "Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a"
+                " curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string:"
                 ' Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n'
-                ' Note: This function does not take any parameters.'
+                " Note: This function does not take any parameters."
             ),
             "parameters": {
                 "type": "object",
@@ -315,20 +315,20 @@ toolDescriptions = [
         "function": {
             "name": "get_ship_noise_acoustic_for_date",
             "description": (
-            "Get 24 hours of ship noise acoustic data for Cambridge Bay using the ONC hydrophone system."
-            " This function requests a downloadable WAV audio data product from the Ocean Networks Canada API,"
-            " using device category 'HYDROPHONE' at location 'CBYIP'. It returns order metadata including a URL,"
-            " parameters used in the request, and a description of the data order."
+                "Get 24 hours of ship noise acoustic data for Cambridge Bay using the ONC hydrophone system."
+                " This function requests a downloadable WAV audio data product from the Ocean Networks Canada API,"
+                " using device category 'HYDROPHONE' at location 'CBYIP'. It returns order metadata including a URL,"
+                " parameters used in the request, and a description of the data order."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "date_from_str": {
                         "type": "string",
-                        "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window."
+                        "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window.",
                     },
                 },
-                "required": ["date_from_str"]
+                "required": ["date_from_str"],
             },
         },
     },
@@ -337,20 +337,20 @@ toolDescriptions = [
         "function": {
             "name": "plot_spectrogram_for_date",
             "description": (
-            "Submit a request for a pre-generated ship noise spectrogram (data product code 'HSD')"
-            " from hydrophone data at Cambridge Bay using the Ocean Networks Canada API."
-            " This function initiates an order for a PNG spectrogram covering a 24-hour period starting"
-            " from the given date, and returns metadata about the request, including order details and parameters used."
+                "Submit a request for a pre-generated ship noise spectrogram (data product code 'HSD')"
+                " from hydrophone data at Cambridge Bay using the Ocean Networks Canada API."
+                " This function initiates an order for a PNG spectrogram covering a 24-hour period starting"
+                " from the given date, and returns metadata about the request, including order details and parameters used."
             ),
             "parameters": {
-            "type": "object",
+                "type": "object",
                 "properties": {
                     "date_str": {
                         "type": "string",
-                        "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window."
+                        "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window.",
                     },
                 },
-            "required": ["date_str"]
+                "required": ["date_str"],
             },
         },
     },

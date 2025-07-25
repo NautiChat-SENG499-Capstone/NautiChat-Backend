@@ -1,12 +1,15 @@
+import os
 import sys
 from datetime import datetime, timedelta
+
 import httpx
 from onc import ONC
-import os
 
 
 # What was the air temperature in Cambridge Bay on this day last year?
-async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user_onc_token: str):
+async def get_daily_air_temperature_stats_cambridge_bay(
+    date_from_str: str, user_onc_token: str
+):
     """
     Get daily air temperature statistics for Cambridge Bay.
     Args:
@@ -22,7 +25,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user
           }
     """
     onc = ONC(user_onc_token)
-    
+
     # Build 24-hour window
     date_to_str = (
         datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
@@ -87,7 +90,9 @@ async def get_daily_air_temperature_stats_cambridge_bay(date_from_str: str, user
 
 
 # Can you give me an example of 24 hours of oxygen data?
-async def get_oxygen_data_24h(user_onc_token: str, date_from_str: str = "2024-06-24"):  # Date guaranteed to have data
+async def get_oxygen_data_24h(
+    user_onc_token: str, date_from_str: str = "2024-06-24"
+):  # Date guaranteed to have data
     """
     Get 24 hours of dissolved oxygen data for Cambridge Bay.
     Args:
@@ -97,7 +102,7 @@ async def get_oxygen_data_24h(user_onc_token: str, date_from_str: str = "2024-06
         sampled at 10 minute intervals.
     """
     onc = ONC(user_onc_token)
-    
+
     # Build 24-hour window
     date_to_str = (
         datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
@@ -224,11 +229,11 @@ async def get_ship_noise_acoustic_for_date(date_from_str: str, user_onc_token: s
 # Can I see the noise data for July 31, 2024 as a spectogram?
 async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
     """
-    Submit a request to Ocean Networks Canada's dataProductDelivery API for a 
+    Submit a request to Ocean Networks Canada's dataProductDelivery API for a
     ship noise spectrogram image from the Cambridge Bay hydrophone for a given date.
     This function requests the pre-generated spectrogram (PNG format) covering a
-    24-hour period and returns the order metadata from ONC. Note: This does not 
-    download or return the actual image; instead, it initiates the request and 
+    24-hour period and returns the order metadata from ONC. Note: This does not
+    download or return the actual image; instead, it initiates the request and
     returns order details for follow-up retrieval.
     Args:
         date_str (str): The date of interest in YYYY-MM-DD format (e.g., "2024-07-31").
@@ -290,7 +295,9 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
-async def get_wind_speed_at_timestamp(date_from_str: str, user_onc_token: str, hourInterval: int = 12):
+async def get_wind_speed_at_timestamp(
+    date_from_str: str, user_onc_token: str, hourInterval: int = 12
+):
     """
     Get wind speed at Cambridge Bay (in m/s) at the specified timestamp.
     Args:
@@ -300,7 +307,7 @@ async def get_wind_speed_at_timestamp(date_from_str: str, user_onc_token: str, h
         float: windspeed at that time (in m/s), or the nearest sample.
     """
     onc = ONC(user_onc_token)
-    
+
     # Parse into datetime and get the date
     date_time_date_from_str = datetime.strptime(date_from_str, "%Y-%m-%d")
     # Parse into datetime object to add 1 day (accounts for 24-hour period)
@@ -372,7 +379,7 @@ async def get_wind_speed_at_timestamp(date_from_str: str, user_onc_token: str, h
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
-    
+
 
 # How thick was the ice in February this year?
 async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token: str):
@@ -384,7 +391,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
         JSON string of the scalar data response
     """
     onc = ONC(user_onc_token)
-    
+
     # Include the full end_date by adding one day (API dateTo is exclusive)
     # date_to_str = (
     #     datetime.strptime(date_from_str, "%Y-%m-%d")
@@ -467,7 +474,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 #         }
 #     """
 #     onc = ONC(user_onc_token)
-# 
+#
 #     # Build monthly date range
 #     year, month = map(int, month_str.split("-"))
 #     date_from = f"{year:04d}-{month:02d}-01"
@@ -476,7 +483,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 #     else:
 #         next_year, next_month = year, month + 1
 #     date_to = f"{next_year:04d}-{next_month:02d}-01"
-# 
+#
 #     # Order the data product
 #     params = {
 #         "locationCode": "CBYIP",
@@ -487,11 +494,11 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 #         "dateFrom": date_from,
 #         "dateTo": date_to,
 #     }
-# 
+#
 #     max_retries = 80
 #     download_results_only = False
 #     include_metadata_file = False
-# 
+#
 #     try:
 #         orders = onc.orderDataProduct(
 #             params, max_retries, download_results_only, include_metadata_file
@@ -503,7 +510,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
 #         )
 #         # Exit the entire program with a non‑zero status
 #         sys.exit(1)
-# 
+#
 #     return {
 #         "response": {
 #             "orders": orders,
