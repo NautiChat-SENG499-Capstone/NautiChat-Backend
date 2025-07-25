@@ -1,6 +1,6 @@
 services:
   backend:
-    build: .
+    image: milesssssss/nautichat-backend:latest
     ports:
       - "8000:8080"
     env_file:
@@ -14,4 +14,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 20
-      start_period: 1200s  # Wait up to 20 minutes for LLM/model loading
+      start_period: 1200s
+
+  watchtower:
+    image: containrrr/watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: backend
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    command: tunnel run nautichat-backend
+    volumes:
+      - ~/.cloudflared:/home/nonroot/.cloudflared

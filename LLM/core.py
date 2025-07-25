@@ -57,6 +57,7 @@ class LLM:
         user_onc_token: str,
         chat_history: list[dict] = [],
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        previous_vdb_ids: list[str] = [],
     ) -> RunConversationResponse:
         try:
             CurrentDate = datetime.now().strftime("%Y-%m-%d")
@@ -111,9 +112,11 @@ class LLM:
 
             # print("Messages: ", messages)
             sources = []
-            vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
+            (vectorDBResponse, point_ids) = self.RAG_instance.get_documents(
+                user_prompt, previous_vdb_ids
+            )
             print("Vector DB Response:", vectorDBResponse)
-
+            sources = []
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
@@ -468,6 +471,7 @@ class LLM:
                         "",
                     ),
                     sources=sources,
+                    point_ids=point_ids,
                 )
             else:
                 print(response_message)
@@ -476,6 +480,7 @@ class LLM:
                     response=response_message.content,
                     sources=sources,
                     obtainedParams=obtained_params,
+                    point_ids=point_ids,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
@@ -484,6 +489,7 @@ class LLM:
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
                 obtainedParams=obtained_params,
                 sources=sources,
+                point_ids=point_ids,
             )
 
     async def call_tool(self, fn, args, user_onc_token):

@@ -31,12 +31,14 @@ async def main():
         user_prompt = input("Enter your first question (or 'exit' to quit): ")
         chatHistory = []
         obtainedParams: ObtainedParamsDictionary = ObtainedParamsDictionary()
+        point_ids: list[str] = []
         while user_prompt not in ["exit", "quit"]:
             response = await LLM_Instance.run_conversation(
                 user_prompt=user_prompt,
                 user_onc_token=onc_token,
                 chat_history=chatHistory,
                 obtained_params=obtainedParams,
+                previous_vdb_ids=point_ids,
             )
             print()
             print()
@@ -47,6 +49,7 @@ async def main():
                 print("DOI:", response.doi)
                 print("Citation:", response.citation)
             obtainedParams = response.obtainedParams
+            point_ids = response.point_ids
             print("Response:", response.response)
             print("Obtained parameters:", obtainedParams)
             print("URL Params Used:", response.urlParamsUsed)
