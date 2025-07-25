@@ -19,8 +19,6 @@ NautiChat is a conversational AI assistant built with FastAPI for Ocean Networks
 - Semantic search powered by vector embeddings
 - Feedback system for continuous improvement
 
-## Architecture
-
 ### Tech Stack
 - **Backend Framework**: FastAPI (Python 3.11+)
 - **LLM Provider**: Groq Cloud API
@@ -34,7 +32,7 @@ NautiChat is a conversational AI assistant built with FastAPI for Ocean Networks
 
 
 ### System Architecture
-TO DO: add my new diagram here
+[System Architecture (WIP)](path/to/diagram.png)
 
 ## Getting Started
 
@@ -47,7 +45,7 @@ TO DO: add my new diagram here
   - Jina AI
   - Ocean Networks Canada
   - Supabase (if using hosted PostgreSQL)
-**If setting up migrations for the first time:**
+- If setting up migrations for the first time:
 ```bash
 alembic init alembic
 ```
@@ -103,54 +101,6 @@ docker compose logs -f
 docker compose down
 ```
 
-## CI/CD Pipeline
-
-This project uses GitHub Actions for continuous integration and delivery. All pull requests and pushes to `main` go through the following stages:
-
-### Lint (pre-commit with Ruff)
-
-- Runs `pre-commit` using [ruff](https://github.com/astral-sh/ruff) for linting and formatting
-- Fixes import ordering and code style issues (`--select I`, `--fix`)
-- Enforces consistent code quality across the codebase
-
-### Test (Pytest)
-
-- Executes the full test suite using `pytest` and `pytest-asyncio`
-- Uses a mocked SQLite database and secret environment variables
-- Avoids hitting external APIs by mocking dependencies
-
-### Docker Build (Pull Requests)
-
-- Builds the Docker image locally to validate Dockerfile correctness
-- Does not push to Docker Hub
-- Ensures containerization remains functional before merge
-
-### Docker Build & Push (Main Branch)
-
-- Builds and pushes Docker images to Docker Hub:
-  - `milesssssss/nautichat-backend:latest`
-  - `milesssssss/nautichat-backend:<commit-sha>`
-- Uses layer caching via GitHub Actions to speed up rebuilds
-- Only runs when changes are pushed to `main`
-
-Workflow logic is defined in `.github/workflows/ci.yml`.
-
-
-### Pre-commit Hooks
-
-The project uses pre-commit to maintain code quality:
-
-```bash
-# Install pre-commit hooks
-pre-commit install
-
-# Run hooks manually
-pre-commit run --all-files
-
-# Update hooks
-pre-commit autoupdate
-```
-
 ## Testing
 
 ### Running Tests
@@ -169,6 +119,59 @@ pytest -v
 ### Test Configuration
 - Tests use SQLite instead of PostgreSQL for isolation and speed
 - Mock external API calls to avoid dependencies
+
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and delivery. There are two workflows:
+
+1. **Pull Request Pipeline** (runs on PRs targeting `main`)  
+   - **Required checks**: Lint/Test/Docker Build  
+   - PRs cannot be merged until all three stages pass.
+
+2. **Release Pipeline** (runs on pushes to `main`)  
+   - Re‑runs Lint and Test  
+   - **Docker Build & Push** (publishes images to Docker Hub)
+
+### 1. Lint (pre-commit with Ruff)
+
+- Runs `pre-commit` using [ruff](https://github.com/astral-sh/ruff) for linting and formatting  
+- Fixes import ordering and code style issues (`--select I`, `--fix`)  
+- Enforces consistent code quality across the codebase
+
+### 2. Test (Pytest)
+
+- Executes the full test suite using `pytest` and `pytest-asyncio`  
+- Uses a mocked SQLite database and secret environment variables  
+- Avoids hitting external APIs by mocking dependencies
+
+### 3. Docker Build (Pull Request Pipeline)
+
+- Builds the Docker image locally to validate Dockerfile correctness  
+- Does **not** push to Docker Hub  
+- Blocks PR merges if the build fails
+
+### 4. Docker Build & Push (Release Pipeline)
+
+- Builds and pushes Docker images to Docker Hub:  
+  - `milesssssss/nautichat-backend:latest`  
+  - `milesssssss/nautichat-backend:<commit-sha>`  
+- Uses layer caching via GitHub Actions to speed up rebuilds  
+- Only runs on merges/pushes to `main`
+
+> **Workflow config** is in `.github/workflows/ci.yml`.
+
+### Pre-commit Hooks
+
+```bash
+# Install pre-commit hooks
+pre-commit install
+
+# Run hooks manually
+pre-commit run --all-files
+
+# Update hooks
+pre-commit autoupdate
+```
 
 ## API Documentation
 
@@ -260,11 +263,12 @@ For deployment issues, check logs and ensure all environment variables are set.
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+
 ## Acknowledgments
 
 - Ocean Networks Canada for data access and support
 - All contributors and community members
-- SENG 499 Teaching Team and students!
+- Our hardworking TA's
 
 ---
 
