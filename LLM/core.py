@@ -133,7 +133,7 @@ class LLM:
                 },
                 *chat_history,
                 {
-                    "role": "assistant",
+                    "role": "user",
                     "content": f"(Sensor Information from Vector Search for context only):\n{vector_content}",
                 },
                 {
