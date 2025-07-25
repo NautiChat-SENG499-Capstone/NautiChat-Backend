@@ -48,6 +48,12 @@ class TestGenerateMessageActualLLM:
         assert resp.status_code == 201
         message = resp.json()
 
+        if (
+            "llm" in message["response"].lower()
+            and "fail" in message["response"].lower()
+        ):
+            pytest.skip("Skipped due to LLM failure.")
+
         # Makes sure message comes back with call from actual LLM
         assert (
             "response" in message
@@ -89,6 +95,12 @@ class TestGenerateMessageActualLLM:
         # Validate the response structure
         assert resp.status_code == status.HTTP_201_CREATED
         message = resp.json()
+
+        if (
+            "llm" in message["response"].lower()
+            and "fail" in message["response"].lower()
+        ):
+            pytest.skip("Skipped due to LLM failure.")
 
         assert "response" in message and isinstance(message["response"], str)
         assert "request_id" in message
@@ -169,6 +181,9 @@ class TestRunConversation:
         # Test the structure of the conversation response
         assert_valid_llm_response(llm_result)
 
+        if llm_result.status == StatusCode.LLM_ERROR:
+            pytest.skip("Skipped due to rate limit on LLM.")
+
         # Validate the actual response
         assert llm_result.status == StatusCode.REGULAR_MESSAGE
         assert "Cambridge Bay" in llm_result.response
@@ -203,6 +218,9 @@ class TestRunConversation:
         # Test the structure of the conversation response
         assert_valid_llm_response(llm_result)
 
+        if llm_result.status == StatusCode.LLM_ERROR:
+            pytest.skip("Skipped due to rate limit on LLM.")
+
         # Validate the actual response
         assert llm_result.status == StatusCode.PARAMS_NEEDED
         assert (
@@ -230,6 +248,9 @@ class TestRunConversation:
 
         # Test the structure of the conversation response
         assert_valid_llm_response(llm_result)
+
+        if llm_result.status == StatusCode.LLM_ERROR:
+            pytest.skip("Skipped due to rate limit on LLM.")
 
         # Validate the actual response
         assert llm_result.status == StatusCode.REGULAR_MESSAGE
@@ -265,6 +286,9 @@ class TestRunConversation:
 
         # Test the structure of the conversation response
         assert_valid_llm_response(llm_result)
+
+        if llm_result.status == StatusCode.LLM_ERROR:
+            pytest.skip("Skipped due to rate limit on LLM.")
 
         # Validate the actual response
         assert llm_result.status == StatusCode.PROCESSING_DATA_DOWNLOAD

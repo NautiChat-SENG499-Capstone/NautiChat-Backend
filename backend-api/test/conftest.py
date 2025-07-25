@@ -143,6 +143,7 @@ class MockLLM:
         user_onc_token: str,
         chat_history: list[dict] = [],
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        previous_vdb_ids: list[dict] = [],
     ) -> RunConversationResponse:
         self.called_with_history = chat_history
         self.last_prompt = user_prompt.lower()
