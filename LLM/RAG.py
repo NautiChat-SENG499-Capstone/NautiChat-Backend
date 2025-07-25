@@ -108,25 +108,6 @@ class RAG:
         )
         search_results = [hit for hit in search_results if hit.score >= min_score]
 
-        if previous_points:
-            previous_point_search = self.qdrant_client.retrieve(
-                collection_name=collection_name,
-                ids=previous_points,
-                with_payload=True,
-            )
-            # Get only most recent result from previous data points
-            prev_df = pd.DataFrame(
-                [
-                    {
-                        "contents": previous_point_search[0].payload["text"],
-                        "sources": previous_point_search[0].payload.get(
-                            "source", "unknown"
-                        ),
-                        "point_ids": previous_point_search[0].id,
-                    }
-                ]
-            )
-
         documents = [
             Document(
                 page_content=hit.payload["text"],
@@ -142,6 +123,23 @@ class RAG:
         # No documents were above threshold
         if documents == []:
             if previous_points:
+                previous_point_search = self.qdrant_client.retrieve(
+                    collection_name=collection_name,
+                    ids=previous_points,
+                    with_payload=True,
+                )
+                # Get only most recent result from previous data points
+                prev_df = pd.DataFrame(
+                    [
+                        {
+                            "contents": previous_point_search[0].payload["text"],
+                            "sources": previous_point_search[0].payload.get(
+                                "source", "unknown"
+                            ),
+                            "point_ids": previous_point_search[0].id,
+                        }
+                    ]
+                )
                 return (prev_df, prev_df["point_ids"])
             return (pd.DataFrame({"contents": []}), [])
 
@@ -173,6 +171,5 @@ class RAG:
             }
         )
         df = df[:max_returns]
-        if previous_points:
-            df = pd.concat([df, prev_df], ignore_index=True)
+
         return (df, df["point_ids"])
