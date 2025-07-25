@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.dependencies import get_current_user
 from src.auth.schemas import UserOut
 from src.database import get_db_session
-from src.middleware import limiter
 
+# from src.middleware import limiter
 from . import service
 from .schemas import (
     Conversation,
@@ -61,7 +61,7 @@ async def delete_converstation(
 
 
 @router.post("/messages", status_code=201, response_model=Message)
-@limiter.limit("6/minute")
+# @limiter.limit("6/minute")
 async def generate_response(
     llm_query: CreateLLMQuery,
     current_user: Annotated[UserOut, Depends(get_current_user)],

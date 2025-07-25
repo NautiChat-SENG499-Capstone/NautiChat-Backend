@@ -12,7 +12,6 @@ from sqlalchemy.pool import StaticPool
 from src.settings import get_settings
 
 # Set up test DB URL
-# TODO: Create a Postgres Test DB for thorough testing
 os.environ["SUPABASE_DB_URL"] = "sqlite+aiosqlite:///:memory:"
 SUPABASE_DB_URL = os.environ["SUPABASE_DB_URL"]
 
@@ -23,7 +22,7 @@ from src.database import Base, get_db_session
 from src.main import create_app
 
 from LLM.Constants.status_codes import StatusCode
-from LLM.schemas import RunConversationResponse
+from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 
 
 @pytest.fixture
@@ -131,17 +130,72 @@ async def admin_headers(async_session: AsyncSession):
     return {"Authorization": f"Bearer {token}"}
 
 
-class DummyLLM:
-    async def run_conversation(self, user_prompt, *_, **__):
-        return RunConversationResponse(
-            status=StatusCode.REGULAR_MESSAGE,
-            response=f"LLM Response for {user_prompt}",
-        )
+class MockLLM:
+    def __init__(self):
+        self.called_with_history = None
+        self.last_prompt = None
 
-        async def _noop(*_args, **_kwargs):
-            return ""
+    async def run_conversation(
+        self,
+        user_prompt: str,
+        user_onc_token: str,
+        chat_history: list[dict] = [],
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+    ) -> RunConversationResponse:
+        self.called_with_history = chat_history
+        self.last_prompt = user_prompt.lower()
 
-        return _noop
+        # Simulate response based on prompt content
+        if "onc" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.REGULAR_MESSAGE,
+                response="ONC is Ocean Networks Canada.",
+            )
+
+        elif "download" in self.last_prompt:
+            if "scalar" in self.last_prompt and "data" in self.last_prompt:
+                return RunConversationResponse(
+                    status=StatusCode.PROCESSING_DATA_DOWNLOAD,
+                    response="Download request submitted.",
+                    dpRequestId=42,
+                    baseUrl="https://data.oceannetworks.ca/api/scalar?",
+                    urlParamsUsed={"sensor_id": "123", "start": "2020-01-01"},
+                    tool_calls=[
+                        {
+                            "name": "download_scalar_data",
+                            "parameters": {"sensor_id": "123", "start": "2020-01-01"},
+                        }
+                    ],
+                )
+            else:
+                return RunConversationResponse(
+                    status=StatusCode.PARAMS_NEEDED,
+                    response="I need more info to download anything.",
+                )
+
+        elif "interrupt" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.DEPLOYMENT_ERROR,
+                response="Tool call was interrupted. Please try again.",
+            )
+
+        elif "fail" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.LLM_ERROR,
+                response="Something went wrong while processing the message.",
+            )
+
+        elif "no data" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.NO_DATA,
+                response="No data was available for your request.",
+            )
+
+        else:
+            return RunConversationResponse(
+                status=StatusCode.REGULAR_MESSAGE,
+                response=f"Default mock response to: '{user_prompt}'",
+            )
 
     def __getattr__(self, _):
         async def _noop(*args, **kwargs):
@@ -161,14 +215,18 @@ class DummyRAG:
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def _stub_llm_and_rag(client: AsyncClient):
+async def _stub_llm_and_rag(client: AsyncClient, async_session: AsyncSession, request):
+    if request.node.get_closest_marker("use_real_llm"):
+        yield
+        return
+
     asgi_app = getattr(client, "app", None)
     if asgi_app is None:
         transport = getattr(client, "_transport", None)
         asgi_app = getattr(transport, "app", None) or getattr(transport, "_app", None)
     assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
 
-    asgi_app.state.llm = DummyLLM()
+    asgi_app.state.llm = MockLLM()
     asgi_app.state.rag = DummyRAG()
     yield
     del asgi_app.state.llm

@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from LLM.core import LLM
 from LLM.Environment import Environment
 from src.database import DatabaseSessionManager
 from src.logger import logger
@@ -29,30 +28,28 @@ async def lifespan(app: FastAPI):
         app.state.env = Environment()
         logger.info("Environment instance created successfully.")
 
-        logger.info("Initializing LLM (this may take a while)...")
+        logger.info("Initializing LLM (delay initialization)")
         try:
-            app.state.llm = LLM(app.state.env)
-            logger.info("LLM instance initialized successfully.")
+            app.state.llm = None
         except Exception as e:
             logger.error(f"LLM initialization failed: {e}")
             raise RuntimeError(f"LLM initialization failed: {e}")
 
-        logger.info("Getting RAG instance...")
-        app.state.rag = app.state.llm.RAG_instance
-        logger.info("RAG instance initialized successfully.")
+        logger.info("Getting RAG instance (delay initialization)...")
+        app.state.rag = None
 
     except Exception as e:
         logger.error(f"Startup failed with error: {str(e)}")
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise RuntimeError(f"Startup failed: {e}")
 
-    logger.info("Running sanity checks...")
-    if not app.state.llm:
-        logger.error("LLM initialization failed")
-        raise RuntimeError("Failed to initialize LLM.")
-    if not app.state.rag:
-        logger.error("RAG initialization failed")
-        raise RuntimeError("Failed to initialize RAG.")
+    # logger.info("Running sanity checks...")
+    # if not app.state.llm:
+    #     logger.error("LLM initialization failed")
+    #     raise RuntimeError("Failed to initialize LLM.")
+    # if not app.state.rag:
+    #     logger.error("RAG initialization failed")
+    #     raise RuntimeError("Failed to initialize RAG.")
 
     logger.info("App startup complete. All systems go!")
     yield
