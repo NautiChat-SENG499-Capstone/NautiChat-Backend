@@ -65,6 +65,8 @@ class LLM:
 
                 Today’s date is {CurrentDate}. You may use the provided tools if needed to retrieve data required to answer the user's question.
 
+                Prioritize the most recent user input!
+
                 Only use a tool when **all** of the following conditions are true:
                 - The user has explicitly asked to retrieve or download data, or has requested time-series measurements over a time range.
                 - AND the user has not already received a successful answer to this request in a previous assistant message.
@@ -77,6 +79,9 @@ class LLM:
                 - If the user has not clearly asked for specific data.
                 
                 When asked about the temperature, clarify with the user if they want air or sea temperature data, as they are different measurements.
+                
+                If a user requests scalar data then use the `get_scalar_data` tool to retrieve it. DO NOT use the `generate_download_codes` tool for scalar data requests. 
+                DO NOT use the `get_scalar_data` tool if the user does not request scalar data.
 
                 When tool usage is appropriate:
                 - NEVER guess or infer missing parameters.
@@ -85,6 +90,7 @@ class LLM:
                 - Always include the exact date range used in the query in your final response.
                 - If `dateFrom` and `dateTo` are the same, say the data was "sampled on that day" instead of referring to a date range.
                 - NEVER infer or assume what the extension should be for a download request.
+                - Only use values from the allowed enums when calling tools. Do not make up or guess values.
 
                 Only set `dpo_resample` when:
                 - The user has explicitly requested to retrieve or download data.
@@ -127,7 +133,7 @@ class LLM:
                 },
                 *chat_history,
                 {
-                    "role": "user",
+                    "role": "assistant",
                     "content": f"(Sensor Information from Vector Search for context only):\n{vector_content}",
                 },
                 {
@@ -377,12 +383,13 @@ class LLM:
                     ALWAYS When responding, begin by restating or summarizing the user's request in your own words before providing the answer.
 
                     You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
-
-
+   
                     | Time                      | [Measurement Name] (units) |
                     |---------------------------|----------------------------|
                     |    YYYY-MM-DD HH:MM:SS    | [value1]                   |
                     |    YYYY-MM-DD HH:MM:SS    | [value2]                   |
+
+                    DO NOT say "Here is you data in a table format:"
 
                     If minimum/maximum/average is in the tool response, YOU MUST format it this way. DO NOT include any other tables of data. Make sure the columns are lined up. Minimum/Maximum/Average data must be formatted in the following format:
 
@@ -393,12 +400,10 @@ class LLM:
                     |    Average                |                           | [average]                  |
 
                     Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
-
+                    
                     IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
 
                     Convert Time fields to the following format: `YYYY-MM-DD HH:MM:SS` (e.g., from `2023-10-01T12:00:00.000Z` To `2023-10-01 12:00:00` ).
-
-                    IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
                     
                     You must not speculate, infer unavailable values, or offer additional analysis unless explicitly asked.
 

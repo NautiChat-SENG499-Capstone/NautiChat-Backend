@@ -80,7 +80,7 @@ class RAG:
             query_embedding,
             question,
             self.function_calling_collection_name,
-            min_score=0.4,
+            min_score=0.375,
             max_returns=1,
         )
         all_results = general_results._append(function_calling_results)
