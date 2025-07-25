@@ -58,6 +58,8 @@ class LLM:
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
             "plot_spectrogram_for_date": plot_spectrogram_for_date,
+            "get_scalar_data": get_scalar_data,
+            "get_time_range_of_available_data": get_time_range_of_available_data,
             # "plot_monthly_water_depth": plot_monthly_water_depth,
         }
 
