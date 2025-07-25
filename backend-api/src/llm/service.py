@@ -46,6 +46,7 @@ async def create_conversation(
         user_id=conversation.user_id,
         title=conversation.title,
         messages=[],  # New conversation has no messages yet
+        previous_vdb_ids=[],  # New conversation has no vdb ids yet
     )
 
 
@@ -175,6 +176,7 @@ async def generate_response(
             obtained_params=ObtainedParamsDictionary(
                 **existing_conversation.obtained_params
             ),
+            previous_vdb_ids=existing_conversation.previous_vdb_ids,
         )
 
         await populate_message_from_response(llm_result, message, db)
@@ -184,6 +186,11 @@ async def generate_response(
         )
 
     existing_conversation.obtained_params = llm_result.obtainedParams.model_dump()
+    if llm_result.point_ids:
+        existing_conversation.previous_vdb_ids = [
+            llm_result.point_ids[0]
+        ]  # Gets most relevant point
+
     db.add(message)
     await db.commit()
 
