@@ -5,16 +5,17 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-if os.getenv("ENV") != "production":
-    env_file_location = str(Path(__file__).resolve().parent / ".env")
-    load_dotenv(env_file_location)
-onc_token = os.getenv("ONC_TOKEN")
-
 from LLM.Constants.status_codes import StatusCode
 from LLM.core import LLM
 from LLM.Environment import Environment
 from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary
+
+if os.getenv("ENV") != "production":
+    env_file_location = str(Path(__file__).resolve().parent / ".env")
+    load_dotenv(env_file_location)
+onc_token = os.getenv("ONC_TOKEN")
+
 
 logger = logging.getLogger(__name__)
 

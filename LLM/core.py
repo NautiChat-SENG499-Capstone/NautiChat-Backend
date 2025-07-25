@@ -13,11 +13,15 @@ from LLM.Constants.system_prompts import (
     second_LLM_prompt,
 )
 from LLM.Constants.tool_descriptions import toolDescriptions
-from LLM.Constants.utils import handle_data_download, handle_scalar_request
+from LLM.Constants.utils import (
+    create_user_call,
+    handle_data_download,
+    handle_scalar_request,
+)
 from LLM.data_download import generate_download_codes
 from LLM.general_data import get_scalar_data
 from LLM.RAG import RAG
-from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
+from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse, ToolCall
 from LLM.tools_sprint1 import (
     get_active_instruments_at_cambridge_bay,
     get_daily_sea_temperature_stats_cambridge_bay,
@@ -57,6 +61,29 @@ class LLM:
             "get_time_range_of_available_data": get_time_range_of_available_data,
         }
 
+    async def get_vectorDB_content(
+        self, user_prompt: str, previous_vdb_ids: list[str] = []
+    ):
+        (vectorDBResponse, point_ids) = self.RAG_instance.get_documents(
+            user_prompt, previous_vdb_ids
+        )
+        print("Vector DB Response:", vectorDBResponse)
+        sources = []
+        if isinstance(vectorDBResponse, pd.DataFrame):
+            if vectorDBResponse.empty:
+                vector_content = ""
+            else:
+                if "sources" in vectorDBResponse.columns:
+                    # we need a list of sources to return with the LLM response
+                    sources = vectorDBResponse["sources"].tolist()
+                # Convert DataFrame to a more readable format
+                vector_content = vectorDBResponse.to_string(index=False)
+        else:
+            vector_content = str(vectorDBResponse)
+        print("FULL Vector DB Response:", vector_content)
+
+        return sources, point_ids, vector_content
+
     async def run_conversation(
         self,
         user_prompt: str,
@@ -75,37 +102,46 @@ class LLM:
             )
             # If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
 
-            # print("Messages: ", messages)
-            sources = []
-            (vectorDBResponse, point_ids) = self.RAG_instance.get_documents(
-                user_prompt, previous_vdb_ids
+            sources, point_ids, vector_content = await self.get_vectorDB_content(
+                user_prompt, previous_vdb_ids=previous_vdb_ids
             )
-            print("Vector DB Response:", vectorDBResponse)
-            sources = []
-            if isinstance(vectorDBResponse, pd.DataFrame):
-                if vectorDBResponse.empty:
-                    vector_content = ""
-                else:
-                    if "sources" in vectorDBResponse.columns:
-                        # we need a list of sources to return with the LLM response
-                        sources = vectorDBResponse["sources"].tolist()
-                    # Convert DataFrame to a more readable format
-                    vector_content = vectorDBResponse.to_string(index=False)
-            else:
-                vector_content = str(vectorDBResponse)
-            # print("Vector DB Response:", vector_content)
+
+            if (
+                len(chat_history) > 0
+            ):  # if its not the first message in the conversation
+                # Check if the new user prompt is related to the previous conversation. If its not then remove conversation history. If it is then keep the conversation history.
+                contextPrompt = f"""User’s new question: {user_prompt}
+                    Previous conversation snippet: {chat_history}
+
+                    Is this new question related to previous conversation? Answer yes or no.
+                    Note: it is not related if the previous conversation was about a different device or data product.
+                """
+                messages = [{"role": "system", "content": contextPrompt}]
+                keepContext = self.client.chat.completions.create(
+                    model=self.model,  # LLM to use
+                    messages=messages,  # Includes Conversation history
+                    stream=False,
+                    max_completion_tokens=1,  # Maximum number of tokens to allow in our response
+                    temperature=0,  # A temperature of 1=default balance between randomnes and confidence. Less than 1 is less randomness, Greater than is more randomness
+                )
+                print("Keep context response:", keepContext.choices[0].message.content)
+                if keepContext.choices[0].message.content.lower() == "no":
+                    chat_history = []
+
             messages = [
                 {
                     "role": "system",
                     "content": startingPrompt,
                 },
-                {"role": "assistant", "content": vector_content},
                 *chat_history,
                 {
                     "role": "user",
-                    "content": user_prompt,
+                    "content": create_user_call(
+                        user_prompt=user_prompt, vector_content=vector_content
+                    ),
                 },
             ]
+            # print("Messages before tool calls:", messages)
 
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
@@ -119,7 +155,7 @@ class LLM:
 
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
-            print("First Response from LLM:", response_message.content)
+            # print("First Response from LLM:", response_message.content)
             # print(tool_calls)
             doing_data_download = False
             doing_scalar_request = False
@@ -135,16 +171,16 @@ class LLM:
                 print("Unique tool calls:", tool_calls)
                 toolMessages = []
                 for tool_call in tool_calls:
-                    # print(tool_call)
                     # print()
                     function_name = tool_call.function.name
 
                     if function_name in self.available_functions:
                         if function_name == "generate_download_codes":
-                            print("Generating download codes...")
+                            # Special case for download codes
+                            # print("Generating download codes...")
                             doing_data_download = True
                         if function_name == "get_scalar_data":
-                            print("Doing Scalar request...")
+                            # print("Doing Scalar request...")
                             doing_scalar_request = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
@@ -153,8 +189,10 @@ class LLM:
                         print(
                             f"Calling function: {function_name} with args: {function_args}"
                         )
+                        function_args_no_obtained_params = function_args.copy()
                         if doing_data_download or doing_scalar_request:
-                            print("function_args: ", function_args)
+                            # print("function_args: ", function_args)
+                            # print("**function_args: ",**function_args)
                             function_args["obtainedParams"] = obtained_params
 
                         function_response = await self.call_tool(
@@ -182,15 +220,34 @@ class LLM:
                         )
 
                         toolMessages.append(
-                            {
-                                "tool_call_id": tool_call.id,
-                                "role": "tool",  # Indicates this message is from tool use
-                                "name": function_name,
-                                "content": json.dumps(
+                            ToolCall(
+                                function_name=function_name,
+                                arguments=json.dumps(
+                                    function_args_no_obtained_params
+                                ),  # maybe try with and without obtainedParams to see if better or worse
+                                response=json.dumps(
                                     function_response.get("response", "")
                                 ),
-                            }
-                        )  # May be able to use this for getting most recent data if needed.
+                            )
+                        )
+                        # toolMessages.append(
+                        #     {
+                        #         "role": "assistant",
+                        #         "tool_call": {
+                        #             "name": function_name,
+                        #             "arguments": function_args_no_obtained_params,
+                        #         }
+                        #     }
+                        # )
+                        # toolMessages.append(
+                        #     {
+                        #         "role": "tool",  # Indicates this message is from tool use
+                        #         "name": function_name,
+                        #         "content": json.dumps(
+                        #             function_response.get("response", "")
+                        #         ),
+                        #     }
+                        # )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
                 secondLLMCallStartingPrompt = generate_system_prompt(
                     second_LLM_prompt,
@@ -198,18 +255,21 @@ class LLM:
                         "current_date": current_date,
                     },
                 )
+
+                userInput = create_user_call(
+                    user_prompt=user_prompt,
+                    vector_content=vector_content,
+                    toolInfo=toolMessages,
+                )
                 messagesNoContext = [
                     {
                         "role": "system",
                         "content": secondLLMCallStartingPrompt,
                     },
-                    {"role": "assistant", "content": vector_content},
-                    *toolMessages,  # Add tool messages to the conversation
-                    {
-                        "role": "user",
-                        "content": user_prompt,
-                    },
+                    {"role": "user", "content": userInput},
+                    # *toolMessages,  # Add tool messages to the conversation
                 ]
+                # print("Messages without context:", messagesNoContext)
                 second_response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messagesNoContext,  # Conversation history without context and different starting system prompt
@@ -218,7 +278,7 @@ class LLM:
                     stream=False,
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
-                print("Second response: ", second_response.choices[0].message)
+                # print("Second response: ", second_response.choices[0].message)
                 response = second_response.choices[0].message.content
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
@@ -233,7 +293,7 @@ class LLM:
                     point_ids=point_ids,
                 )
             else:
-                print(response_message)
+                # print(response_message)
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response_message.content,
