@@ -23,6 +23,9 @@ from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 
 SUPABASE_DB_URL = "sqlite+aiosqlite:///:memory:"
 
+# A global instance of the real llm instance so that tests don't re-initialize each time
+_real_llm_instance = None
+
 
 @pytest.fixture
 def _user_headers(user_headers):
