@@ -23,7 +23,7 @@ class MessageContext(BaseModel):
 
 
 def get_llm(app: FastAPI) -> LLM:
-    if app.state.llm is None:
+    if getattr(app.state, "llm", None) is None:
         logger.info("Initializing LLM (this may take a while)...")
         try:
             app.state.llm = LLM(app.state.env)

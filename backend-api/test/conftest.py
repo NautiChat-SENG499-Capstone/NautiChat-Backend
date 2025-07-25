@@ -22,7 +22,12 @@ from src.database import Base, get_db_session
 from src.main import create_app
 
 from LLM.Constants.status_codes import StatusCode
+from LLM.core import LLM
+from LLM.Environment import Environment
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
+
+# Global Variable that will allow for LLM to only load once per session (saves time)
+_real_llm_instance = None
 
 
 @pytest.fixture
@@ -214,9 +219,31 @@ class DummyRAG:
         return _noop
 
 
+@pytest.fixture(scope="session")
+def real_llm() -> LLM:
+    """Create and cache the real LLM once per session."""
+    global _real_llm_instance
+    if _real_llm_instance is None:
+        _real_llm_instance = LLM(Environment())
+    return _real_llm_instance
+
+
 @pytest_asyncio.fixture(autouse=True)
-async def _stub_llm_and_rag(client: AsyncClient, async_session: AsyncSession, request):
+async def _stub_llm_and_rag(
+    client: AsyncClient, async_session: AsyncSession, request, real_llm
+):
     if request.node.get_closest_marker("use_real_llm"):
+        asgi_app = getattr(client, "app", None)
+        if asgi_app is None:
+            transport = getattr(client, "_transport", None)
+            asgi_app = getattr(transport, "app", None) or getattr(
+                transport, "_app", None
+            )
+        assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
+
+        llm_instance = real_llm
+        asgi_app.state.llm = llm_instance
+        asgi_app.state.rag = llm_instance.RAG_instance
         yield
         return
 

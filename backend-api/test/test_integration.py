@@ -12,6 +12,7 @@ from LLM.Constants.status_codes import StatusCode
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 
 
+# @pytest.mark.skip(reason="Skipping this test class temporarily")
 class TestGenerateMessageActualLLM:
     async def _create_conversation(
         self, client: AsyncClient, headers: dict, title: str = "Chat"
@@ -23,39 +24,90 @@ class TestGenerateMessageActualLLM:
         assert resp.status_code == status.HTTP_201_CREATED
         return resp.json()["conversation_id"]
 
-    # @pytest.mark.asyncio
-    # @pytest.mark.use_lifespan
-    # @pytest.mark.use_real_llm
-    # async def test_generate_message_with_real_llm(
-    #     self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
-    # ):
-    #     """Test that sends a real LLM query and verifies the flow end-to-end"""
-    #     conv_id = await self._create_conversation(client, user_headers)
+    @pytest.mark.asyncio
+    @pytest.mark.use_lifespan
+    @pytest.mark.use_real_llm
+    async def test_generate_message_with_real_llm(
+        self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
+    ):
+        """End-to-end test for LLM query request via actual API"""
+        conv_id = await self._create_conversation(client, user_headers)
 
-    #     # Post to LLM
-    #     resp = await client.post(
-    #         "/llm/messages",
-    #         json={"input": "What is the temperature at Cambridge Bay?", "conversation_id": conv_id},
-    #         headers=user_headers,
-    #     )
+        # Post to LLM
+        resp = await client.post(
+            "/llm/messages",
+            json={
+                "input": "What is the temperature at Cambridge Bay?",
+                "conversation_id": conv_id,
+            },
+            headers=user_headers,
+        )
 
-    #     assert resp.status_code == 201
-    #     message = resp.json()
+        assert resp.status_code == 201
+        message = resp.json()
 
-    #     #Makes sure message comes back with call from actual LLM
-    #     assert "response" in message and isinstance(message["response"], str) and len(message["response"]) > 0
-    #     assert "conversation_id" in message
-    #     assert "message_id" in message
-    #     assert isinstance(message["message_id"], int)
+        # Makes sure message comes back with call from actual LLM
+        assert (
+            "response" in message
+            and isinstance(message["response"], str)
+            and len(message["response"]) > 0
+        )
+        assert "conversation_id" in message
+        assert "message_id" in message
+        assert isinstance(message["message_id"], int)
 
-    #     message_id = message["message_id"]
-    #     get_resp = await client.get(f"/llm/messages/{message_id}", headers=user_headers)
-    #     assert get_resp.status_code == 200
-    #     msg = get_resp.json()
-    #     assert msg["input"] == "What is the temperature at Cambridge Bay?"
-    #     assert msg["response"] == message["response"]
+        # Additional Verification
+        message_id = message["message_id"]
+        get_resp = await client.get(f"/llm/messages/{message_id}", headers=user_headers)
+        assert get_resp.status_code == 200
+        msg = get_resp.json()
+        assert msg["input"] == "What is the temperature at Cambridge Bay?"
+        assert msg["response"] == message["response"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.use_lifespan
+    @pytest.mark.use_real_llm
+    async def test_download_data_with_real_llm(
+        self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
+    ):
+        """End-to-end test for LLM download data request via actual API"""
+        conversation_id = await self._create_conversation(client, user_headers)
+
+        prompt = (
+            "I want to download dive computer data as a LF in txt from August 20th 2015"
+        )
+
+        # post message for llm
+        resp = await client.post(
+            "/llm/messages",
+            json={"input": prompt, "conversation_id": conversation_id},
+            headers=user_headers,
+        )
+
+        # Validate the response structure
+        assert resp.status_code == status.HTTP_201_CREATED
+        message = resp.json()
+
+        assert "response" in message and isinstance(message["response"], str)
+        assert "request_id" in message
+        assert "request_id" in message and isinstance(message["request_id"], int)
+        assert (
+            "conversation_id" in message
+            and message["conversation_id"] == conversation_id
+        )
+        assert "message_id" in message and isinstance(message["message_id"], int)
+
+        # Additional Verification
+        get_resp = await client.get(
+            f"/llm/messages/{message['message_id']}", headers=user_headers
+        )
+        assert get_resp.status_code == 200
+        retrieved = get_resp.json()
+        assert retrieved["input"] == prompt
+        assert retrieved["response"] == message["response"]
 
 
+# @pytest.mark.skip(reason="Skipping this test class temporarily")
 class TestRunConversation:
     async def _create_conversation(
         self,
