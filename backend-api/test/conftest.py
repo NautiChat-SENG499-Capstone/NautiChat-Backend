@@ -1,29 +1,25 @@
 import asyncio
-import os
 from datetime import timedelta
 from typing import AsyncIterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
 from asgi_lifespan import LifespanManager
+from fastapi import HTTPException, status
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from src.settings import get_settings
-
-# Set up test DB URL
-# TODO: Create a Postgres Test DB for thorough testing
-os.environ["SUPABASE_DB_URL"] = "sqlite+aiosqlite:///:memory:"
-SUPABASE_DB_URL = os.environ["SUPABASE_DB_URL"]
-
-# Must be imported after setting SUPABASE_DB_URL
 from src.auth import models
 from src.auth.service import create_access_token, get_password_hash
 from src.database import Base, get_db_session
 from src.main import create_app
+from src.settings import get_settings
 
 from LLM.Constants.status_codes import StatusCode
 from LLM.schemas import RunConversationResponse
+
+SUPABASE_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest.fixture
@@ -173,3 +169,22 @@ async def _stub_llm_and_rag(client: AsyncClient):
     yield
     del asgi_app.state.llm
     del asgi_app.state.rag
+
+
+@pytest.fixture(autouse=True)
+def patch_onc_token_validation(request):
+    async def mock_validate_onc_token(token: str):
+        """Mock ONC token validation"""
+
+        if token == get_settings().ONC_TOKEN:
+            return
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ONC token"
+        )
+
+    with patch(
+        "src.auth.service.validate_onc_token", new_callable=AsyncMock
+    ) as mock_onc:
+        mock_onc.side_effect = mock_validate_onc_token
+        yield mock_onc
