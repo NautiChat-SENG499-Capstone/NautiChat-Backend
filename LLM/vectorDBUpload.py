@@ -381,6 +381,14 @@ def vdb_auto_upload(app_state):
         print(f"{get_current_time()} vector DB auto upload - START")
         qdrant_client_wrapper = app_state.rag.qdrant_client_wrapper
 
+        locationcodes_str = os.getenv("location_codes")
+        if locationcodes_str:
+            locationcodes = [code.strip() for code in locationcodes_str.split(',')]
+        else:
+            locationcodes = []
+            print(f"{get_current_time()} vector DB auto upload - END - WARN: 'location_codes' not found in .env or is empty. No locations to process.")
+            return # Exit if no codes to process
+
         #Create a payload index for "source" field (can't filter without this)
         qdrant_client_wrapper.qdrant_client.create_payload_index(
             collection_name=qdrant_client_wrapper.collection_name,
@@ -403,9 +411,6 @@ def vdb_auto_upload(app_state):
         qdrant_client_wrapper.qdrant_client.delete( 
             qdrant_client_wrapper.collection_name, points_selector=filter_condition
         )
-
-        locationcodes = ["CBY", "CBYDS", "CBYIJ.J1", "CBYIJ.J2", "CBYIP", "CBYIP.D1", "CBYIP.D2", "CBYIP.D3", "CBYIP.D4", "CBYIP.K1", "CBYIP.K2", "CBYIP.K3", "CBYIU", "CBYIU.AC1", "CBYIU.AC2", "CBYIU.AC3",
-                    "CBYIU.AC4", "CBYIU.AC5", "CBYSP", "CBYSS", "CBYSS.M1", "CBYSS.M2", "CBYSU", "CBYSU.AC1", "CBYSU.AC2", "CF240"]
 
         print(f"{get_current_time()} vector DB auto upload - Calling ONC API for devices")
         inputs = []
