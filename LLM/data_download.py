@@ -8,6 +8,14 @@ from LLM.Constants.utils import sync_param
 from LLM.schemas import ObtainedParamsDictionary
 
 
+def obtain_location_codes(deviceCategoryCode: str) -> list[str]:
+    locationCodes = []
+    for device in dataDownloadCodes:
+        if device["deviceCategoryCode"] == deviceCategoryCode:
+            locationCodes.append(device["locationCode"])
+    return locationCodes
+
+
 def obtain_data_product_code(extension: str, deviceCategoryCode: str):
     for device in dataDownloadCodes:
         if device["deviceCategoryCode"] == deviceCategoryCode:
@@ -44,7 +52,7 @@ async def generate_download_codes(
     user_onc_token: str,
     deviceCategoryCode: Optional[str] = None,
     locationCode: Optional[str] = None,
-    dataProductCode: Optional[str] = None,
+    # dataProductCode: Optional[str] = None,
     extension: Optional[str] = None,
     dateFrom: Optional[str] = None,
     dateTo: Optional[str] = None,
@@ -117,12 +125,11 @@ async def generate_download_codes(
         "locationCode", locationCode, obtainedParams, allObtainedParams
     )
     extension = sync_param("extension", extension, obtainedParams, allObtainedParams)
-    dataProductCode = sync_param(
-        "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
-    )
-    if dataProductCode is not None and extension is None:
-        dataProductCode = None
+
+    if extension is None:
         obtainedParams.dataProductCode = None
+    dataProductCode = obtainedParams.dataProductCode
+
     if (
         extension is not None and deviceCategoryCode is not None
     ):  # and dataProductCode is None
@@ -134,6 +141,25 @@ async def generate_download_codes(
             return {
                 "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
                 "response": f"Error: No data product code found for extension '{extension}' and device category code '{deviceCategoryCode}'.",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+    if locationCode is None and deviceCategoryCode is not None:
+        locationCodes = obtain_location_codes(deviceCategoryCode)
+        if len(locationCodes) == 0:
+            return {
+                "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+                "response": f"Error: No location codes found for device category code '{deviceCategoryCode}'. Please select a different device category code or check the available location codes.",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+        elif len(locationCodes) == 1:
+            locationCode = locationCodes[0]
+            locationCode = sync_param(
+                "locationCode", locationCode, obtainedParams, allObtainedParams
+            )
+        else:  # If there are multiple location codes, return them to the user
+            return {
+                "status": StatusCode.PARAMS_NEEDED,
+                "response": f"Hey! It looks like you want to do a data download! However, I found multiple location codes for device category code '{deviceCategoryCode}': {', '.join(locationCodes)}. Please specify which one you want to use.",
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
             }
 

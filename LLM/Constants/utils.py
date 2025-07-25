@@ -1,5 +1,5 @@
 from LLM.Constants.status_codes import StatusCode
-from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
+from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse, ToolCall
 
 resample_periods = [
     1,
@@ -24,6 +24,26 @@ resample_periods = [
     1209600,
     2592000,
 ]
+
+
+def create_user_call(
+    user_prompt: str, vector_content: str, toolInfo: list[ToolCall] = None
+) -> str:
+    user_input = f"""(Sensor Information from Vector Search for context only):
+            {vector_content}
+
+            Using the above information, answer the following question:
+            {user_prompt}
+        """
+    if toolInfo:
+        user_input += "\nHere is the data retrieved from tools you would have called:"
+        user_input += "\n".join(
+            [
+                f"Function Name: {call.function_name}\nArguments: {call.arguments}\nResponse: {call.response}"
+                for call in toolInfo
+            ]
+        )
+    return user_input
 
 
 def sync_param(field_name: str, local_value, params_model, all_obtained_params: dict):
@@ -76,7 +96,7 @@ def handle_scalar_request(
             urlParamsUsed=function_response.get("urlParamsUsed", {}),
             baseUrl=function_response.get(
                 "baseUrl",
-                "https://data.oceannetworks.ca/api/scalardata/location",
+                "https://data.oceannetworks.ca/api/scalardata/location?",
             ),
             sources=sources,
             point_ids=point_ids,
@@ -91,12 +111,12 @@ def handle_scalar_request(
         # Return a response indicating that Paramaters are needed
         return RunConversationResponse(
             status=StatusCode.DEPLOYMENT_ERROR,
-            response=function_response.get("description"),
+            response=function_response.get("response"),
             obtainedParams=obtained_params,
             urlParamsUsed=function_response.get("urlParamsUsed", {}),
             baseUrl=function_response.get(
                 "baseUrl",
-                "https://data.oceannetworks.ca/api/scalardata/location",
+                "https://data.oceannetworks.ca/api/scalardata/location?",
             ),
             sources=sources,
             point_ids=point_ids,
@@ -116,7 +136,7 @@ def handle_scalar_request(
             urlParamsUsed=function_response.get("urlParamsUsed", {}),
             baseUrl=function_response.get(
                 "baseUrl",
-                "https://data.oceannetworks.ca/api/scalardata/location",
+                "https://data.oceannetworks.ca/api/scalardata/location?",
             ),
             sources=sources,
             point_ids=point_ids,

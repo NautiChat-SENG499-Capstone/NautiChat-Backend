@@ -3,11 +3,29 @@ from typing import Optional
 
 from onc import ONC
 
+from LLM.Constants.scalar_data import scalarData
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.utils import resample_periods, sync_param
 from LLM.schemas import ObtainedParamsDictionary
 
 ROW_LIMIT = "100"
+
+
+def find_possible_property_codes(deviceCategoryCode: str) -> list[str]:
+    """Finds possible property codes for a given device category code."""
+    possible_property_codes = []
+    for device in scalarData:
+        if device["deviceCategoryCode"] == deviceCategoryCode:
+            possible_property_codes.extend(device["possiblePropertyCodes"])
+    return possible_property_codes
+
+
+def obtain_location_codes(deviceCategoryCode: str) -> list[str]:
+    locationCodes = []
+    for device in scalarData:
+        if device["deviceCategoryCode"] == deviceCategoryCode:
+            locationCodes.append(device["locationCode"])
+    return locationCodes
 
 
 async def get_scalar_data(
@@ -47,12 +65,54 @@ async def get_scalar_data(
     deviceCategoryCode = sync_param(
         "deviceCategoryCode", deviceCategoryCode, obtainedParams, allObtainedParams
     )
-    locationCode = sync_param(
-        "locationCode", locationCode, obtainedParams, allObtainedParams
-    )
+
     propertyCode = sync_param(
         "propertyCode", propertyCode, obtainedParams, allObtainedParams
     )
+    if propertyCode is None and deviceCategoryCode is not None:
+        propertyCodes = find_possible_property_codes(
+            deviceCategoryCode
+        )  # finding property Code and if there are no property codes then that also means there is no data for that device category code
+        if len(propertyCodes) == 0:
+            return {
+                "status": StatusCode.NO_DATA,
+                "response": f"Hey! It looks like you are requesting scalar data! Unfortunately, I don't have any property codes for the {deviceCategoryCode} at Cambridge Bay. Therefore, I cannot complete the scalar data request for this device. ",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+        elif len(propertyCodes) == 1:
+            propertyCode = sync_param(
+                "propertyCode", propertyCodes[0], obtainedParams, allObtainedParams
+            )
+        else:
+            return {
+                "status": StatusCode.PARAMS_NEEDED,
+                "response": f"Hey! It looks like you are requesting scalar data! I have multiple property codes for the {deviceCategoryCode} at Cambridge Bay. Please provide a property code from the following list: {', '.join(propertyCodes)}.",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+
+    locationCode = sync_param(
+        "locationCode", locationCode, obtainedParams, allObtainedParams
+    )
+    if locationCode is None and deviceCategoryCode is not None:
+        locationCodes = obtain_location_codes(deviceCategoryCode)
+        if len(locationCodes) == 0:
+            return {
+                "status": StatusCode.NO_DATA,
+                "response": f"Error: No location codes found for device category code '{deviceCategoryCode}'. Please select a different device category code or check the available location codes.",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+        elif len(locationCodes) == 1:
+            locationCode = locationCodes[0]
+            locationCode = sync_param(
+                "locationCode", locationCode, obtainedParams, allObtainedParams
+            )
+        else:  # If there are multiple location codes, return them to the user
+            return {
+                "status": StatusCode.PARAMS_NEEDED,
+                "response": f"Hey! It looks like you want scalar data! However, I found multiple location codes for device category code '{deviceCategoryCode}': {', '.join(locationCodes)}. Please specify which one you want to use.",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+
     dateFrom = sync_param("dateFrom", dateFrom, obtainedParams, allObtainedParams)
     dateTo = sync_param("dateTo", dateTo, obtainedParams, allObtainedParams)
     print(f"Obtained parameters: {allObtainedParams}")
@@ -135,8 +195,7 @@ async def get_scalar_data(
             }
         else:
             return {
-                "response": response,
-                "description": f"There is no scalar data at {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}.",
+                "response": f"There is no scalar data at {deviceCategoryCode} at Cambridge Bay with location code: {locationCode} from {begin} to {end}.",
                 "status": StatusCode.NO_DATA,
                 "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
                 "urlParamsUsed": allParamsNeeded,
