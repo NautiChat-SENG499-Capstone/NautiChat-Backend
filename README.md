@@ -21,7 +21,7 @@ NautiChat is a conversational AI assistant built with FastAPI for Ocean Networks
 
 ### Tech Stack
 - **Backend Framework**: FastAPI (Python 3.11+)
-- **LLM Provider**: Groq Cloud API
+- **LLM Provider**: Groq Cloud API (using Llama 3.3 70B Versatile)
 - **Vector Database**: Qdrant for semantic search
 - **Primary Database**: PostgreSQL (hosted on Supabase)
 - **Embeddings**: Jina AI
