@@ -31,6 +31,8 @@ class TestGenerateMessageActualLLM:
         self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
     ):
         """End-to-end test for LLM query request via actual API"""
+        # Note: This test passes even when token limit is reached.
+
         conv_id = await self._create_conversation(client, user_headers)
 
         # Post to LLM
@@ -164,7 +166,12 @@ class TestRunConversation:
                 status_code=500, detail=f"Error generating response from LLM: {str(e)}"
             )
 
+        # Test the structure of the conversation response
         assert_valid_llm_response(llm_result)
+
+        # Validate the actual response
+        assert llm_result.status == StatusCode.REGULAR_MESSAGE
+        assert "Cambridge Bay" in llm_result.response
 
     @pytest.mark.asyncio
     @pytest.mark.use_lifespan
@@ -193,7 +200,15 @@ class TestRunConversation:
                 status_code=500, detail=f"Error generating response from LLM: {str(e)}"
             )
 
+        # Test the structure of the conversation response
         assert_valid_llm_response(llm_result)
+
+        # Validate the actual response
+        assert llm_result.status == StatusCode.PARAMS_NEEDED
+        assert (
+            "parameters" in llm_result.response.lower()
+            or "missing" in llm_result.response.lower()
+        )
 
         llm_query = self._create_llm_query(
             conversation.conversation_id,
@@ -213,7 +228,12 @@ class TestRunConversation:
                 status_code=500, detail=f"Error generating response from LLM: {str(e)}"
             )
 
+        # Test the structure of the conversation response
         assert_valid_llm_response(llm_result)
+
+        # Validate the actual response
+        assert llm_result.status == StatusCode.REGULAR_MESSAGE
+        assert "data" in llm_result.response and "Cambridge Bay" in llm_result.response
 
     @pytest.mark.asyncio
     @pytest.mark.use_lifespan
@@ -243,8 +263,12 @@ class TestRunConversation:
                 status_code=500, detail=f"Error generating response from LLM: {str(e)}"
             )
 
+        # Test the structure of the conversation response
         assert_valid_llm_response(llm_result)
-        print(llm_result)
+
+        # Validate the actual response
+        assert llm_result.status == StatusCode.PROCESSING_DATA_DOWNLOAD
+        assert "dive computer" in llm_result.response and "data" in llm_result.response
 
 
 class TestMockLLM:
