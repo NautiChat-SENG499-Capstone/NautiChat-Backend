@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pandas as pd
 from langchain.embeddings.base import Embeddings
 from langchain.retrievers.document_compressors import CrossEncoderReranker
@@ -5,6 +7,7 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_community.vectorstores import Qdrant
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
+from qdrant_client.http.models import PointStruct
 from sentence_transformers import SentenceTransformer
 
 from LLM.Environment import Environment
@@ -37,6 +40,7 @@ class QdrantClientWrapper:
         self.function_calling_collection_name = (
             env.get_function_calling_collection_name()
         )
+        self.QA_collection_name = env.get_QA_collection_name()
 
 
 class RAG:
@@ -50,6 +54,7 @@ class RAG:
         self.general_collection_name = (
             self.qdrant_client_wrapper.general_collection_name
         )
+        self.QA_collection_name = self.qdrant_client_wrapper.QA_collection_name
         self.function_calling_collection_name = (
             self.qdrant_client_wrapper.function_calling_collection_name
         )
@@ -173,3 +178,58 @@ class RAG:
         df = df[:max_returns]
 
         return (df, df["point_ids"])
+
+    # Retrieve Q&A pairs for feedback loop
+    def get_qa_docs(self, question: str):
+        search_results = self.qdrant_client.search(
+            collection_name=self.QA_collection_name,
+            query_vector=self.embedding.embed_query(question),
+            limit=5,
+            with_payload=True,
+            with_vectors=False,
+        )
+
+        qa_docs = []
+        for hit in search_results:
+            qa_docs.append(
+                Document(
+                    page_content=hit.payload["text"], metadata={"score": hit.score}
+                )
+            )
+
+        df_qa = pd.DataFrame({"contents": qa_docs})
+        return df_qa
+
+    # Uploads new Q&A pair to Qdrant Q&A collection
+    # When we receive a "thumbs-up" feedback on an LLM response, backend-api/src/LLM/service.py calls this function
+    async def upload_new_qa(self, qa_pair: dict):
+        current_qa_id = uuid4().hex
+
+        # Determine the actual text content for embedding and payload
+        actual_text_content = qa_pair["text"]
+        if isinstance(actual_text_content, dict) and "response" in actual_text_content:
+            actual_text_content = actual_text_content["response"]
+        elif not isinstance(actual_text_content, str):
+            actual_text_content = str(actual_text_content)
+
+        QA_text = (
+            f"Question: {qa_pair['original_question']} Answer: {actual_text_content}"
+        )
+
+        # embedding_vector = self.Qdrant_model.encode(QA_text)
+        embedding_vector = self.embedding.embed_documents([QA_text])[0]
+
+        item_payload = {
+            "text": actual_text_content,
+            "original_question": qa_pair["original_question"],
+        }
+
+        # Create a PointStruct for the new data point
+        new_point = PointStruct(
+            id=current_qa_id, vector=embedding_vector, payload=item_payload
+        )
+        # Upload the new point to Qdrant collection
+        self.qdrant_client.upsert(
+            collection_name=self.QA_collection_name,
+            points=[new_point],  # upsert expects a list of points
+        )

@@ -94,10 +94,34 @@ class LLM:
             else:
                 vector_content = str(vectorDBResponse)
             # print("Vector DB Response:", vector_content)
+
+            qa_docs = self.RAG_instance.get_qa_docs(user_prompt)
+
+            if isinstance(qa_docs, pd.DataFrame):
+                if qa_docs.empty:
+                    qa_reference = ""
+                else:
+                    qa_reference = qa_docs.to_string(index=False)
+            else:
+                qa_reference = str(qa_docs)
+            styling_prompt = ""
+
+            if qa_reference:
+                styling_prompt = f"""
+                The following responses are ONLY used for styling and tone references.
+                DO NOT use the information and data in these responses to generate your own responses.
+                Examples for styling guidance:
+                {qa_reference}
+                """
+
             messages = [
                 {
                     "role": "system",
                     "content": startingPrompt,
+                },
+                {
+                    "role": "system",
+                    "content": styling_prompt,
                 },
                 {"role": "assistant", "content": vector_content},
                 *chat_history,
@@ -106,7 +130,6 @@ class LLM:
                     "content": user_prompt,
                 },
             ]
-
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
                 messages=messages,  # Includes Conversation history
@@ -203,6 +226,7 @@ class LLM:
                         "role": "system",
                         "content": secondLLMCallStartingPrompt,
                     },
+                    {"role": "system", "content": styling_prompt},
                     {"role": "assistant", "content": vector_content},
                     *toolMessages,  # Add tool messages to the conversation
                     {
