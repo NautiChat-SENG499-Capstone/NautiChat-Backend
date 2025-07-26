@@ -14,6 +14,7 @@ from src.auth import models
 from src.auth.service import create_access_token, get_password_hash
 from src.database import Base, get_db_session
 from src.main import create_app
+from src.middleware import limiter
 from src.settings import get_settings
 
 from LLM.Constants.status_codes import StatusCode
@@ -31,6 +32,12 @@ _real_llm_instance = None
 def _user_headers(user_headers):
     """Alias the existing user_headers fixture for tests expecting _user_headers"""
     return user_headers
+
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_rate_limiter():
+    """Globally disable rate limiting for all tests"""
+    limiter.enabled = False
 
 
 @pytest_asyncio.fixture(scope="session")
