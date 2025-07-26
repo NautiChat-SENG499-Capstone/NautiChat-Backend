@@ -49,3 +49,4 @@ class RunConversationResponse(BaseModel):
     baseUrl: Optional[str] = None
     urlParamsUsed: Optional[dict] = Field(default_factory=dict)
     sources: list[str] = Field(default_factory=list)
+    point_ids: list[str] = Field(default_factory=list)

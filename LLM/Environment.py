@@ -39,7 +39,7 @@ class Environment:
 
     def get_qdrant_url(self):
         return self.qdrant_url
-    
+
     def get_QA_collection_name(self):
         return self.QA_collection_name
 
