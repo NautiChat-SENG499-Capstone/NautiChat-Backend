@@ -20,7 +20,7 @@ from .schemas import (
     Feedback,
     Message,
 )
-from .utils import get_context
+from .utils import get_context, get_llm
 
 MAX_CONTEXT_WORDS = 200
 
@@ -167,7 +167,8 @@ async def generate_response(
 
     # Call LLM to generate response
     try:
-        llm: LLM = request.app.state.llm
+        # Lazy Initialize the LLM (for first call)
+        llm: LLM = get_llm(request.app)
         llm_result: RunConversationResponse = await llm.run_conversation(
             user_prompt=llm_query.input,
             chat_history=chat_history,
@@ -179,7 +180,6 @@ async def generate_response(
         )
 
         await populate_message_from_response(llm_result, message, db)
-
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error generating response from LLM: {str(e)}"
@@ -196,7 +196,6 @@ async def generate_response(
 
     await db.refresh(message)
     await db.refresh(existing_conversation)
-
     return message
 
 

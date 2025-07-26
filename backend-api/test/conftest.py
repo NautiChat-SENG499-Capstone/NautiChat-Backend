@@ -14,18 +14,30 @@ from src.auth import models
 from src.auth.service import create_access_token, get_password_hash
 from src.database import Base, get_db_session
 from src.main import create_app
+from src.middleware import limiter
 from src.settings import get_settings
 
 from LLM.Constants.status_codes import StatusCode
-from LLM.schemas import RunConversationResponse
+from LLM.core import LLM
+from LLM.Environment import Environment
+from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 
 SUPABASE_DB_URL = "sqlite+aiosqlite:///:memory:"
+
+# A global instance of the real llm instance so that tests don't re-initialize each time
+_real_llm_instance = None
 
 
 @pytest.fixture
 def _user_headers(user_headers):
     """Alias the existing user_headers fixture for tests expecting _user_headers"""
     return user_headers
+
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_rate_limiter():
+    """Globally disable rate limiting for all tests"""
+    limiter.enabled = False
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -127,17 +139,73 @@ async def admin_headers(async_session: AsyncSession):
     return {"Authorization": f"Bearer {token}"}
 
 
-class DummyLLM:
-    async def run_conversation(self, user_prompt, *_, **__):
-        return RunConversationResponse(
-            status=StatusCode.REGULAR_MESSAGE,
-            response=f"LLM Response for {user_prompt}",
-        )
+class MockLLM:
+    def __init__(self):
+        self.called_with_history = None
+        self.last_prompt = None
 
-        async def _noop(*_args, **_kwargs):
-            return ""
+    async def run_conversation(
+        self,
+        user_prompt: str,
+        user_onc_token: str,
+        chat_history: list[dict] = [],
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        previous_vdb_ids: list[dict] = [],
+    ) -> RunConversationResponse:
+        self.called_with_history = chat_history
+        self.last_prompt = user_prompt.lower()
 
-        return _noop
+        # Simulate response based on prompt content
+        if "onc" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.REGULAR_MESSAGE,
+                response="ONC is Ocean Networks Canada.",
+            )
+
+        elif "download" in self.last_prompt:
+            if "scalar" in self.last_prompt and "data" in self.last_prompt:
+                return RunConversationResponse(
+                    status=StatusCode.PROCESSING_DATA_DOWNLOAD,
+                    response="Download request submitted.",
+                    dpRequestId=42,
+                    baseUrl="https://data.oceannetworks.ca/api/scalar?",
+                    urlParamsUsed={"sensor_id": "123", "start": "2020-01-01"},
+                    tool_calls=[
+                        {
+                            "name": "download_scalar_data",
+                            "parameters": {"sensor_id": "123", "start": "2020-01-01"},
+                        }
+                    ],
+                )
+            else:
+                return RunConversationResponse(
+                    status=StatusCode.PARAMS_NEEDED,
+                    response="I need more info to download anything.",
+                )
+
+        elif "interrupt" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.DEPLOYMENT_ERROR,
+                response="Tool call was interrupted. Please try again.",
+            )
+
+        elif "fail" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.LLM_ERROR,
+                response="Something went wrong while processing the message.",
+            )
+
+        elif "no data" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.NO_DATA,
+                response="No data was available for your request.",
+            )
+
+        else:
+            return RunConversationResponse(
+                status=StatusCode.REGULAR_MESSAGE,
+                response=f"Default mock response to: '{user_prompt}'",
+            )
 
     def __getattr__(self, _):
         async def _noop(*args, **kwargs):
@@ -156,15 +224,41 @@ class DummyRAG:
         return _noop
 
 
+@pytest.fixture(scope="session")
+def real_llm() -> LLM:
+    """Create and cache the real LLM once per session."""
+    global _real_llm_instance
+    if _real_llm_instance is None:
+        _real_llm_instance = LLM(Environment())
+    return _real_llm_instance
+
+
 @pytest_asyncio.fixture(autouse=True)
-async def _stub_llm_and_rag(client: AsyncClient):
+async def _stub_llm_and_rag(
+    client: AsyncClient, async_session: AsyncSession, request, real_llm
+):
+    if request.node.get_closest_marker("use_real_llm"):
+        asgi_app = getattr(client, "app", None)
+        if asgi_app is None:
+            transport = getattr(client, "_transport", None)
+            asgi_app = getattr(transport, "app", None) or getattr(
+                transport, "_app", None
+            )
+        assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
+
+        llm_instance = real_llm
+        asgi_app.state.llm = llm_instance
+        asgi_app.state.rag = llm_instance.RAG_instance
+        yield
+        return
+
     asgi_app = getattr(client, "app", None)
     if asgi_app is None:
         transport = getattr(client, "_transport", None)
         asgi_app = getattr(transport, "app", None) or getattr(transport, "_app", None)
     assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
 
-    asgi_app.state.llm = DummyLLM()
+    asgi_app.state.llm = MockLLM()
     asgi_app.state.rag = DummyRAG()
     yield
     del asgi_app.state.llm

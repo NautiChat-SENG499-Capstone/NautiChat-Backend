@@ -203,7 +203,7 @@ class TestMessage:
     async def test_generate_and_retrieve_message(
         self, client: AsyncClient, user_headers: dict
     ):
-        """Test that generates a message of a mock llm and retrieves it"""
+        """Test that generates a message from the mock LLM and retrieves it"""
         conv_id = await self._create_conversation(client, user_headers)
 
         msg = (
@@ -213,7 +213,10 @@ class TestMessage:
                 headers=user_headers,
             )
         ).json()
-        assert "LLM Response for" in msg["response"]
+
+        assert isinstance(msg["response"], str)
+        assert len(msg["response"]) > 0
+        assert "Hi" in msg["response"]  # checks that input is referenced
         assert isinstance(msg["message_id"], int)
 
         get_resp = await client.get(
