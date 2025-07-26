@@ -315,10 +315,11 @@ toolDescriptions = [
         "function": {
             "name": "get_ship_noise_acoustic_for_date",
             "description": (
-                "Get 24 hours of ship noise acoustic data for Cambridge Bay using the ONC hydrophone system."
-                " This function requests a downloadable WAV audio data product from the Ocean Networks Canada API,"
-                " using device category 'HYDROPHONE' at location 'CBYIP'. It returns order metadata including a URL,"
-                " parameters used in the request, and a description of the data order."
+                "Submit a request to retrieve 24 hours of ship noise acoustic data (WAV format) "
+                "from the Cambridge Bay hydrophone using Ocean Networks Canada's dataProductDelivery API. "
+                "This function initiates a request for the 'AD' (acoustic data) product and returns metadata "
+                "about the order, including the request ID, request parameters, and a status code. "
+                "Note: It does not download or return the audio file itself."
             ),
             "parameters": {
                 "type": "object",
@@ -337,10 +338,10 @@ toolDescriptions = [
         "function": {
             "name": "plot_spectrogram_for_date",
             "description": (
-                "Submit a request for a pre-generated ship noise spectrogram (data product code 'HSD')"
-                " from hydrophone data at Cambridge Bay using the Ocean Networks Canada API."
-                " This function initiates an order for a PNG spectrogram covering a 24-hour period starting"
-                " from the given date, and returns metadata about the request, including order details and parameters used."
+                "Submit a request for a 24-hour ship noise spectrogram (PNG image) from the Cambridge Bay hydrophone "
+                "using Ocean Networks Canada's dataProductDelivery API. The function requests the 'HSD' data product, "
+                "returning a request ID, order metadata, the parameters used, and a status code. "
+                "It does not return the spectrogram image itself, but allows for tracking or downloading it later."
             ),
             "parameters": {
                 "type": "object",
@@ -350,7 +351,7 @@ toolDescriptions = [
                         "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window.",
                     },
                 },
-                "required": ["date_str"],
+                "required": ["date_str", "user_onc_token"],
             },
         },
     },

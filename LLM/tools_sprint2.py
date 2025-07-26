@@ -1,9 +1,13 @@
 import os
 import sys
 from datetime import datetime, timedelta
+from typing import Dict
 
 import httpx
 from onc import ONC
+
+from LLM.Constants.status_codes import StatusCode
+from LLM.schemas import ObtainedParamsDictionary
 
 
 # What was the air temperature in Cambridge Bay on this day last year?
@@ -161,20 +165,30 @@ async def get_oxygen_data_24h(
 
 
 # I’m interested in data on ship noise for July 31, 2024 / Get me the acoustic data for the last day in July of 2024
-async def get_ship_noise_acoustic_for_date(date_from_str: str, user_onc_token: str):
+async def get_ship_noise_acoustic_for_date(
+    date_from_str: str, user_onc_token: str
+) -> dict:
     """
-    Get 24 hours of ship noise acoustic data for Cambridge Bay.
+    Submit a request to ONC's API for 24 hours of ship noise acoustic data (WAV format)
+    from Cambridge Bay. Returns request metadata and status.
+
     Args:
-        date_from_str (str): Date in YYYY‑MM‑DD format
-        user_onc_token (str): ONC API access token
+        date_from_str (str): Start date in YYYY‑MM‑DD format
+        user_onc_token (str): ONC API token
+
     Returns:
         dict: {
-            "response": {
-                "orders": <orderDataProduct result>,
-                "description": "...",
-            },
+            "status": int,
+            "response": { ... },
             "urlParamsUsed": { ... },
-            "baseUrl": "...orderDataProduct?",
+            "baseUrl": "...",
+        }
+        or error:
+        {
+            "status": int,
+            "error": str,
+            "urlParamsUsed": { ... },
+            "baseUrl": "...",
         }
     """
     onc = ONC(user_onc_token)
@@ -185,16 +199,14 @@ async def get_ship_noise_acoustic_for_date(date_from_str: str, user_onc_token: s
     ).strftime("%Y-%m-%d")
 
     params = {
-        "locationCode": "CBYIP",
-        "deviceCategoryCode": "HYDROPHONE",
-        "dataProductCode": "AD",  # Acoustic data
+        "dataProductCode": "AD",  # Acoustic Data
         "extension": "wav",
         "dateFrom": date_from_str,
         "dateTo": date_to_str,
-        "dpo_audioDownsample": -1,  # Return data with its original sampling rate
-        # Set to 1 below to allow search to fill in any data files for the requested
-        # format that are not already in the archive. Takes about an hour to process for 1 day.
-        "dpo_audioFormatConversion": 0,
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "HYDROPHONE",
+        "dpo_audioDownsample": -1,  # Keep original sampling rate
+        "dpo_audioFormatConversion": 0,  # Skip reprocessing if already archived
     }
 
     max_retries = 80
@@ -202,67 +214,83 @@ async def get_ship_noise_acoustic_for_date(date_from_str: str, user_onc_token: s
     include_metadata_file = False
 
     try:
-        orders = onc.orderDataProduct(
+        # Submit data product order to ONC
+        order = onc.orderDataProduct(
             params, max_retries, download_results_only, include_metadata_file
         )
-    except Exception as e:
-        print(
-            f"Error: failed to order hydrophone data after {max_retries} attempts:\n  {e}",
-            file=sys.stderr,
-        )
-        # Exit the entire program with a non‑zero status
-        sys.exit(1)
 
-    return {
-        "response": {
-            "orders": orders,
-            "description": (
-                f"Ship noise acoustic data order for Cambridge Bay "
-                f"from {date_from_str} to {date_to_str}"
+        # Try to extract request ID, DOI, etc. if present
+        dpRequestId = order[0].get("dpRequestId") if order else None
+        doi = (
+            order[0].get("citations", [{}])[0].get("doi", "No DOI available")
+            if order
+            else "No DOI available"
+        )
+        citation = (
+            order[0].get("citations", [{}])[0].get("citation", "No citation available")
+            if order
+            else "No citation available"
+        )
+
+        return {
+            "status": StatusCode.PROCESSING_DATA_DOWNLOAD,
+            "dpRequestId": dpRequestId,
+            "doi": doi,
+            "citation": citation,
+            "response": (
+                f"Ship noise .wav file order successfully queued for Cambridge Bay "
+                f"from {date_from_str} to {date_to_str}."
             ),
-        },
-        "urlParamsUsed": {**params, "token": user_onc_token},
-        "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
-    }
+            "urlParamsUsed": params,
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+            "obtainedParams": ObtainedParamsDictionary(
+                **params
+            ),  # Structured as a Pydantic model
+        }
+
+    except Exception as e:
+        print(f"{type(e).__name__} occurred while submitting spectrogram request: {e}")
+        return {
+            "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+            "response": "An error occurred while submitting your spectrogram data request.",
+            "obtainedParams": ObtainedParamsDictionary(**params),
+            "urlParamsUsed": params,
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+        }
 
 
 # Can I see the noise data for July 31, 2024 as a spectogram?
-async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
+async def plot_spectrogram_for_date(date_str: str, user_onc_token: str) -> Dict:
     """
     Submit a request to Ocean Networks Canada's dataProductDelivery API for a
     ship noise spectrogram image from the Cambridge Bay hydrophone for a given date.
+
     This function requests the pre-generated spectrogram (PNG format) covering a
-    24-hour period and returns the order metadata from ONC. Note: This does not
-    download or return the actual image; instead, it initiates the request and
-    returns order details for follow-up retrieval.
+    24-hour period and returns metadata about the request. This does not return the actual
+    image but returns a reference to the order request.
+
     Args:
-        date_str (str): The date of interest in YYYY-MM-DD format (e.g., "2024-07-31").
-        user_onc_token (str): ONC API access token required for authentication.
+        date_str (str): Date of interest in YYYY-MM-DD format.
+        user_onc_token (str): ONC API access token.
+
     Returns:
-        dict: {
-            "response": {
-                "orders": List of order results from ONC,
-                "description": Human-readable summary of the request
-            },
-            "urlParamsUsed": Dictionary of API request parameters including token,
-            "baseUrl": Base URL used for the data product request
-        }
+        dict: A dictionary containing status, response, and metadata.
     """
     onc = ONC(user_onc_token)
 
-    # Define 24-hour window
+    # Build 24-hour window
     date_from = date_str
     date_to = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)).strftime(
         "%Y-%m-%d"
     )
 
     params = {
-        "locationCode": "CBYIP",
-        "deviceCategoryCode": "HYDROPHONE",
-        "dataProductCode": "HSD",
+        "dataProductCode": "HSD",  # Hydrophone Spectrogram Data
         "extension": "png",
         "dateFrom": date_from,
         "dateTo": date_to,
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "HYDROPHONE",
     }
 
     max_retries = 1000
@@ -270,28 +298,49 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str):
     include_metadata_file = False
 
     try:
-        orders = onc.orderDataProduct(
+        # Submit data product order to ONC
+        order = onc.orderDataProduct(
             params, max_retries, download_results_only, include_metadata_file
         )
-    except Exception as e:
-        print(
-            f"Error: failed to order noise spectrogram data after {max_retries} attempts:\n  {e}",
-            file=sys.stderr,
-        )
-        # Exit the entire program with a non‑zero status
-        sys.exit(1)
 
-    return {
-        "response": {
-            "orders": orders,
-            "description": (
-                f"Ship noise spectrogram data order for Cambridge Bay "
-                f"from {date_from} to {date_to}"
+        # Try to extract request ID, DOI, etc. if present
+        dpRequestId = order[0].get("dpRequestId") if order else None
+        doi = (
+            order[0].get("citations", [{}])[0].get("doi", "No DOI available")
+            if order
+            else "No DOI available"
+        )
+        citation = (
+            order[0].get("citations", [{}])[0].get("citation", "No citation available")
+            if order
+            else "No citation available"
+        )
+
+        return {
+            "status": StatusCode.PROCESSING_DATA_DOWNLOAD,
+            "dpRequestId": dpRequestId,
+            "doi": doi,
+            "citation": citation,
+            "response": (
+                f"Ship noise spectrogram order successfully queued for Cambridge Bay "
+                f"from {date_from} to {date_to}."
             ),
-        },
-        "urlParamsUsed": {**params, "token": user_onc_token},
-        "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
-    }
+            "urlParamsUsed": params,
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+            "obtainedParams": ObtainedParamsDictionary(
+                **params
+            ),  # Structured as a Pydantic model
+        }
+
+    except Exception as e:
+        print(f"{type(e).__name__} occurred while submitting spectrogram request: {e}")
+        return {
+            "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+            "response": "An error occurred while submitting your spectrogram data request.",
+            "obtainedParams": ObtainedParamsDictionary(**params),
+            "urlParamsUsed": params,
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+        }
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
