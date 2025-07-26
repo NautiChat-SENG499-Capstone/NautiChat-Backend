@@ -10,9 +10,8 @@ from src.database import DatabaseSessionManager
 from src.logger import logger
 from src.settings import get_settings
 
-from LLM.vectorDBUpload import vdb_auto_upload
+from LLM.vector_db_upload import vdb_auto_upload
 from apscheduler.schedulers.background import BackgroundScheduler # Import APScheduler
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

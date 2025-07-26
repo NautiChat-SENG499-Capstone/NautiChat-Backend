@@ -1,25 +1,25 @@
 import asyncio
-import os
 from datetime import timedelta
 from typing import AsyncIterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
+from asgi_lifespan import LifespanManager
+from fastapi import HTTPException, status
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from src.settings import get_settings
-
-# Set up test DB URL
-# TODO: Create a Postgres Test DB for thorough testing
-os.environ["SUPABASE_DB_URL"] = "sqlite+aiosqlite:///:memory:"
-SUPABASE_DB_URL = os.environ["SUPABASE_DB_URL"]
-
-# Must be imported after setting SUPABASE_DB_URL
 from src.auth import models
 from src.auth.service import create_access_token, get_password_hash
 from src.database import Base, get_db_session
 from src.main import create_app
+from src.settings import get_settings
+
+from LLM.Constants.status_codes import StatusCode
+from LLM.schemas import RunConversationResponse
+
+SUPABASE_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest.fixture
@@ -66,9 +66,15 @@ async def client(async_session: AsyncSession, request) -> AsyncIterator[AsyncCli
 
     test_app.dependency_overrides[get_db_session] = override_get_db_session
 
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
-        yield c
+    if request.node.get_closest_marker("use_lifespan"):
+        async with LifespanManager(test_app):
+            transport = ASGITransport(app=test_app)
+            async with AsyncClient(transport=transport, base_url="http://test") as c:
+                yield c
+    else:
+        transport = ASGITransport(app=test_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            yield c
 
 
 @pytest_asyncio.fixture()
@@ -119,3 +125,66 @@ async def admin_headers(async_session: AsyncSession):
     )
 
     return {"Authorization": f"Bearer {token}"}
+
+
+class DummyLLM:
+    async def run_conversation(self, user_prompt, *_, **__):
+        return RunConversationResponse(
+            status=StatusCode.REGULAR_MESSAGE,
+            response=f"LLM Response for {user_prompt}",
+        )
+
+        async def _noop(*_args, **_kwargs):
+            return ""
+
+        return _noop
+
+    def __getattr__(self, _):
+        async def _noop(*args, **kwargs):
+            return ""
+
+        return _noop
+
+
+class DummyRAG:
+    """Returns an empty result for whatever method is called."""
+
+    def __getattr__(self, _):
+        async def _noop(*args, **kwargs):
+            return ""
+
+        return _noop
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _stub_llm_and_rag(client: AsyncClient):
+    asgi_app = getattr(client, "app", None)
+    if asgi_app is None:
+        transport = getattr(client, "_transport", None)
+        asgi_app = getattr(transport, "app", None) or getattr(transport, "_app", None)
+    assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
+
+    asgi_app.state.llm = DummyLLM()
+    asgi_app.state.rag = DummyRAG()
+    yield
+    del asgi_app.state.llm
+    del asgi_app.state.rag
+
+
+@pytest.fixture(autouse=True)
+def patch_onc_token_validation(request):
+    async def mock_validate_onc_token(token: str):
+        """Mock ONC token validation"""
+
+        if token == get_settings().ONC_TOKEN:
+            return
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ONC token"
+        )
+
+    with patch(
+        "src.auth.service.validate_onc_token", new_callable=AsyncMock
+    ) as mock_onc:
+        mock_onc.side_effect = mock_validate_onc_token
+        yield mock_onc

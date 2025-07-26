@@ -13,6 +13,7 @@ class ObtainedParamsDictionary(BaseModel):
     deviceCategoryCode: Optional[str] = None
     locationCode: Optional[str] = None
     dataProductCode: Optional[str] = None
+    propertyCode: Optional[str] = None
     extension: Optional[str] = None
     dateFrom: Optional[str] = None
     dateTo: Optional[str] = None
@@ -37,7 +38,7 @@ class RunConversationResponse(BaseModel):
 
     status: StatusCode
     response: str
-    obtainedParams: Optional[ObtainedParamsDictionary] = Field(
+    obtainedParams: ObtainedParamsDictionary = Field(
         default_factory=ObtainedParamsDictionary
     )
     dpRequestId: Optional[int] = None
@@ -47,3 +48,5 @@ class RunConversationResponse(BaseModel):
     citation: Optional[str] = None  # may need to switch to a list of strings
     baseUrl: Optional[str] = None
     urlParamsUsed: Optional[dict] = Field(default_factory=dict)
+    sources: list[str] = Field(default_factory=list)
+    point_ids: list[str] = Field(default_factory=list)

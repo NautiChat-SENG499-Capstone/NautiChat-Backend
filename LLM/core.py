@@ -7,22 +7,28 @@ from datetime import datetime
 import pandas as pd
 
 from LLM.Constants.status_codes import StatusCode
+from LLM.Constants.system_prompts import (
+    first_LLM_prompt,
+    generate_system_prompt,
+    second_LLM_prompt,
+)
 from LLM.Constants.tool_descriptions import toolDescriptions
+from LLM.Constants.utils import handle_data_download, handle_scalar_request
 from LLM.data_download import generate_download_codes
+from LLM.general_data import get_scalar_data
 from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 from LLM.tools_sprint1 import (
     get_active_instruments_at_cambridge_bay,
-    # get_time_range_of_available_data,
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
-    get_properties_at_cambridge_bay,
+    get_time_range_of_available_data,
+    # get_properties_at_cambridge_bay,
 )
 from LLM.tools_sprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_ice_thickness,
     get_oxygen_data_24h,
-    # get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
 )
 
@@ -38,16 +44,17 @@ class LLM:
         self.model = env.get_model()
         self.RAG_instance: RAG = RAG_instance or RAG(env=self.env)
         self.available_functions = {
-            "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
+            # "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
             "get_active_instruments_at_cambridge_bay": get_active_instruments_at_cambridge_bay,
             "generate_download_codes": generate_download_codes,
             "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
             "get_oxygen_data_24h": get_oxygen_data_24h,
-            # "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
+            "get_scalar_data": get_scalar_data,
+            "get_time_range_of_available_data": get_time_range_of_available_data,
         }
 
     async def run_conversation(
@@ -56,81 +63,32 @@ class LLM:
         user_onc_token: str,
         chat_history: list[dict] = [],
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        previous_vdb_ids: list[str] = [],
     ) -> RunConversationResponse:
         try:
-            CurrentDate = datetime.now().strftime("%Y-%m-%d")
-            startingPrompt = f"""
-                You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed.
-
-                Today’s date is {CurrentDate}. You can CHOOSE to use the given tools to obtain the data needed to answer the prompt and provide the results IF that is required.
-
-                You MUST prioritize information provided to you via previous assistant messages (such as search results or sensor descriptions) before using any tools.
-
-                You should ONLY use the data download tool/generate_download_codes tool or any other time-series-related tool when the user:
-                - explicitly asks to download or retrieve data,
-                - requests measurements, time series, plots, or values over a date or time range,
-                - or provides specific parameters like `dateFrom`, `dateTo`, or timestamp values.
-
-                Do NOT use the data download tool/generate_download_codes tool if the user does not request to download data.
-
-                IGNORE messaging history about downloading data when the user is not explicitly asking to download data and the previous data download was successful.
-
-                Even if valid parameters (such as `deviceCategoryCode`, `dataProductCode`, or `locationCode`) are present in the conversation or from the vector search, do NOT assume the user wants data. The presence of these parameters is common and should be treated as context only.
-
-                Do NOT use any data-fetching tools for general, conceptual, or sensor-related questions if relevant information has already been provided (e.g., from a vector search or assistant message).
-
-                When the user describes how the data should be summarized:
-                - If they say "average", "averages per minute", "mean values", or similar, set `dpo_resample` to `"average"`.
-                - If they say "min and max", "extremes", or "range values", set `dpo_resample` to `"minMax"`.
-                - If they say "min, max, and average", or ask for all three statistics per interval, set `dpo_resample` to `"minMaxAvg"`.
-
-                Do not guess. Only set `dpo_resample` if the user's language clearly matches one of these resampling strategies. Otherwise, omit it or use "none".
-
-                Listing or describing sensors is enough to answer most conceptual questions — you should NOT follow up by trying to download or offer data unless the user has clearly asked for it.
-
-                If the user wants an example of data, you should return the data retrieved from the relevant tools or APIs.
-
-                Convert Time fields to the following format: `YYYY-MM-DD HH:MM:SS` (e.g., from `2023-10-01T12:00:00.000Z` To `2023-10-01 12:00:00` ).
-                
-                You must not speculate, infer unavailable values, or offer additional analysis unless explicitly asked.
-
-                Do not summarize or interpret data unless explicitly asked.
-
-                If the user asks whether a type of data or measurement is available at a given observatory or location, respond with a simple yes or no based on your knowledge of the vector search information. Do NOT call data retrieval functions in response to such questions.
-
-                After every answer you give—no matter what the topic is—you MUST end your response with a warm, natural follow-up like:
-                “Is there anything else I can help you with?” or “Let me know if you have any other questions!”
-
-                This closing line is required even if the user just says “thanks” or ends the conversation.
-
-                If the user says something like “thanks” or “goodbye”, you should still respond with a friendly closing line like:
-                “You’re welcome! If you have any more questions in the future, feel free to ask. Have a great day!” or “Goodbye! If you need anything else, just let me know!”
-
-                You may use tools when required to answer user questions. Do not describe what you *will* do — only use tools if needed.
-
-                When a tool is used, do not guess or assume what it might return. Do not speculate or reason beyond the returned result. However, you may output the tool’s result in your response and format it clearly for the user, as long as you do not add new interpretations or steps.
-
-                You are NEVER required to generate code in any language.
-
-                Do NOT add follow-up suggestions, guesses, or recommendations.
-
-                DO NOT guess what parameters the user might want to use for data download requests.
-
-                DO NOT guess what the tool might return.  
-                DO NOT say "I will now use the tool."  
-                DO NOT try to reason about data availability.
-
-                If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
-            """
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            startingPrompt = generate_system_prompt(
+                first_LLM_prompt,
+                context={
+                    "current_date": current_date,
+                },
+            )
+            # If the user requests an example of data without specifying the `dateFrom` or `dateTo` parameters, use the most recent available dates for the requested device.
 
             # print("Messages: ", messages)
-
-            vectorDBResponse = self.RAG_instance.get_documents(user_prompt)
+            sources = []
+            (vectorDBResponse, point_ids) = self.RAG_instance.get_documents(
+                user_prompt, previous_vdb_ids
+            )
             print("Vector DB Response:", vectorDBResponse)
+            sources = []
             if isinstance(vectorDBResponse, pd.DataFrame):
                 if vectorDBResponse.empty:
                     vector_content = ""
                 else:
+                    if "sources" in vectorDBResponse.columns:
+                        # we need a list of sources to return with the LLM response
+                        sources = vectorDBResponse["sources"].tolist()
                     # Convert DataFrame to a more readable format
                     vector_content = vectorDBResponse.to_string(index=False)
             else:
@@ -164,6 +122,7 @@ class LLM:
             print("First Response from LLM:", response_message.content)
             # print(tool_calls)
             doing_data_download = False
+            doing_scalar_request = False
             if tool_calls:
                 # print("Tool calls detected, processing...")
                 # print("tools calls:", tool_calls)
@@ -182,9 +141,11 @@ class LLM:
 
                     if function_name in self.available_functions:
                         if function_name == "generate_download_codes":
-                            # Special case for download codes
                             print("Generating download codes...")
                             doing_data_download = True
+                        if function_name == "get_scalar_data":
+                            print("Doing Scalar request...")
+                            doing_scalar_request = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
                         except json.JSONDecodeError:
@@ -192,9 +153,8 @@ class LLM:
                         print(
                             f"Calling function: {function_name} with args: {function_args}"
                         )
-                        if doing_data_download:
+                        if doing_data_download or doing_scalar_request:
                             print("function_args: ", function_args)
-                            # print("**function_args: ",**function_args)
                             function_args["obtainedParams"] = obtained_params
 
                         function_response = await self.call_tool(
@@ -204,78 +164,22 @@ class LLM:
                         )
                         print("Function response:", function_response)
                         if doing_data_download:
-                            DataDownloadStatus = function_response.get("status")
-                            if DataDownloadStatus == StatusCode.PARAMS_NEEDED:
-                                print(
-                                    "Download parameters needed, returning response now"
-                                )
-                                obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
-                                )
-                                print("Obtained parameters:", obtained_params)
-                                print("Obtained parameters:", type(obtained_params))
-                                # Return a response indicating that Paramaters are needed
-                                return RunConversationResponse(
-                                    status=StatusCode.PARAMS_NEEDED,
-                                    response=function_response.get("response"),
-                                    obtainedParams=obtained_params,
-                                )
-                            elif (
-                                DataDownloadStatus
-                                == StatusCode.PROCESSING_DATA_DOWNLOAD
-                            ):
-                                print("download done so returning response now")
-                                dpRequestId = function_response.get("dpRequestId")
-                                doi = function_response.get("doi", "No DOI available")
-                                citation = function_response.get(
-                                    "citation", "No citation available"
-                                )
-                                # Return a response indicating that the download is being processed
-                                return RunConversationResponse(
-                                    status=StatusCode.PROCESSING_DATA_DOWNLOAD,
-                                    response=function_response.get(
-                                        "response", "Your download is being processed."
-                                    ),
-                                    dpRequestId=dpRequestId,
-                                    doi=doi,
-                                    citation=citation,
-                                    urlParamsUsed=function_response.get(
-                                        "urlParamsUsed", {}
-                                    ),
-                                    baseUrl=function_response.get(
-                                        "baseUrl",
-                                        "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
-                                    ),
-                                )
-                            elif (
-                                DataDownloadStatus
-                                == StatusCode.ERROR_WITH_DATA_DOWNLOAD
-                            ):
-                                print("Download error so returning response now")
-                                obtained_params: ObtainedParamsDictionary = (
-                                    function_response.get("obtainedParams", {})
-                                )
-                                # Return a response indicating that there was an error with the download
-                                return RunConversationResponse(
-                                    status=StatusCode.ERROR_WITH_DATA_DOWNLOAD,
-                                    response=function_response.get(
-                                        "response",
-                                        "An error occurred while processing your download request.",
-                                    ),
-                                    obtainedParams=obtained_params,
-                                    urlParamsUsed=function_response.get(
-                                        "urlParamsUsed", {}
-                                    ),
-                                    baseUrl=function_response.get(
-                                        "baseUrl",
-                                        "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
-                                    ),
-                                )
-                        else:
-                            # Not doing data download so clearing the obtainedParams
-                            obtained_params: ObtainedParamsDictionary = (
-                                ObtainedParamsDictionary()
+                            return handle_data_download(
+                                function_response, sources, point_ids=point_ids
                             )
+                        elif doing_scalar_request:
+                            scalarRequestStatus = function_response.get("status")
+                            if scalarRequestStatus != StatusCode.REGULAR_MESSAGE:
+                                return handle_scalar_request(
+                                    function_response,
+                                    sources,
+                                    scalarRequestStatus,
+                                    point_ids=point_ids,
+                                )
+                        # Not doing data download or scalar request is successful so clearing the obtainedParams
+                        obtained_params: ObtainedParamsDictionary = (
+                            ObtainedParamsDictionary()
+                        )
 
                         toolMessages.append(
                             {
@@ -288,58 +192,12 @@ class LLM:
                             }
                         )  # May be able to use this for getting most recent data if needed.
                 # print("Messages after tool calls:", messages)
-                secondLLMCallStartingPrompt = f"""
-                    You are a helpful assistant for Ocean Networks Canada that uses tools to answer user queries when needed.
-
-                    Today’s date is {CurrentDate}. GIVEN the tools responses create a valuable response based on the users input.
-
-                    Do NOT use any data-fetching tools for general, conceptual, or sensor-related questions if relevant information has already been provided (e.g., from a vector search or assistant message).
-
-                    ALWAYS tell the user what the data is about, what it represents, and how to interpret it.
-
-                    ALWAYS When responding, begin by restating or summarizing the user's request in your own words before providing the answer.
-
-                    You may include the tool result in your reply, formatted clearly and conversationally. Time series or tabular data MUST be rendered as a markdown table with headers, where each row corresponds to one time point and each column corresponds to a variable. Use readable formatting — for example:
-
-
-                    | Time                      | [Measurement Name] (units) |
-                    |---------------------------|----------------------------|
-                    |    YYYY-MM-DD HH:MM:SS    | [value1]                   |
-                    |    YYYY-MM-DD HH:MM:SS    | [value2]                   |
-
-                    Only include the most relevant columns (usually no more than 2–4). If the result is long, truncate it to the first 24 rows and note that more data is available. Do not summarize or interpret the table unless the user asks.
-
-                    IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
-
-                    Convert Time fields to the following format: `YYYY-MM-DD HH:MM:SS` (e.g., from `2023-10-01T12:00:00.000Z` To `2023-10-01 12:00:00` ).
-
-                    IF you get results from two or more tools, you MUST display or combine the results into a single response. For example: if you get air and sea stats then display both if the user didnt just ask for one or the other.
-                    
-                    You must not speculate, infer unavailable values, or offer additional analysis unless explicitly asked.
-
-                    Do not summarize or interpret data unless explicitly asked.
-
-                    If the user asks whether a type of data or measurement is available at a given observatory or location, respond with a simple yes or no based on the given message context.
-
-                    After every answer you give—no matter what the topic is—you MUST end your response with a warm, natural follow-up like:
-                    “Is there anything else I can help you with?” or “Let me know if you have any other questions!”
-
-                    This closing line is required even if the user just says “thanks” or ends the conversation.
-
-                    If the user says something like “thanks” or “goodbye”, you should still respond with a friendly closing line like:
-                    “You’re welcome! If you have any more questions in the future, feel free to ask. Have a great day!” or “Goodbye! If you need anything else, just let me know!”
-
-                    When a tool is used, do not guess or assume what it might return. Do not speculate or reason beyond the returned result. However, you may output the tool’s result in your response and format it clearly for the user, as long as you do not add new interpretations or steps.
-
-                    You are NEVER required to generate code in any language.
-
-                    Do NOT add follow-up suggestions, guesses, or recommendations.
-
-                    DO NOT guess what parameters the user might want to use for data download requests.
-
-                    DO NOT say "I will now use the tool."  
-                    DO NOT try to reason about data availability.
-                """
+                secondLLMCallStartingPrompt = generate_system_prompt(
+                    second_LLM_prompt,
+                    context={
+                        "current_date": current_date,
+                    },
+                )
                 messagesNoContext = [
                     {
                         "role": "system",
@@ -365,22 +223,32 @@ class LLM:
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response,
+                    obtainedParams=obtained_params,
                     urlParamsUsed=function_response.get("urlParamsUsed", {}),
                     baseUrl=function_response.get(
                         "baseUrl",
                         "",
                     ),
+                    sources=sources,
+                    point_ids=point_ids,
                 )
             else:
                 print(response_message)
                 return RunConversationResponse(
-                    status=StatusCode.REGULAR_MESSAGE, response=response_message.content
+                    status=StatusCode.REGULAR_MESSAGE,
+                    response=response_message.content,
+                    sources=sources,
+                    obtainedParams=obtained_params,
+                    point_ids=point_ids,
                 )
         except Exception as e:
             logger.error(f"LLM failed: {e}", exc_info=True)
             return RunConversationResponse(
                 status=StatusCode.LLM_ERROR,
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
+                obtainedParams=obtained_params,
+                sources=sources,
+                point_ids=point_ids,
             )
 
     async def call_tool(self, fn, args, user_onc_token):

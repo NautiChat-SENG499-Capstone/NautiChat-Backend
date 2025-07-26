@@ -4,268 +4,324 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth import models, schemas
-from src.auth.service import get_password_hash
+from src.auth.service import get_password_hash, get_user
 from src.settings import get_settings
 
 
-@pytest.mark.asyncio
-async def test_register_new_user(client: AsyncClient, async_session: AsyncSession):
-    new_user = schemas.CreateUserRequest(
-        username="lebron", password="cavs", onc_token=get_settings().ONC_TOKEN
-    )
-    response = await client.post("/auth/register", json=new_user.model_dump())
+class TestRegistration:
+    def _create_user_request(
+        self,
+        username: str = "tester",
+        password: str = "password",
+        token=get_settings().ONC_TOKEN,
+    ) -> schemas.CreateUserRequest:
+        """Create User Request schema"""
+        user = schemas.CreateUserRequest(
+            username=username, password=password, onc_token=token
+        )
+        return user
 
-    assert response.status_code == status.HTTP_201_CREATED
-    data = response.json()
-    assert data["token_type"] == "bearer"
-    assert isinstance(data["access_token"], str)
+    def _create_user_model(
+        self,
+        username: str = "tester",
+        password: str = "password",
+        token=get_settings().ONC_TOKEN,
+    ) -> models.User:
+        """Create User Model"""
+        user = models.User(username=username, hashed_password=password, onc_token=token)
+        return user
 
-    # get created user in db
-    query = await async_session.execute(
-        select(models.User).where(models.User.username == "lebron")
-    )
-    users = query.scalars().all()
-    assert len(users) == 1
+    @pytest.mark.asyncio
+    async def test_register_new_user(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Test registering a new user"""
 
-    added_user = users[0]
-    assert added_user is not None
-    assert added_user.username == "lebron"
-    assert added_user.id == 1
-    assert not added_user.is_admin
+        new_user = self._create_user_request(username="lebron", password="cavs")
 
+        response = await client.post("/auth/register", json=new_user.model_dump())
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["token_type"] == "bearer"
+        assert isinstance(response.json()["access_token"], str)
 
-@pytest.mark.asyncio
-async def test_register_existing_user(client: AsyncClient, async_session: AsyncSession):
-    # add a user
-    valid_onc_token = get_settings().ONC_TOKEN
-    existing_user = models.User(
-        username="lebron", hashed_password="cavs", onc_token=valid_onc_token
-    )
+        # Get user after registration
+        user = await get_user(new_user.username, async_session)
 
-    async_session.add(existing_user)
-    await async_session.commit()
-    await async_session.refresh(existing_user)
+        assert user is not None
+        assert user.username == "lebron"
+        assert user.id == 1
+        assert not user.is_admin
 
-    user_attempt = schemas.CreateUserRequest(
-        username=existing_user.username,
-        password="differentpassword",
-        onc_token=valid_onc_token,
-    )
-    response = await client.post("/auth/register", json=user_attempt.model_dump())
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    @pytest.mark.asyncio
+    async def test_register_existing_user(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Test adding a user that already exists"""
 
-    query = await async_session.execute(select(models.User))
-    users = query.scalars().all()
-    assert len(users) == 1, "duplicate user was added"
+        # Add user that should exist in db first
+        existing_user = self._create_user_model(username="lebron", password="cavs")
+        async_session.add(existing_user)
+        await async_session.commit()
+        await async_session.refresh(existing_user)
 
+        # Add another user with same username
+        user_attempt = self._create_user_request(
+            username=existing_user.username, password="differentpassword"
+        )
+        response = await client.post("/auth/register", json=user_attempt.model_dump())
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-@pytest.mark.asyncio
-async def test_register_invalid_onc_token(
-    client: AsyncClient, async_session: AsyncSession
-):
-    new_user = schemas.CreateUserRequest(
-        username="lebron", password="cavs", onc_token="invalid_token"
-    )
-    response = await client.post("/auth/register", json=new_user.model_dump())
+        result = await async_session.execute(select(models.User))
+        users = result.scalars().all()
+        assert len(users) == 1, "duplicate user was added"
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    data = response.json()
-    assert data["detail"] == "Invalid ONC token"
+    @pytest.mark.asyncio
+    async def test_register_invalid_onc_token(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Test registering user with invalid onc token"""
+        invalid = self._create_user_request(
+            username="lebron", password="cavs", token="invalid_token"
+        )
 
-    # make sure no user was added to the db
-    query = await async_session.execute(select(models.User))
-    users = query.scalars().all()
-    assert len(users) == 0, "user was added with invalid ONC token"
+        response = await client.post("/auth/register", json=invalid.model_dump())
 
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == "Invalid ONC token"
 
-@pytest.mark.asyncio
-async def test_get_me_unauthorized(client: AsyncClient):
-    unauthenticated_response = await client.get("/auth/me")
-    assert unauthenticated_response.status_code == status.HTTP_401_UNAUTHORIZED
-
-
-@pytest.mark.asyncio
-async def test_get_me_endpoint(
-    client: AsyncClient, async_session: AsyncSession, user_headers
-):
-    # at this point only one user in db, so current user should be that one
-    response = await client.get("/auth/me", headers=user_headers)
-
-    assert response.status_code == status.HTTP_200_OK
-    returned_user = schemas.UserOut.model_validate(response.json())
-
-    query = await async_session.execute(select(models.User))
-    db_user = query.scalar_one_or_none()
-    assert db_user is not None
-
-    # compare pydantic models
-    assert returned_user == schemas.UserOut.model_validate(db_user)
+        # make sure user was not added to the db
+        result = await async_session.execute(select(models.User))
+        users = result.scalars().all()
+        assert len(users) == 0, "user was added with invalid ONC token"
 
 
-@pytest.mark.asyncio
-async def test_login_existing_user(client: AsyncClient, async_session: AsyncSession):
-    # add user. since adding directly to db the password is not hashed which is easier for testing
-    password = "supersecure"
-    user = models.User(
-        username="new user",
-        hashed_password=get_password_hash(password),
-        onc_token=get_settings().ONC_TOKEN,
-    )
+class TestAuthentication:
+    def _create_user_model(
+        self,
+        username: str = "tester",
+        password: str = "password",
+        token=get_settings().ONC_TOKEN,
+    ) -> models.User:
+        """Returns User model"""
+        user = models.User(username=username, hashed_password=password, onc_token=token)
+        return user
 
-    async_session.add(user)
-    await async_session.commit()
-    await async_session.refresh(user)
+    @pytest.mark.asyncio
+    async def test_login_existing_user(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Login with existing user"""
+        # Add user that should exist in database
+        password = "supersecure"
+        user = self._create_user_model(
+            username="newUser", password=get_password_hash(password)
+        )
+        async_session.add(user)
+        await async_session.commit()
+        await async_session.refresh(user)
 
-    response = await client.post(
-        "/auth/login",
-        data={"username": user.username, "password": password},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
+        # Login with the user
+        response = await client.post(
+            "/auth/login",
+            data={"username": user.username, "password": password},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
 
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["token_type"] == "bearer"
-    assert isinstance(data["access_token"], str)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["token_type"] == "bearer"
+        assert isinstance(response.json()["access_token"], str)
 
+    @pytest.mark.asyncio
+    async def test_login_guest_user(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Login as a guest user"""
+        response = await client.post("/auth/guest-login")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["token_type"] == "bearer"
+        assert isinstance(response.json()["access_token"], str)
 
-@pytest.mark.asyncio
-async def test_login_guest_user(client: AsyncClient, async_session: AsyncSession):
-    response = await client.post("/auth/guest-login")
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["token_type"] == "bearer"
-    assert isinstance(data["access_token"], str)
+        # make sure a guest user was created in the db
+        query = await async_session.execute(select(models.User))
+        users = query.scalars().all()
+        assert len(users) == 1
 
-    # make sure a guest user was created in the db
-    query = await async_session.execute(select(models.User))
-    users = query.scalars().all()
-    assert len(users) == 1
+    @pytest.mark.asyncio
+    async def test_login_incorrect_credentials(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Attempt to log in with incorrect credentials"""
+        password = "right"
+        user = self._create_user_model("wrongpasswordtest", get_password_hash(password))
+        async_session.add(user)
+        await async_session.commit()
 
+        resp = await client.post(
+            "/auth/login",
+            data={"username": user.username, "password": "WRONG"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.json()["detail"] == "Incorrect username or password"
 
-@pytest.mark.asyncio
-async def test_login_invalid_user(client: AsyncClient):
-    # add user. since adding directly to db the password is not hashed which is easier for testing
+    @pytest.mark.asyncio
+    async def test_login_invalid_user(self, client: AsyncClient):
+        """Test that attempts to login with invalid user"""
+        response = await client.post(
+            "/auth/login",
+            data={"username": "invaliduser", "password": "somepassword"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
 
-    response = await client.post(
-        "/auth/login",
-        data={"username": "invaliduser", "password": "somepassword"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
-
-
-@pytest.mark.asyncio
-async def test_update_user_info_success(
-    client: AsyncClient, async_session: AsyncSession, user_headers
-):
-    valid_onc_token = get_settings().ONC_TOKEN
-    new_info = {"username": "updated_user", "onc_token": valid_onc_token}
-
-    response = await client.put("/auth/me", json=new_info, headers=user_headers)
-    assert response.status_code == status.HTTP_200_OK
-
-    updated = response.json()
-    assert updated["username"] == "updated_user"
-    assert updated["onc_token"] == valid_onc_token
-
-    result = await async_session.execute(
-        select(models.User).where(models.User.username == "updated_user")
-    )
-    user = result.scalar_one_or_none()
-    assert user is not None
-    assert user.onc_token == valid_onc_token
-
-
-@pytest.mark.asyncio
-async def test_update_invalid_onc_token(
-    client: AsyncClient, async_session: AsyncSession, user_headers
-):
-    # get current user in db
-    query = await async_session.execute(select(models.User))
-    current_user = query.scalar_one_or_none()
-    assert current_user is not None
-    user_valid_onc_token = current_user.onc_token
-
-    new_info = {"username": "updated_user", "onc_token": "invalid_token"}
-
-    response = await client.put("/auth/me", json=new_info, headers=user_headers)
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json()["detail"] == "Invalid ONC token"
-
-    # make sure user onc token is still valid
-    query = await async_session.execute(select(models.User))
-    current_user = query.scalar_one_or_none()
-    assert current_user is not None
-    assert current_user.onc_token == user_valid_onc_token
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-@pytest.mark.asyncio
-async def test_update_user_info_username_exists(
-    client: AsyncClient, async_session: AsyncSession, user_headers
-):
-    other_user = models.User(
-        username="existing_user",
-        hashed_password=get_password_hash("irrelevant"),
-        onc_token=get_settings().ONC_TOKEN,
-    )
+class TestUserProfile:
+    @pytest.mark.asyncio
+    async def test_get_me_unauthorized(self, client: AsyncClient):
+        """Test to get user without authorization (json token)"""
+        unauthenticated_response = await client.get("/auth/me")
+        assert unauthenticated_response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    async_session.add(other_user)
-    await async_session.commit()
+    @pytest.mark.asyncio
+    async def test_get_me_endpoint(
+        self, client: AsyncClient, async_session: AsyncSession, user_headers: dict
+    ):
+        """Test that gets user"""
 
-    response = await client.put(
-        "/auth/me", json={"username": "existing_user"}, headers=user_headers
-    )
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json()["detail"] == "Username already exists"
+        # at this point only one user in db, so current user should be that one
+        response = await client.get("/auth/me", headers=user_headers)
+        assert response.status_code == status.HTTP_200_OK
+
+        returned_user = schemas.UserOut.model_validate(response.json())
+
+        query = await async_session.execute(select(models.User))
+        db_user = query.scalar_one_or_none()
+
+        assert db_user is not None
+        # compare pydantic models
+        assert returned_user == schemas.UserOut.model_validate(db_user)
+
+    @pytest.mark.asyncio
+    async def test_update_user_info_success(
+        self, client: AsyncClient, async_session: AsyncSession, user_headers: dict
+    ):
+        """Test to update user info"""
+        valid_onc_token = get_settings().ONC_TOKEN
+        new_info = {"username": "updated_user", "onc_token": valid_onc_token}
+
+        response = await client.put("/auth/me", json=new_info, headers=user_headers)
+        assert response.status_code == status.HTTP_200_OK
+
+        updated = response.json()
+        assert updated["username"] == "updated_user"
+        assert updated["onc_token"] == valid_onc_token
+
+        result = await async_session.execute(
+            select(models.User).where(models.User.username == "updated_user")
+        )
+        user = result.scalar_one_or_none()
+        assert user is not None
+        assert user.onc_token == valid_onc_token
+
+    @pytest.mark.asyncio
+    async def test_update_invalid_onc_token(
+        self, client: AsyncClient, async_session: AsyncSession, user_headers: dict
+    ):
+        """Test that attempts to update with invalid onc token"""
+        new_info = {"username": "updated_user", "onc_token": "invalid_token"}
+
+        response = await client.put("/auth/me", json=new_info, headers=user_headers)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == "Invalid ONC token"
+
+    @pytest.mark.asyncio
+    async def test_update_username_conflict(
+        self, client: AsyncClient, async_session: AsyncSession, user_headers: dict
+    ):
+        """Test that updates username that already exists in db"""
+        taken = models.User(
+            username="existing_user",
+            hashed_password=get_password_hash("irrelevant"),
+            onc_token=get_settings().ONC_TOKEN,
+        )
+
+        async_session.add(taken)
+        await async_session.commit()
+
+        response = await client.put(
+            "/auth/me", json={"username": "existing_user"}, headers=user_headers
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == "Username already exists"
 
 
-@pytest.mark.asyncio
-async def test_change_password_success(
-    client: AsyncClient, async_session: AsyncSession, user_headers
-):
-    body = {
-        "current_password": "hashedpassword",
-        "new_password": "newpassword123",
-        "confirm_password": "newpassword123",
-    }
+class TestPasswordChange:
+    @pytest.mark.asyncio
+    async def test_change_password_success(
+        self, client: AsyncClient, user_headers: dict
+    ):
+        """Update password successfully"""
+        body = {
+            "current_password": "hashedpassword",
+            "new_password": "newpassword123",
+            "confirm_password": "newpassword123",
+        }
 
-    resp = await client.put("/auth/me/password", json=body, headers=user_headers)
-    assert resp.status_code == status.HTTP_200_OK
-    updated_user = resp.json()
-    assert updated_user["username"]  # user still exists
+        resp = await client.put("/auth/me/password", json=body, headers=user_headers)
+        assert resp.status_code == status.HTTP_200_OK
 
-    login = await client.post(
-        "/auth/login",
-        data={"username": updated_user["username"], "password": "newpassword123"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert login.status_code == status.HTTP_200_OK
+        # Login with new password
+        login = await client.post(
+            "/auth/login",
+            data={"username": resp.json()["username"], "password": "newpassword123"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert login.status_code == status.HTTP_200_OK
+
+    @pytest.mark.asyncio
+    async def test_change_password_wrong_current(
+        self, client: AsyncClient, user_headers: dict
+    ):
+        """Test that tries to change password but current password is incorrect"""
+        body = {
+            "current_password": "wrongpassword",
+            "new_password": "somethingnew",
+            "confirm_password": "somethingnew",
+        }
+
+        resp = await client.put("/auth/me/password", json=body, headers=user_headers)
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.json()["detail"] == "Current password is incorrect"
+
+    @pytest.mark.asyncio
+    async def test_change_password_mismatch(
+        self, client: AsyncClient, user_headers: dict
+    ):
+        """Test that attempts to change password with misamtch new password"""
+        body = {
+            "current_password": "hashedpassword",
+            "new_password": "abc12345",
+            "confirm_password": "def99999",
+        }
+
+        resp = await client.put("/auth/me/password", json=body, headers=user_headers)
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.json()["detail"] == "New password and confirmation do not match"
 
 
-@pytest.mark.asyncio
-async def test_change_password_wrong_current(client: AsyncClient, user_headers):
-    body = {
-        "current_password": "wrongpassword",
-        "new_password": "somethingnew",
-        "confirm_password": "somethingnew",
-    }
+class TestUserDeletion:
+    @pytest.mark.asyncio
+    async def test_delete_me(
+        self, client: AsyncClient, async_session: AsyncSession, user_headers: dict
+    ):
+        """Delete user from db"""
+        delete_response = await client.delete("/auth/me/delete", headers=user_headers)
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT
 
-    resp = await client.put("/auth/me/password", json=body, headers=user_headers)
-    assert resp.status_code == status.HTTP_401_UNAUTHORIZED
-    assert resp.json()["detail"] == "Current password is incorrect"
-
-
-@pytest.mark.asyncio
-async def test_delete_me(
-    client: AsyncClient, async_session: AsyncSession, user_headers
-):
-    delete_response = await client.delete("/auth/me/delete", headers=user_headers)
-    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
-
-    # Confirm the user is gone
-    query = await async_session.execute(
-        select(models.User).where(models.User.username == "testuser")
-    )
-    user = query.scalar_one_or_none()
-    assert user is None, "User was not deleted from the database"
+        # Confirm the user is gone
+        query = await async_session.execute(
+            select(models.User).where(models.User.username == "testuser")
+        )
+        user = query.scalar_one_or_none()
+        assert user is None, "User was not deleted from the database"
