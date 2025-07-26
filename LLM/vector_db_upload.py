@@ -442,11 +442,13 @@ def process_json(
             )
     return results
 
+#Returns current time for vdb_auto_upload
 def get_current_time():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
 
 #Function gets called through APScheduler jobs to delete existing "ONC OCEANS 3.0 API" points and reupload with today's date
 #Uploads to ONC-General
+#APScheduler job in lifespan.py calls this every 24 hours
 def vdb_auto_upload(app_state):
     try:
         print(f"{get_current_time()} vector DB auto upload - START")
