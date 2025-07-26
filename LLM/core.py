@@ -105,13 +105,9 @@ class LLM:
 
             if qa_reference:
                 styling_prompt = f"""
-                The following are examples of question-answer pairs that represent the desired style, tone, and preferred phrasing for your responses.
-                These examples are **CRUCIALLY ONLY for stylistic guidance** and do **NOT** represent current factual information, data availability, tool usage, or required parameters.
-                You **MUST NOT** use these examples as factual context or directly answer from them.
-                Instead, analyze them **solely** to understand the preferred phrasing, level of detail, and overall stylistic conventions
-                when formulating your own answers based on other retrieved information and tool outputs.
-                **Absolutely DO NOT** initiate any tool calls based on the content or patterns found within these styling examples.
-
+                The following responses are ONLY used for styling and tone references.
+                DO NOT use the information and data in these responses to generate your own responses.
+                DO NOT take data from the examples for your own response.
                 Examples for styling guidance:
                 {qa_reference}
                 """
