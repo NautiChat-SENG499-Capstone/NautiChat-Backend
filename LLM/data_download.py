@@ -244,7 +244,7 @@ async def generate_download_codes(
             "dpRequestId": response["dpRequestId"],
             "doi": response["citations"][0]["doi"],
             "citation": response["citations"][0]["citation"],
-            "response": "Your download is being processed.",
+            "response": "Your download is being processed. Is there anything else I can help you with?",
             "urlParamsUsed": allObtainedParams,
             "baseUrl": "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
         }
