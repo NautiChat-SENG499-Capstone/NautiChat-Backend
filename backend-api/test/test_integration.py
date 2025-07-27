@@ -25,7 +25,7 @@ class TestGenerateMessageActualLLM:
         return resp.json()["conversation_id"]
 
     @pytest.mark.asyncio
-    @pytest.mark.use_lifespan
+    # @pytest.mark.use_lifespan
     @pytest.mark.use_real_llm
     async def test_generate_message_with_real_llm(
         self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
@@ -73,7 +73,7 @@ class TestGenerateMessageActualLLM:
         assert msg["response"] == message["response"]
 
     @pytest.mark.asyncio
-    @pytest.mark.use_lifespan
+    # @pytest.mark.use_lifespan
     @pytest.mark.use_real_llm
     async def test_download_data_with_real_llm(
         self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
@@ -150,7 +150,7 @@ class TestRunConversation:
         )
 
     @pytest.mark.asyncio
-    @pytest.mark.use_lifespan
+    # @pytest.mark.use_lifespan
     @pytest.mark.use_real_llm
     async def test_regular_message(
         self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
@@ -187,7 +187,7 @@ class TestRunConversation:
         assert "Cambridge Bay" in llm_result.response
 
     @pytest.mark.asyncio
-    @pytest.mark.use_lifespan
+    # @pytest.mark.use_lifespan
     @pytest.mark.use_real_llm
     async def test_params_needed(
         self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
@@ -256,7 +256,7 @@ class TestRunConversation:
         assert "data" in llm_result.response and "Cambridge Bay" in llm_result.response
 
     @pytest.mark.asyncio
-    @pytest.mark.use_lifespan
+    # @pytest.mark.use_lifespan
     @pytest.mark.use_real_llm
     async def test_download_data(
         self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
@@ -295,7 +295,7 @@ class TestRunConversation:
         assert llm_result.dpRequestId is not None
 
     @pytest.mark.asyncio
-    @pytest.mark.use_lifespan
+    # @pytest.mark.use_lifespan
     @pytest.mark.use_real_llm
     async def test_deployment_error(
         self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
