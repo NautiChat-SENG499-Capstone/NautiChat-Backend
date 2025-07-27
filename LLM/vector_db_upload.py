@@ -11,6 +11,12 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from onc import ONC
+from qdrant_client.http.models import (
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PayloadSchemaType,
+)
 from qdrant_client.models import PointStruct
 from unstructured.chunking.title import chunk_by_title
 from unstructured.cleaners.core import clean
@@ -440,3 +446,78 @@ def process_json(
                 }
             )
     return results
+
+
+# Returns current time for vdb_auto_upload
+def get_current_time():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+
+
+# Function gets called through APScheduler jobs to delete existing "ONC OCEANS 3.0 API" points and reupload with today's date
+# Uploads to ONC-General
+# APScheduler job in lifespan.py calls this every 24 hours
+def vdb_auto_upload(app_state):
+    try:
+        print(f"{get_current_time()} vector DB auto upload - START")
+        qdrant_client_wrapper = app_state.rag.qdrant_client_wrapper
+
+        locationcodes_str = os.getenv("location_codes")
+        if locationcodes_str:
+            locationcodes = [code.strip() for code in locationcodes_str.split(",")]
+        else:
+            locationcodes = []
+            print(
+                f"{get_current_time()} vector DB auto upload - END - WARN: 'location_codes' not found in .env or is empty. No locations to process."
+            )
+            return  # Exit if no codes to process
+
+        # Create a payload index for "source" field (can't filter without this)
+        qdrant_client_wrapper.qdrant_client.create_payload_index(
+            collection_name=qdrant_client_wrapper.general_collection_name,
+            field_name="source",
+            field_schema=PayloadSchemaType.KEYWORD,
+        )
+
+        filter_condition = Filter(
+            must=[
+                FieldCondition(
+                    key="source", match=MatchValue(value="ONC OCEANS 3.0 API")
+                )
+            ]
+        )
+
+        # Getting a count of how many points we're deleting just to print
+        filtered_points = qdrant_client_wrapper.qdrant_client.count(
+            collection_name=qdrant_client_wrapper.general_collection_name,
+            count_filter=filter_condition,
+            exact=True,
+        )
+
+        print(
+            f"{get_current_time()} vector DB auto upload - Deleting {filtered_points.count} points from {qdrant_client_wrapper.general_collection_name}"
+        )
+        qdrant_client_wrapper.qdrant_client.delete(
+            qdrant_client_wrapper.general_collection_name,
+            points_selector=filter_condition,
+        )
+
+        print(
+            f"{get_current_time()} vector DB auto upload - Calling ONC API for devices"
+        )
+        inputs = []
+        for location_code in locationcodes:
+            inputs.extend(get_device_info_from_onc_for_vdb(location_code=location_code))
+
+        prepare_embedding_input = prepare_embedding_input_from_preformatted(
+            input=inputs, embedding_model=JinaEmbeddings(), doChunking=False
+        )
+
+        print(
+            f"{get_current_time()} vector DB auto upload - Uploading {len(prepare_embedding_input)} points to {qdrant_client_wrapper.general_collection_name}"
+        )
+        upload_to_vector_db(prepare_embedding_input, qdrant_client_wrapper)
+        print(f"{get_current_time()} vector DB auto upload - END")
+    except Exception as e:
+        print(
+            f"{get_current_time()} vector DB auto upload - ERROR: An error occurred: {e}"
+        )
