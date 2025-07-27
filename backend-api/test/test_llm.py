@@ -209,7 +209,7 @@ class TestMessage:
         msg = (
             await client.post(
                 "/llm/messages",
-                json={"input": "Hi", "conversation_id": conv_id},
+                json={"input": "Hi LLM", "conversation_id": conv_id},
                 headers=user_headers,
             )
         ).json()

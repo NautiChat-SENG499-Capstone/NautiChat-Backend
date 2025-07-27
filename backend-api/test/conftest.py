@@ -155,11 +155,18 @@ class MockLLM:
         self.called_with_history = chat_history
         self.last_prompt = user_prompt.lower()
 
+        dummy_sources = ["source_1", "source_2"]
+        dummy_point_ids = ["point_abc123", "point_def456"]
+        dummy_obtained_params = ObtainedParamsDictionary()  # All fields empty/default
+
         # Simulate response based on prompt content
         if "onc" in self.last_prompt:
             return RunConversationResponse(
                 status=StatusCode.REGULAR_MESSAGE,
                 response="ONC is Ocean Networks Canada.",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
             )
 
         elif "download" in self.last_prompt:
@@ -170,41 +177,53 @@ class MockLLM:
                     dpRequestId=42,
                     baseUrl="https://data.oceannetworks.ca/api/scalar?",
                     urlParamsUsed={"sensor_id": "123", "start": "2020-01-01"},
-                    tool_calls=[
-                        {
-                            "name": "download_scalar_data",
-                            "parameters": {"sensor_id": "123", "start": "2020-01-01"},
-                        }
-                    ],
+                    sources=dummy_sources,
+                    point_ids=dummy_point_ids,
+                    dummy_obtained_params=dummy_obtained_params,
                 )
             else:
                 return RunConversationResponse(
                     status=StatusCode.PARAMS_NEEDED,
                     response="I need more info to download anything.",
+                    sources=dummy_sources,
+                    point_ids=dummy_point_ids,
+                    dummy_obtained_params=dummy_obtained_params,
                 )
 
         elif "interrupt" in self.last_prompt:
             return RunConversationResponse(
                 status=StatusCode.DEPLOYMENT_ERROR,
                 response="Tool call was interrupted. Please try again.",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
             )
 
         elif "fail" in self.last_prompt:
             return RunConversationResponse(
                 status=StatusCode.LLM_ERROR,
                 response="Something went wrong while processing the message.",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
             )
 
         elif "no data" in self.last_prompt:
             return RunConversationResponse(
                 status=StatusCode.NO_DATA,
                 response="No data was available for your request.",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
             )
 
         else:
             return RunConversationResponse(
                 status=StatusCode.REGULAR_MESSAGE,
                 response=f"Default mock response to: '{user_prompt}'",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
             )
 
     def __getattr__(self, _):

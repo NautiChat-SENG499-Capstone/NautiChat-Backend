@@ -248,7 +248,7 @@ class LLM:
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
                 obtainedParams=obtained_params,
                 sources=sources,
-                point_ids=[],
+                point_ids=point_ids if point_ids else previous_vdb_ids,
             )
 
     async def call_tool(self, fn, args, user_onc_token):

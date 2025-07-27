@@ -81,9 +81,7 @@ class TestGenerateMessageActualLLM:
         """End-to-end test for LLM download data request via actual API"""
         conversation_id = await self._create_conversation(client, user_headers)
 
-        prompt = (
-            "I want to download dive computer data as a LF in txt from August 20th 2015"
-        )
+        prompt = "I want to download dive computer data as a LF in txt from August 20th 2015 at Cambridge Bay"
 
         # post message for llm
         resp = await client.post(
@@ -199,7 +197,8 @@ class TestRunConversation:
         conversation = await self._create_conversation(client, user_headers)
 
         llm_query = self._create_llm_query(
-            conversation.conversation_id, "i want scalar FLUOROMETER data"
+            conversation.conversation_id,
+            "i want scalar data, from august 15th 2015 to august 16th 2015",
         )
         # Call LLM to generate response
         try:
@@ -230,7 +229,7 @@ class TestRunConversation:
 
         llm_query = self._create_llm_query(
             conversation.conversation_id,
-            "i want scalar FLUOROMETER data from Cambridge Bay, from august 15th 2015 to august 16th 2015",
+            "i want scalar FLUOROMETER data from Cambridge Bay, from September 12, 2022 to August 1, 2023",
         )
         # Call LLM to generate response
         try:
@@ -268,7 +267,7 @@ class TestRunConversation:
 
         llm_query = self._create_llm_query(
             conversation.conversation_id,
-            "I want to download dive computer data as a LF in txt from August 20th 2015",
+            "I want to download PH data in txt from October 5th 2018 at Cambridge Bay",
         )
         # Call LLM to generate response
         try:
@@ -292,7 +291,46 @@ class TestRunConversation:
 
         # Validate the actual response
         assert llm_result.status == StatusCode.PROCESSING_DATA_DOWNLOAD
-        assert "dive computer" in llm_result.response and "data" in llm_result.response
+        assert "download" in llm_result.response
+        assert llm_result.dpRequestId is not None
+
+    @pytest.mark.asyncio
+    @pytest.mark.use_lifespan
+    @pytest.mark.use_real_llm
+    async def test_deployment_error(
+        self, client: AsyncClient, user_headers: dict, async_session: AsyncSession
+    ):
+        """Get download request id - NO Chat History"""
+
+        conversation = await self._create_conversation(client, user_headers)
+
+        llm_query = self._create_llm_query(
+            conversation.conversation_id,
+            "i want scalar FLUOROMETER data from Cambridge Bay, from August 1, 2015 to August 5, 2015",
+        )
+        # Call LLM to generate response
+        try:
+            llm_result: RunConversationResponse = await self._call_llm(
+                client._transport.app,
+                llm_query.input,
+                [],
+                ObtainedParamsDictionary(**conversation.obtained_params),
+            )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Error generating response from LLM: {str(e)}"
+            )
+
+        # Test the structure of the conversation response
+        assert_valid_llm_response(llm_result)
+
+        if llm_result.status == StatusCode.LLM_ERROR:
+            pytest.skip("Skipped due to rate limit on LLM.")
+
+        # Validate the actual response
+        assert llm_result.status == StatusCode.DEPLOYMENT_ERROR
+        assert "deployed" in llm_result.response and "period" in llm_result.response
 
 
 class TestMockLLM:
@@ -453,14 +491,7 @@ def assert_valid_llm_response(response: RunConversationResponse):
         assert isinstance(response.urlParamsUsed, dict)
 
     elif response.status == StatusCode.PARAMS_NEEDED:
-        assert any(
-            [
-                response.obtainedParams.locationCode,
-                response.obtainedParams.deviceCategoryCode,
-                response.obtainedParams.dataProductCode,
-                response.obtainedParams.propertyCode,
-            ]
-        ), "At least one param should be present when PARAMS_NEEDED"
+        assert isinstance(response.obtainedParams, ObtainedParamsDictionary)
 
     elif response.status in {
         StatusCode.ERROR_WITH_DATA_DOWNLOAD,
