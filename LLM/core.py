@@ -332,7 +332,7 @@ class LLM:
                 status=StatusCode.LLM_ERROR,
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
                 obtainedParams=obtained_params,
-                sources=sources,
+                sources=sources if sources else [],
                 point_ids=point_ids,
             )
 
