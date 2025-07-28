@@ -249,10 +249,12 @@ async def get_ship_noise_acoustic_for_date(
         }
 
     except Exception as e:
-        print(f"{type(e).__name__} occurred while submitting spectrogram request: {e}")
+        print(
+            f"{type(e).__name__} occurred while submitting noise acoustic data request: {e}"
+        )
         return {
             "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
-            "response": "An error occurred while submitting your spectrogram data request.",
+            "response": "An error occurred while submitting your noise acoustic data request.",
             "obtainedParams": ObtainedParamsDictionary(**params),
             "urlParamsUsed": params,
             "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",

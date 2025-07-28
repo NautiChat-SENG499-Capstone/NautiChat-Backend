@@ -351,7 +351,7 @@ toolDescriptions = [
                         "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window.",
                     },
                 },
-                "required": ["date_str", "user_onc_token"],
+                "required": ["date_str"],
             },
         },
     },
