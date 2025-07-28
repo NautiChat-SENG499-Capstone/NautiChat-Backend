@@ -128,30 +128,30 @@ class LLM:
                 if keepContext.choices[0].message.content.lower() == "no":
                     chat_history = []
 
-            qa_docs = self.RAG_instance.get_qa_docs(user_prompt)
+            # qa_docs = self.RAG_instance.get_qa_docs(user_prompt)
 
-            if isinstance(qa_docs, pd.DataFrame):
-                if qa_docs.empty:
-                    qa_reference = ""
-                else:
-                    qa_reference = qa_docs.to_string(index=False)
-            else:
-                qa_reference = str(qa_docs)
-            styling_prompt = ""
+            # if isinstance(qa_docs, pd.DataFrame):
+            #     if qa_docs.empty:
+            #         qa_reference = ""
+            #     else:
+            #         qa_reference = qa_docs.to_string(index=False)
+            # else:
+            #     qa_reference = str(qa_docs)
+            # styling_prompt = ""
 
-            if qa_reference:
-                styling_prompt = f"""
-                The following responses are ONLY used for styling and tone references.
-                DO NOT use the information and data in these responses to generate your own responses.
-                Examples for styling guidance:
-                {qa_reference}
-                """
+            # if qa_reference:
+            #     styling_prompt = f"""
+            #     The following responses are ONLY used for styling and tone references.
+            #     DO NOT use the information and data in these responses to generate your own responses.
+            #     Examples for styling guidance:
+            #     {qa_reference}
+            #     """
 
             messages = [
-                {
-                    "role": "system",
-                    "content": styling_prompt,
-                },
+                # {
+                #     "role": "system",
+                #     "content": styling_prompt,
+                # },
                 {
                     "role": "system",
                     "content": startingPrompt,
@@ -285,7 +285,7 @@ class LLM:
                     toolInfo=toolMessages,
                 )
                 messagesNoContext = [
-                    {"role": "system", "content": styling_prompt},
+                    # {"role": "system", "content": styling_prompt},
                     {
                         "role": "system",
                         "content": secondLLMCallStartingPrompt,
