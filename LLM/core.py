@@ -92,6 +92,7 @@ class LLM:
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
         previous_vdb_ids: list[str] = [],
     ) -> RunConversationResponse:
+        point_ids = None
         try:
             current_date = datetime.now().strftime("%Y-%m-%d")
             startingPrompt = generate_system_prompt(
@@ -333,7 +334,7 @@ class LLM:
                 response="Sorry, your request failed. Something went wrong with the LLM. Please try again.",
                 obtainedParams=obtained_params,
                 sources=sources if sources else [],
-                point_ids=point_ids,
+                point_ids=point_ids if point_ids else previous_vdb_ids,
             )
 
     async def call_tool(self, fn, args, user_onc_token):

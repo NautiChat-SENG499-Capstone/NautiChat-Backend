@@ -1,12 +1,14 @@
 from enum import Enum
 from typing import List
 
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from LLM.core import LLM
 from src.llm.models import Conversation, Message
+from src.logger import logger
 
 
 # Pydantic models for better autocomplete within this file. Could be nice for AI LLM code to also use pydantic models
@@ -18,6 +20,22 @@ class Role(str, Enum):
 class MessageContext(BaseModel):
     role: Role
     content: str
+
+
+def get_llm(app: FastAPI) -> LLM:
+    if getattr(app.state, "llm", None) is None:
+        logger.info("Initializing LLM (this may take a while)...")
+        try:
+            app.state.llm = LLM(app.state.env)
+            logger.info("LLM instance initialized successfully.")
+        except Exception as e:
+            logger.error(f"LLM initialization failed: {e}")
+            raise RuntimeError(f"LLM initialization failed: {e}")
+
+        logger.info("Getting RAG instance ...")
+        app.state.rag = app.state.llm.RAG_instance
+        logger.info("RAG instance initialized successfully.")
+    return app.state.llm
 
 
 async def get_context(
