@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
             logger.error(f"LLM initialization failed: {e}")
             raise RuntimeError(f"LLM initialization failed: {e}")
 
-        logger.info("Getting RAG instance...")
+        logger.info("Getting RAG instance ...")
         app.state.rag = app.state.llm.RAG_instance
         logger.info("RAG instance initialized successfully.")
 
