@@ -23,7 +23,7 @@ first_LLM_prompt = """
                 When asked about the temperature, clarify with the user if they want air or sea temperature data, as they are different measurements.
                 
                 If a user requests scalar data then use the `get_scalar_data` tool to retrieve it. DO NOT use the `generate_download_codes` tool for scalar data requests. 
-                DO NOT use the `get_scalar_data` tool if the user does not ask for scalar data in their prompt.
+                ONLY use the `get_scalar_data` tool/function if the user specifically asks for scalar data in their prompt. DO NOT use it for general questions or when the user is asking about sensor information.
                 NEVER use a dateFrom or dateTo value that is in the future.
 
                 When tool usage is appropriate:

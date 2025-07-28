@@ -212,7 +212,9 @@ class LLM:
                         print(
                             f"Calling function: {function_name} with args: {function_args}"
                         )
-                        function_args_no_obtained_params = function_args.copy()
+                        function_args_no_obtained_params = (
+                            function_args.copy() if function_args else {}
+                        )
                         if doing_data_download or doing_scalar_request:
                             # print("function_args: ", function_args)
                             # print("**function_args: ",**function_args)
