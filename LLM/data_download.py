@@ -3,6 +3,7 @@ from typing import Optional
 from onc import ONC
 
 from LLM.Constants.dataDownloadCodes import dataDownloadCodes
+from LLM.Constants.locationCodeDefs import locationCodeDefs
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.utils import sync_param
 from LLM.schemas import ObtainedParamsDictionary
@@ -16,19 +17,27 @@ def obtain_location_codes(deviceCategoryCode: str) -> list[str]:
     return locationCodes
 
 
-def obtain_data_product_code(extension: str, deviceCategoryCode: str):
+def obtain_data_product_code(
+    extension: str, deviceCategoryCode: str, locationCode: str
+):
     for device in dataDownloadCodes:
-        if device["deviceCategoryCode"] == deviceCategoryCode:
+        if (
+            device["deviceCategoryCode"] == deviceCategoryCode
+            and device["locationCode"] == locationCode
+        ):
             for product in device["possibleDataProducts"]:
                 if extension in product["availableExtensions"]:
                     return product["dataProductCode"]
     return None
 
 
-def find_possible_extensions(deviceCategoryCode: str):
+def find_possible_extensions(deviceCategoryCode: str, locationCode: str):
     possibleDataProducts = []
     for device in dataDownloadCodes:
-        if device["deviceCategoryCode"] == deviceCategoryCode:
+        if (
+            device["deviceCategoryCode"] == deviceCategoryCode
+            and device["locationCode"] == locationCode
+        ):
             for product in device["possibleDataProducts"]:
                 possibleDataProducts.append(
                     {
@@ -126,23 +135,6 @@ async def generate_download_codes(
     )
     extension = sync_param("extension", extension, obtainedParams, allObtainedParams)
 
-    if extension is None:
-        obtainedParams.dataProductCode = None
-    dataProductCode = obtainedParams.dataProductCode
-
-    if (
-        extension is not None and deviceCategoryCode is not None
-    ):  # and dataProductCode is None
-        dataProductCode = obtain_data_product_code(extension, deviceCategoryCode)
-        dataProductCode = sync_param(
-            "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
-        )
-        if dataProductCode is None:
-            return {
-                "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
-                "response": f"Error: No data product code found for extension '{extension}' and device category code '{deviceCategoryCode}'.",
-                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
-            }
     if locationCode is None and deviceCategoryCode is not None:
         locationCodes = obtain_location_codes(deviceCategoryCode)
         if len(locationCodes) == 0:
@@ -157,9 +149,38 @@ async def generate_download_codes(
                 "locationCode", locationCode, obtainedParams, allObtainedParams
             )
         else:  # If there are multiple location codes, return them to the user
+            response = f"Hey! It looks like you want to do a data download! However, I found multiple location codes for device category code '{deviceCategoryCode}': "
+            for location in locationCodeDefs:
+                if location["locationCode"] in locationCodes:
+                    response += (
+                        f"\n- {location['locationCode']}: {location['description']}"
+                    )
+            response += ".\nPlease specify which one you want to use."
             return {
                 "status": StatusCode.PARAMS_NEEDED,
-                "response": f"Hey! It looks like you want to do a data download! However, I found multiple location codes for device category code '{deviceCategoryCode}': {', '.join(locationCodes)}. Please specify which one you want to use.",
+                "response": response,
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+
+    if extension is None:
+        obtainedParams.dataProductCode = None
+    dataProductCode = obtainedParams.dataProductCode
+
+    if (
+        extension is not None
+        and deviceCategoryCode is not None
+        and locationCode is not None
+    ):  # and dataProductCode is None
+        dataProductCode = obtain_data_product_code(
+            extension, deviceCategoryCode, locationCode
+        )
+        dataProductCode = sync_param(
+            "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
+        )
+        if dataProductCode is None:
+            return {
+                "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+                "response": f"Error: No data product code found for extension '{extension}' and device category code '{deviceCategoryCode}'.",
                 "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
             }
 
@@ -215,8 +236,14 @@ async def generate_download_codes(
 
     if len(neededParams) > 0:  # If need one or more parameters
         print("OBTAINED PARAMS: ", ObtainedParamsDictionary(**allObtainedParams))
-        if extension is None and deviceCategoryCode is not None:
-            possibleExtensionStr = find_possible_extensions(deviceCategoryCode)
+        if (
+            extension is None
+            and deviceCategoryCode is not None
+            and locationCode is not None
+        ):
+            possibleExtensionStr = find_possible_extensions(
+                deviceCategoryCode, locationCode
+            )
             if possibleExtensionStr:
                 return {
                     "status": StatusCode.PARAMS_NEEDED,
@@ -235,6 +262,7 @@ async def generate_download_codes(
             "response": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(allObtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
             "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
         }
+    allObtainedParams["token"] = user_onc_token  # Add the ONC token to the parameters.
 
     try:
         response = onc.requestDataProduct(allObtainedParams)

@@ -146,7 +146,7 @@ toolDescriptions = [
                     "locationCode": {
                         "type": "string",
                         "enum": ["CBYDS", "CBYIP", "CBYIU", "CBYSP", "CBYSS", "CBYSU"],
-                        "description": "The ONC-defined locationCode where the device is deployed. This should be found by either user input or by using the locationCode associated with the deviceCategoryCode",  # (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).
+                        "description": "The ONC-defined locationCode where the device is deployed. This should be found by either user input or by using the locationCode associated with the deviceCategoryCode. (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).",  # (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).
                     },
                     # "dataProductCode": {
                     #     "type": "string",
@@ -187,6 +187,7 @@ toolDescriptions = [
                         "type": "string",
                         "enum": [
                             "txt",
+                            "asf",
                             "qaqc",
                             "json",
                             "mat",
@@ -197,6 +198,7 @@ toolDescriptions = [
                             "nc",
                             "fft",
                             "flac",
+                            "raw",
                             "wav",
                             "an",
                             "csv",
