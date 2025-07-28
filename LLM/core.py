@@ -93,6 +93,7 @@ class LLM:
         previous_vdb_ids: list[str] = [],
     ) -> RunConversationResponse:
         point_ids = None
+        sources = None
         try:
             current_date = datetime.now().strftime("%Y-%m-%d")
             startingPrompt = generate_system_prompt(
