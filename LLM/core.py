@@ -106,7 +106,6 @@ class LLM:
                 user_prompt, previous_vdb_ids=previous_vdb_ids
             )
 
-
             if (
                 len(chat_history) > 0
             ):  # if its not the first message in the conversation
@@ -128,20 +127,6 @@ class LLM:
                 print("Keep context response:", keepContext.choices[0].message.content)
                 if keepContext.choices[0].message.content.lower() == "no":
                     chat_history = []
-            print("Vector DB Response:", vectorDBResponse)
-            sources = []
-            if isinstance(vectorDBResponse, pd.DataFrame):
-                if vectorDBResponse.empty:
-                    vector_content = ""
-                else:
-                    if "sources" in vectorDBResponse.columns:
-                        # we need a list of sources to return with the LLM response
-                        sources = vectorDBResponse["sources"].tolist()
-                    # Convert DataFrame to a more readable format
-                    vector_content = vectorDBResponse.to_string(index=False)
-            else:
-                vector_content = str(vectorDBResponse)
-            # print("Vector DB Response:", vector_content)
 
             qa_docs = self.RAG_instance.get_qa_docs(user_prompt)
 
@@ -163,15 +148,14 @@ class LLM:
                 """
 
             messages = [
-              #  {
-              #     "role": "system",
-              #     "content": styling_prompt,
-              # },
+                {
+                    "role": "system",
+                    "content": styling_prompt,
+                },
                 {
                     "role": "system",
                     "content": startingPrompt,
                 },
-
                 *chat_history,
                 {
                     "role": "user",
@@ -181,7 +165,7 @@ class LLM:
                 },
             ]
             # print("Messages before tool calls:", messages)
-            
+
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
                 messages=messages,  # Includes Conversation history
@@ -301,12 +285,12 @@ class LLM:
                     toolInfo=toolMessages,
                 )
                 messagesNoContext = [
-                  # {"role": "system", "content": styling_prompt},
+                    {"role": "system", "content": styling_prompt},
                     {
                         "role": "system",
                         "content": secondLLMCallStartingPrompt,
                     },
-                    {"role": "user", "content": userInput},   
+                    {"role": "user", "content": userInput},
                 ]
                 # print("Messages without context:", messagesNoContext)
                 second_response = self.client.chat.completions.create(
