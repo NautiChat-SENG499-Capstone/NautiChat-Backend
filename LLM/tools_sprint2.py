@@ -213,6 +213,8 @@ async def get_ship_noise_acoustic_for_date(
     download_results_only = False
     include_metadata_file = False
 
+    params["token"] = user_onc_token  # Add the ONC token to the parameters.
+
     try:
         # Submit data product order to ONC
         order = onc.requestDataProduct(
@@ -298,6 +300,8 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str) -> Dict:
     max_retries = 1000
     download_results_only = False
     include_metadata_file = False
+
+    params["token"] = user_onc_token  # Add the ONC token to the parameters.
 
     try:
         # Submit data product order to ONC
