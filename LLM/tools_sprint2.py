@@ -1,9 +1,6 @@
-import os
-import sys
 from datetime import datetime, timedelta
 from typing import Dict
 
-import httpx
 from onc import ONC
 
 from LLM.Constants.status_codes import StatusCode
@@ -209,29 +206,17 @@ async def get_ship_noise_acoustic_for_date(
         "dpo_audioFormatConversion": 0,  # Skip reprocessing if already archived
     }
 
-    max_retries = 80
-    download_results_only = False
-    include_metadata_file = False
-
     params["token"] = user_onc_token  # Add the ONC token to the parameters.
 
     try:
         # Submit data product order to ONC
-        order = onc.requestDataProduct(
-            params, max_retries, download_results_only, include_metadata_file
-        )
+        order = onc.requestDataProduct(params)
 
         # Try to extract request ID, DOI, etc. if present
-        dpRequestId = order[0].get("dpRequestId") if order else None
-        doi = (
-            order[0].get("citations", [{}])[0].get("doi", "No DOI available")
-            if order
-            else "No DOI available"
-        )
+        dpRequestId = order["dpRequestId"]
+        doi = order["citations"][0]["doi"] if order else "No DOI available"
         citation = (
-            order[0].get("citations", [{}])[0].get("citation", "No citation available")
-            if order
-            else "No citation available"
+            order["citations"][0]["citation"] if order else "No citation available"
         )
 
         return {
@@ -297,29 +282,18 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str) -> Dict:
         "deviceCategoryCode": "HYDROPHONE",
     }
 
-    max_retries = 1000
-    download_results_only = False
-    include_metadata_file = False
-
     params["token"] = user_onc_token  # Add the ONC token to the parameters.
 
     try:
         # Submit data product order to ONC
-        order = onc.requestDataProduct(
-            params, max_retries, download_results_only, include_metadata_file
-        )
+        order = onc.requestDataProduct(params)
 
         # Try to extract request ID, DOI, etc. if present
-        dpRequestId = order[0].get("dpRequestId") if order else None
-        doi = (
-            order[0].get("citations", [{}])[0].get("doi", "No DOI available")
-            if order
-            else "No DOI available"
-        )
+        print(order)
+        dpRequestId = order["dpRequestId"]
+        doi = order["citations"][0]["doi"] if order else "No DOI available"
         citation = (
-            order[0].get("citations", [{}])[0].get("citation", "No citation available")
-            if order
-            else "No citation available"
+            order["citations"][0]["citation"] if order else "No citation available"
         )
 
         return {
