@@ -130,7 +130,6 @@ async def get_deployed_devices_over_time_interval(
                 return {
                     "response": "Error: Invalid ONC token. Please check your token and try again.",
                     "urlParamsUsed": {
-                        "locationCode": CAMBRIDGE_LOCATION_CODE,
                         "locationCode": locationCode,
                         "dateFrom": dateFrom,
                         "dateTo": dateTo,
@@ -142,7 +141,6 @@ async def get_deployed_devices_over_time_interval(
                 return {
                     "response": "Error: Access denied. Your ONC token may not have permission for this data.",
                     "urlParamsUsed": {
-                        "locationCode": CAMBRIDGE_LOCATION_CODE,
                         "locationCode": locationCode,
                         "dateFrom": dateFrom,
                         "dateTo": dateTo,
@@ -154,7 +152,6 @@ async def get_deployed_devices_over_time_interval(
                 return {
                     "response": f"Error: Failed to fetch deployment data: {str(e)}",
                     "urlParamsUsed": {
-                        "locationCode": CAMBRIDGE_LOCATION_CODE,
                         "locationCode": locationCode,
                         "dateFrom": dateFrom,
                         "dateTo": dateTo,
@@ -181,7 +178,6 @@ async def get_deployed_devices_over_time_interval(
             "response": "No data available for the given date.",
             "urlParamsUsed": {
                 "locationCode": CAMBRIDGE_LOCATION_CODE,
-                "locationCode": locationCode,
                 "dateFrom": dateFrom,
                 "dateTo": dateTo,
                 "token": user_onc_token,
@@ -196,7 +192,6 @@ async def get_deployed_devices_over_time_interval(
         },
         "urlParamsUsed": {
             "locationCode": CAMBRIDGE_LOCATION_CODE,
-            "locationCode": locationCode,
             "dateFrom": dateFrom,
             "dateTo": dateTo,
             "token": user_onc_token,
