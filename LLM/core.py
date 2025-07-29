@@ -243,7 +243,7 @@ class LLM:
                             function_name == "get_ship_noise_acoustic_for_date"
                             or function_name == "plot_spectrogram_for_date"
                         ):
-                            handle_plotting_reequests(
+                            return handle_plotting_reequests(
                                 function_response=function_response,
                                 sources=sources,
                                 obtained_params=obtained_params,
