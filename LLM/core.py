@@ -16,7 +16,7 @@ from LLM.Constants.tool_descriptions import toolDescriptions
 from LLM.Constants.utils import (
     create_user_call,
     handle_data_download,
-    handle_plotting_reequests,
+    handle_plotting_requests,
     handle_scalar_request,
 )
 from LLM.data_download import generate_download_codes
@@ -243,7 +243,7 @@ class LLM:
                             function_name == "get_ship_noise_acoustic_for_date"
                             or function_name == "plot_spectrogram_for_date"
                         ):
-                            return handle_plotting_reequests(
+                            return handle_plotting_requests(
                                 function_response=function_response,
                                 sources=sources,
                                 obtained_params=obtained_params,

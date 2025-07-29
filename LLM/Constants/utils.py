@@ -63,7 +63,7 @@ def sync_param(field_name: str, local_value, params_model, all_obtained_params: 
     return local_value
 
 
-def handle_plotting_reequests(
+def handle_plotting_requests(
     function_response: dict,
     sources: list,
     obtained_params: ObtainedParamsDictionary,
