@@ -215,7 +215,7 @@ async def get_ship_noise_acoustic_for_date(
 
     try:
         # Submit data product order to ONC
-        order = onc.orderDataProduct(
+        order = onc.requestDataProduct(
             params, max_retries, download_results_only, include_metadata_file
         )
 
@@ -242,7 +242,7 @@ async def get_ship_noise_acoustic_for_date(
                 f"from {date_from_str} to {date_to_str}."
             ),
             "urlParamsUsed": params,
-            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/requestDataProduct?",
             "obtainedParams": ObtainedParamsDictionary(
                 **params
             ),  # Structured as a Pydantic model
@@ -257,7 +257,7 @@ async def get_ship_noise_acoustic_for_date(
             "response": "An error occurred while submitting your noise acoustic data request.",
             "obtainedParams": ObtainedParamsDictionary(**params),
             "urlParamsUsed": params,
-            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/requestDataProduct?",
         }
 
 
@@ -301,7 +301,7 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str) -> Dict:
 
     try:
         # Submit data product order to ONC
-        order = onc.orderDataProduct(
+        order = onc.requestDataProduct(
             params, max_retries, download_results_only, include_metadata_file
         )
 
@@ -328,7 +328,7 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str) -> Dict:
                 f"from {date_from} to {date_to}."
             ),
             "urlParamsUsed": params,
-            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/requestDataProduct?",
             "obtainedParams": ObtainedParamsDictionary(
                 **params
             ),  # Structured as a Pydantic model
@@ -341,7 +341,7 @@ async def plot_spectrogram_for_date(date_str: str, user_onc_token: str) -> Dict:
             "response": "An error occurred while submitting your spectrogram data request.",
             "obtainedParams": ObtainedParamsDictionary(**params),
             "urlParamsUsed": params,
-            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/orderDataProduct?",
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/requestDataProduct?",
         }
 
 
