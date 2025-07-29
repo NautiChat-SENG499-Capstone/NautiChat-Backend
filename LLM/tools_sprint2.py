@@ -496,7 +496,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
     # print(f"Average ice thickness from {date_from_str} to {date_to_str}: {average_ice_thickness} m")
     return {
         "response": {
-            "average_ice_thickness": average_ice_thickness,
+            "average_ice_thickness": round(average_ice_thickness, 3),
             "description": f"Average Sea-ice thickness in meters for over the time range: {date_from_str} to {date_to_str} is {average_ice_thickness} m",
         },
         "urlParamsUsed": {

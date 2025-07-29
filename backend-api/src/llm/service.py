@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from LLM.core import LLM
+from LLM.RAG import RAG
 from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
 from src.admin.service import increment_usage
 from src.auth.schemas import UserOut
@@ -20,7 +21,7 @@ from .schemas import (
     Feedback,
     Message,
 )
-from .utils import get_context
+from .utils import get_context, get_llm
 
 MAX_CONTEXT_WORDS = 200
 
@@ -46,6 +47,7 @@ async def create_conversation(
         user_id=conversation.user_id,
         title=conversation.title,
         messages=[],  # New conversation has no messages yet
+        previous_vdb_ids=[],  # New conversation has no vdb ids yet
     )
 
 
@@ -166,7 +168,8 @@ async def generate_response(
 
     # Call LLM to generate response
     try:
-        llm: LLM = request.app.state.llm
+        # Lazy Initialize the LLM (for first call)
+        llm: LLM = get_llm(request.app)
         llm_result: RunConversationResponse = await llm.run_conversation(
             user_prompt=llm_query.input,
             chat_history=chat_history,
@@ -174,23 +177,26 @@ async def generate_response(
             obtained_params=ObtainedParamsDictionary(
                 **existing_conversation.obtained_params
             ),
+            previous_vdb_ids=existing_conversation.previous_vdb_ids,
         )
 
         await populate_message_from_response(llm_result, message, db)
-
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error generating response from LLM: {str(e)}"
         )
 
     existing_conversation.obtained_params = llm_result.obtainedParams.model_dump()
+    if llm_result.point_ids:
+        existing_conversation.previous_vdb_ids = [
+            llm_result.point_ids[0]
+        ]  # Gets most relevant point
 
     db.add(message)
     await db.commit()
 
     await db.refresh(message)
     await db.refresh(existing_conversation)
-
     return message
 
 
@@ -220,6 +226,7 @@ async def submit_feedback(
     feedback: Feedback,
     current_user: UserOut,
     db: AsyncSession,
+    request: Request,
 ) -> Message:
     """Create Feedback entry for Message (or update current Feedback)"""
     # TODO: Check that message belongs to current user
@@ -255,4 +262,19 @@ async def submit_feedback(
 
     await db.commit()
     await db.refresh(message)
+    if feedback.rating == 2:
+        state = request.app.state
+        await upload_message_to_qdrant(message.input, message.response, state.rag)
     return message
+
+
+async def upload_message_to_qdrant(user_input: str, llm_response: str, rag: RAG):
+    """
+    Uploads the user input and LLM response to the Qdrant QA collection.
+    """
+    qa_pair_to_upload = {
+        "original_question": user_input,
+        "text": {"response": llm_response},
+    }
+    # This calls the method on the RAG instance.
+    await rag.upload_new_qa(qa_pair_to_upload)

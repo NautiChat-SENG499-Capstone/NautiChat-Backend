@@ -1,7 +1,12 @@
+import io
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from fastapi import status
+from fastapi import HTTPException, status
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.admin.models import VectorDocument
 from src.auth import schemas
 from src.auth.service import get_user_by_token
 from src.settings import get_settings
@@ -148,3 +153,187 @@ class TestMessageClustering:
         assert response.status_code == status.HTTP_200_OK
         clusters = response.json()
         assert isinstance(clusters, dict)
+
+
+class TestAdminDocumentUpload:
+    @patch("src.admin.service.raw_text_upload_to_vdb", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_upload_raw_text_success(self, mock_upload, client, admin_headers):
+        """Test that upload raw text returns 201 on success"""
+        mock_upload.return_value = None
+        resp = await client.post(
+            "/admin/documents/raw-data",
+            headers=admin_headers,
+            data={"source": "mysource", "input_text": "hello world"},
+        )
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.json()["detail"] == "Raw text uploaded successfully"
+        mock_upload.assert_awaited_once()
+
+    @patch("src.admin.service.raw_text_upload_to_vdb", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_upload_raw_text_failure(self, mock_upload, client, admin_headers):
+        """Test that upload raw text returns 500 on failure"""
+        mock_upload.side_effect = HTTPException(
+            status_code=502, detail="Simulated failure"
+        )
+        resp = await client.post(
+            "/admin/documents/raw-data",
+            headers=admin_headers,
+            data={"source": "mysource", "input_text": "hello world"},
+        )
+        assert resp.status_code >= 500
+
+    @patch(
+        "src.admin.service.prepare_embedding_input_from_preformatted",
+        new_callable=AsyncMock,
+    )
+    @patch("src.admin.service.upload_to_vector_db", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_raw_text_creates_metadata(
+        self,
+        mock_vec_upload,
+        mock_prepare,
+        client,
+        admin_headers,
+        async_session,
+    ):
+        """Test that raw text upload creates metadata in vector DB"""
+        mock_prepare.return_value = "prepared"
+        mock_vec_upload.return_value = None
+
+        resp = await client.post(
+            "/admin/documents/raw-data",
+            headers=admin_headers,
+            data={"source": "raw_success_doc", "input_text": "hello DB!"},
+        )
+
+        assert resp.status_code == 201
+        # row should exist
+
+        row = await async_session.scalar(
+            select(VectorDocument).where(VectorDocument.source == "raw_success_doc")
+        )
+        assert row is not None
+
+    @patch(
+        "src.admin.service.prepare_embedding_input_from_preformatted", new_callable=Mock
+    )
+    @patch("src.admin.service.upload_to_vector_db", new_callable=Mock)
+    @pytest.mark.asyncio
+    async def test_raw_text_rolls_back_on_failure(
+        self,
+        mock_vec_upload,
+        mock_prepare,
+        client,
+        admin_headers,
+        async_session,
+    ):
+        """Test that raw text upload rolls back on failure"""
+        mock_prepare.return_value = "prepared"
+        mock_vec_upload.side_effect = Exception("boom")
+
+        resp = await client.post(
+            "/admin/documents/raw-data",
+            headers=admin_headers,
+            data={"source": "raw_fail_doc", "input_text": "will roll back"},
+        )
+
+        assert resp.status_code >= 500
+        # verify row was removed
+        row = await async_session.scalar(
+            select(VectorDocument).where(VectorDocument.source == "raw_fail_doc")
+        )
+        assert row is None
+
+    @patch("src.admin.service.pdf_upload_to_vdb", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_upload_pdf_success(self, mock_upload, client, admin_headers):
+        """Test that upload PDF returns 202 on success"""
+        mock_upload.return_value = None
+        pdf_bytes = io.BytesIO(b"%PDF-1.4 test content")
+        resp = await client.post(
+            "/admin/documents/pdf",
+            headers=admin_headers,
+            files={"file": ("test.pdf", pdf_bytes, "application/pdf")},
+            data={"source": "pdfsource"},
+        )
+        assert resp.status_code == status.HTTP_202_ACCEPTED
+        assert resp.json()["detail"] == "PDF upload queued for processing."
+        mock_upload.assert_called_once()
+
+
+class TestAdminDocumentCRUD:
+    @patch("src.admin.service.get_all_documents", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_get_all_documents_success(self, mock_get_all, client, admin_headers):
+        """Test that get all documents returns metadata"""
+        # Return a list of document dicts as VectorDocumentOut expects
+        mock_get_all.return_value = [
+            {"id": 1, "source": "foo", "usage_count": 5, "uploaded_by_id": 1}
+        ]
+        resp = await client.get("/admin/documents", headers=admin_headers)
+        assert resp.status_code == status.HTTP_200_OK
+        data = resp.json()
+        assert isinstance(data, list)
+        assert data[0]["source"] == "foo"
+        mock_get_all.assert_awaited_once()
+
+    @patch("src.admin.service.get_all_documents", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_get_all_documents_failure(self, mock_get_all, client, admin_headers):
+        """Test that get all documents returns 500 on failure"""
+        mock_get_all.side_effect = HTTPException(status_code=500, detail="fail")
+        resp = await client.get("/admin/documents", headers=admin_headers)
+        assert resp.status_code == 500
+        assert resp.json()["detail"] == "fail"
+
+    @patch("src.admin.service.get_document_by_source", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_get_document_by_source_success(
+        self, mock_get_one, client, admin_headers
+    ):
+        """Test that get document by source returns metadata"""
+        mock_get_one.return_value = {
+            "id": 2,
+            "source": "mysource",
+            "usage_count": 1,
+            "uploaded_by_id": 7,
+        }
+        resp = await client.get("/admin/documents/mysource", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["source"] == "mysource"
+        # Check mock was called with correct arguments
+        called_args = mock_get_one.await_args.args
+        assert called_args[0] == "mysource"
+        assert isinstance(called_args[1], AsyncSession)
+
+    @patch("src.admin.service.get_document_by_source", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_get_document_by_source_not_found(
+        self, mock_get_one, client, admin_headers
+    ):
+        """Test that get document by source returns 404 when not found"""
+        mock_get_one.side_effect = HTTPException(status_code=404, detail="not found")
+        resp = await client.get("/admin/documents/doesnotexist", headers=admin_headers)
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "not found"
+
+    @patch("src.admin.service.source_remove_from_vdb", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_delete_document_success(self, mock_remove, client, admin_headers):
+        """Test that delete document removes from vector DB"""
+        mock_remove.return_value = None
+        resp = await client.delete("/admin/documents/toremove", headers=admin_headers)
+        assert resp.status_code == status.HTTP_204_NO_CONTENT
+        mock_remove.assert_awaited_once()
+
+    @patch("src.admin.service.source_remove_from_vdb", new_callable=AsyncMock)
+    @pytest.mark.asyncio
+    async def test_delete_document_failure(self, mock_remove, client, admin_headers):
+        """Test that delete document returns 500 on failure"""
+        mock_remove.side_effect = HTTPException(status_code=500, detail="fail")
+        resp = await client.delete("/admin/documents/toremove", headers=admin_headers)
+        assert resp.status_code == 500
+        assert resp.json()["detail"] == "fail"

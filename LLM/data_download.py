@@ -2,16 +2,66 @@ from typing import Optional
 
 from onc import ONC
 
+from LLM.Constants.dataDownloadCodes import dataDownloadCodes
+from LLM.Constants.locationCodeDefs import locationCodeDefs
 from LLM.Constants.status_codes import StatusCode
 from LLM.Constants.utils import sync_param
 from LLM.schemas import ObtainedParamsDictionary
+
+
+def obtain_location_codes(deviceCategoryCode: str) -> list[str]:
+    locationCodes = []
+    for device in dataDownloadCodes:
+        if device["deviceCategoryCode"] == deviceCategoryCode:
+            locationCodes.append(device["locationCode"])
+    return locationCodes
+
+
+def obtain_data_product_code(
+    extension: str, deviceCategoryCode: str, locationCode: str
+):
+    for device in dataDownloadCodes:
+        if (
+            device["deviceCategoryCode"] == deviceCategoryCode
+            and device["locationCode"] == locationCode
+        ):
+            for product in device["possibleDataProducts"]:
+                if extension in product["availableExtensions"]:
+                    return product["dataProductCode"]
+    return None
+
+
+def find_possible_extensions(deviceCategoryCode: str, locationCode: str):
+    possibleDataProducts = []
+    for device in dataDownloadCodes:
+        if (
+            device["deviceCategoryCode"] == deviceCategoryCode
+            and device["locationCode"] == locationCode
+        ):
+            for product in device["possibleDataProducts"]:
+                possibleDataProducts.append(
+                    {
+                        "dataProduct": product["dataProduct"],
+                        "dataProductCode": product["dataProductCode"],
+                        "extension": product["availableExtensions"],
+                    }
+                )
+
+    if len(possibleDataProducts) > 0:
+        product_info_list = [
+            f"{dataProduct['dataProduct']} ({dataProduct['dataProductCode']}): {', '.join(dataProduct['extension'])}"
+            for dataProduct in possibleDataProducts
+        ]
+        products_str = "; ".join(product_info_list)
+        return products_str
+    return None
 
 
 async def generate_download_codes(
     user_onc_token: str,
     deviceCategoryCode: Optional[str] = None,
     locationCode: Optional[str] = None,
-    dataProductCode: Optional[str] = None,
+    # dataProductCode: Optional[str] = None,
     extension: Optional[str] = None,
     dateFrom: Optional[str] = None,
     dateTo: Optional[str] = None,
@@ -83,10 +133,57 @@ async def generate_download_codes(
     locationCode = sync_param(
         "locationCode", locationCode, obtainedParams, allObtainedParams
     )
-    dataProductCode = sync_param(
-        "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
-    )
     extension = sync_param("extension", extension, obtainedParams, allObtainedParams)
+
+    if locationCode is None and deviceCategoryCode is not None:
+        locationCodes = obtain_location_codes(deviceCategoryCode)
+        if len(locationCodes) == 0:
+            return {
+                "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+                "response": f"Error: No location codes found for device category code '{deviceCategoryCode}'. Please select a different device category code or check the available location codes.",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+        elif len(locationCodes) == 1:
+            locationCode = locationCodes[0]
+            locationCode = sync_param(
+                "locationCode", locationCode, obtainedParams, allObtainedParams
+            )
+        else:  # If there are multiple location codes, return them to the user
+            response = f"Hey! It looks like you want to do a data download! However, I found multiple location codes for device category code '{deviceCategoryCode}': "
+            for location in locationCodeDefs:
+                if location["locationCode"] in locationCodes:
+                    response += (
+                        f"\n- {location['locationCode']}: {location['description']}"
+                    )
+            response += ".\nPlease specify which one you want to use."
+            return {
+                "status": StatusCode.PARAMS_NEEDED,
+                "response": response,
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+
+    if extension is None:
+        obtainedParams.dataProductCode = None
+    dataProductCode = obtainedParams.dataProductCode
+
+    if (
+        extension is not None
+        and deviceCategoryCode is not None
+        and locationCode is not None
+    ):  # and dataProductCode is None
+        dataProductCode = obtain_data_product_code(
+            extension, deviceCategoryCode, locationCode
+        )
+        dataProductCode = sync_param(
+            "dataProductCode", dataProductCode, obtainedParams, allObtainedParams
+        )
+        if dataProductCode is None:
+            return {
+                "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+                "response": f"Error: No data product code found for extension '{extension}' and device category code '{deviceCategoryCode}'.",
+                "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+            }
+
     dateFrom = sync_param("dateFrom", dateFrom, obtainedParams, allObtainedParams)
     dateTo = sync_param("dateTo", dateTo, obtainedParams, allObtainedParams)
     #  "dpo_qualityControl": "1", #1 means to clean the data, 0 means to not clean the data. Cleaning the data will use qaqc flags 3,4 and 6 to be replaced with Nans when dpo)dataGaps is set to 1. If its set to 0, then the data will be removed.
@@ -139,11 +236,33 @@ async def generate_download_codes(
 
     if len(neededParams) > 0:  # If need one or more parameters
         print("OBTAINED PARAMS: ", ObtainedParamsDictionary(**allObtainedParams))
+        if (
+            extension is None
+            and deviceCategoryCode is not None
+            and locationCode is not None
+        ):
+            possibleExtensionStr = find_possible_extensions(
+                deviceCategoryCode, locationCode
+            )
+            if possibleExtensionStr:
+                return {
+                    "status": StatusCode.PARAMS_NEEDED,
+                    "response": (
+                        f"Hey! It looks like you want to do a data download! So far I have the following parameters: "
+                        f"{', '.join(allObtainedParams.keys())}. "
+                        f"However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. "
+                        f"Some possible extensions for data download are also as follows: {possibleExtensionStr}. "
+                        f"Thank you!"
+                    ),
+                    "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
+                }
+
         return {
             "status": StatusCode.PARAMS_NEEDED,
             "response": f"Hey! It looks like you want to do a data download! So far I have the following parameters: {', '.join(allObtainedParams.keys())}. However, I still need you to please provide the following missing parameters so I can complete the data download request: {', '.join(neededParams)}. Thank you!",
             "obtainedParams": ObtainedParamsDictionary(**allObtainedParams),
         }
+    allObtainedParams["token"] = user_onc_token  # Add the ONC token to the parameters.
 
     try:
         response = onc.requestDataProduct(allObtainedParams)
@@ -153,7 +272,7 @@ async def generate_download_codes(
             "dpRequestId": response["dpRequestId"],
             "doi": response["citations"][0]["doi"],
             "citation": response["citations"][0]["citation"],
-            "response": "Your download is being processed.",
+            "response": "Your download is being processed. Is there anything else I can help you with?",
             "urlParamsUsed": allObtainedParams,
             "baseUrl": "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
         }

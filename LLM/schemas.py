@@ -7,6 +7,14 @@ from LLM.Constants.status_codes import StatusCode  # Change to LLM. for producti
 # from LLM.Constants.StatusCodes import StatusCode
 
 
+class ToolCall(BaseModel):
+    """function name, arguments and response from the tool"""
+
+    function_name: str
+    arguments: str
+    response: str
+
+
 class ObtainedParamsDictionary(BaseModel):
     """Parameters obtained from the user"""
 
@@ -49,3 +57,4 @@ class RunConversationResponse(BaseModel):
     baseUrl: Optional[str] = None
     urlParamsUsed: Optional[dict] = Field(default_factory=dict)
     sources: list[str] = Field(default_factory=list)
+    point_ids: list[str] = Field(default_factory=list)

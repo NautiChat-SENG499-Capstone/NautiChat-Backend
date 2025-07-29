@@ -1,5 +1,5 @@
 from LLM.Constants.status_codes import StatusCode
-from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
+from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse, ToolCall
 
 resample_periods = [
     1,
@@ -26,6 +26,26 @@ resample_periods = [
 ]
 
 
+def create_user_call(
+    user_prompt: str, vector_content: str, toolInfo: list[ToolCall] = None
+) -> str:
+    user_input = f"""(Sensor Information from Vector Search for context only):
+            {vector_content}
+
+            Using the above information, answer the following question:
+            {user_prompt}
+        """
+    if toolInfo:
+        user_input += "\nHere is the data retrieved from tools you would have called:"
+        user_input += "\n".join(
+            [
+                f"Function Name: {call.function_name}\nArguments: {call.arguments}\nResponse: {call.response}"
+                for call in toolInfo
+            ]
+        )
+    return user_input
+
+
 def sync_param(field_name: str, local_value, params_model, all_obtained_params: dict):
     """
     Sync a local variable with a field in a Pydantic model:
@@ -44,7 +64,10 @@ def sync_param(field_name: str, local_value, params_model, all_obtained_params: 
 
 
 def handle_scalar_request(
-    function_response: dict, sources: list, scalar_request_status: int
+    function_response: dict,
+    sources: list,
+    scalar_request_status: int,
+    point_ids: list[str] = None,
 ) -> RunConversationResponse:
     if scalar_request_status == StatusCode.PARAMS_NEEDED:
         print("Scalar request parameters needed, returning response now")
@@ -57,6 +80,7 @@ def handle_scalar_request(
             response=function_response.get("response"),
             obtainedParams=obtained_params,
             sources=sources,
+            point_ids=point_ids,
         )
     elif scalar_request_status == StatusCode.DEPLOYMENT_ERROR:
         print("Scalar request parameters needed, returning response now")
@@ -72,9 +96,10 @@ def handle_scalar_request(
             urlParamsUsed=function_response.get("urlParamsUsed", {}),
             baseUrl=function_response.get(
                 "baseUrl",
-                "https://data.oceannetworks.ca/api/scalardata/location",
+                "https://data.oceannetworks.ca/api/scalardata/location?",
             ),
             sources=sources,
+            point_ids=point_ids,
         )
     elif scalar_request_status == StatusCode.NO_DATA:
         print("No data returned.")
@@ -86,14 +111,15 @@ def handle_scalar_request(
         # Return a response indicating that Paramaters are needed
         return RunConversationResponse(
             status=StatusCode.DEPLOYMENT_ERROR,
-            response=function_response.get("description"),
+            response=function_response.get("response"),
             obtainedParams=obtained_params,
             urlParamsUsed=function_response.get("urlParamsUsed", {}),
             baseUrl=function_response.get(
                 "baseUrl",
-                "https://data.oceannetworks.ca/api/scalardata/location",
+                "https://data.oceannetworks.ca/api/scalardata/location?",
             ),
             sources=sources,
+            point_ids=point_ids,
         )
     elif scalar_request_status == StatusCode.SCALAR_REQUEST_ERROR:
         print("No data returned.")
@@ -110,14 +136,17 @@ def handle_scalar_request(
             urlParamsUsed=function_response.get("urlParamsUsed", {}),
             baseUrl=function_response.get(
                 "baseUrl",
-                "https://data.oceannetworks.ca/api/scalardata/location",
+                "https://data.oceannetworks.ca/api/scalardata/location?",
             ),
             sources=sources,
+            point_ids=point_ids,
         )
 
 
 def handle_data_download(
-    function_response: dict, sources: list
+    function_response: dict,
+    sources: list,
+    point_ids: list[str] = None,
 ) -> RunConversationResponse:
     data_download_status = function_response.get("status")
     if data_download_status == StatusCode.PARAMS_NEEDED:
@@ -133,6 +162,7 @@ def handle_data_download(
             response=function_response.get("response"),
             obtainedParams=obtained_params,
             sources=sources,
+            point_ids=point_ids,
         )
     elif data_download_status == StatusCode.PROCESSING_DATA_DOWNLOAD:
         print("download done so returning response now")
@@ -156,6 +186,7 @@ def handle_data_download(
                 "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
             ),
             sources=sources,
+            point_ids=point_ids,
         )
     elif data_download_status == StatusCode.ERROR_WITH_DATA_DOWNLOAD:
         print("Download error so returning response now")
@@ -176,4 +207,5 @@ def handle_data_download(
                 "https://data.oceannetworks.ca/api/dataProductDelivery/request?",
             ),
             sources=sources,
+            point_ids=point_ids,
         )

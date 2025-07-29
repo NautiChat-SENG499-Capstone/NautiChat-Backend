@@ -2,10 +2,12 @@ import asyncio
 import traceback
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.background import BackgroundScheduler  # Import APScheduler
 from fastapi import FastAPI
 
 from LLM.core import LLM
 from LLM.Environment import Environment
+from LLM.vector_db_upload import vdb_auto_upload
 from src.database import DatabaseSessionManager
 from src.logger import logger
 from src.settings import get_settings
@@ -37,9 +39,20 @@ async def lifespan(app: FastAPI):
             logger.error(f"LLM initialization failed: {e}")
             raise RuntimeError(f"LLM initialization failed: {e}")
 
-        logger.info("Getting RAG instance...")
+        logger.info("Getting RAG instance ...")
         app.state.rag = app.state.llm.RAG_instance
         logger.info("RAG instance initialized successfully.")
+
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(
+            vdb_auto_upload,
+            "interval",
+            hours=24,
+            id="vdb auto upload",
+            args=[app.state],
+        )
+        scheduler.start()
+        logger.info("Started vector database auto upload job every 24 hours")
 
     except Exception as e:
         logger.error(f"Startup failed with error: {str(e)}")

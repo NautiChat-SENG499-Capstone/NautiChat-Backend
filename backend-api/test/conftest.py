@@ -1,35 +1,43 @@
 import asyncio
-import os
 from datetime import timedelta
 from typing import AsyncIterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
 from asgi_lifespan import LifespanManager
+from fastapi import HTTPException, status
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from src.settings import get_settings
-
-# Set up test DB URL
-# TODO: Create a Postgres Test DB for thorough testing
-os.environ["SUPABASE_DB_URL"] = "sqlite+aiosqlite:///:memory:"
-SUPABASE_DB_URL = os.environ["SUPABASE_DB_URL"]
-
-# Must be imported after setting SUPABASE_DB_URL
 from src.auth import models
 from src.auth.service import create_access_token, get_password_hash
 from src.database import Base, get_db_session
 from src.main import create_app
+from src.middleware import limiter
+from src.settings import get_settings
 
 from LLM.Constants.status_codes import StatusCode
-from LLM.schemas import RunConversationResponse
+from LLM.core import LLM
+from LLM.Environment import Environment
+from LLM.schemas import ObtainedParamsDictionary, RunConversationResponse
+
+SUPABASE_DB_URL = "sqlite+aiosqlite:///:memory:"
+
+# A global instance of the real llm instance so that tests don't re-initialize each time
+_real_llm_instance = None
 
 
 @pytest.fixture
 def _user_headers(user_headers):
     """Alias the existing user_headers fixture for tests expecting _user_headers"""
     return user_headers
+
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_rate_limiter():
+    """Globally disable rate limiting for all tests"""
+    limiter.enabled = False
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -131,17 +139,92 @@ async def admin_headers(async_session: AsyncSession):
     return {"Authorization": f"Bearer {token}"}
 
 
-class DummyLLM:
-    async def run_conversation(self, user_prompt, *_, **__):
-        return RunConversationResponse(
-            status=StatusCode.REGULAR_MESSAGE,
-            response=f"LLM Response for {user_prompt}",
-        )
+class MockLLM:
+    def __init__(self):
+        self.called_with_history = None
+        self.last_prompt = None
 
-        async def _noop(*_args, **_kwargs):
-            return ""
+    async def run_conversation(
+        self,
+        user_prompt: str,
+        user_onc_token: str,
+        chat_history: list[dict] = [],
+        obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
+        previous_vdb_ids: list[dict] = [],
+    ) -> RunConversationResponse:
+        self.called_with_history = chat_history
+        self.last_prompt = user_prompt.lower()
 
-        return _noop
+        dummy_sources = ["source_1", "source_2"]
+        dummy_point_ids = ["point_abc123", "point_def456"]
+        dummy_obtained_params = ObtainedParamsDictionary()  # All fields empty/default
+
+        # Simulate response based on prompt content
+        if "onc" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.REGULAR_MESSAGE,
+                response="ONC is Ocean Networks Canada.",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
+            )
+
+        elif "download" in self.last_prompt:
+            if "scalar" in self.last_prompt and "data" in self.last_prompt:
+                return RunConversationResponse(
+                    status=StatusCode.PROCESSING_DATA_DOWNLOAD,
+                    response="Download request submitted.",
+                    dpRequestId=42,
+                    baseUrl="https://data.oceannetworks.ca/api/scalar?",
+                    urlParamsUsed={"sensor_id": "123", "start": "2020-01-01"},
+                    sources=dummy_sources,
+                    point_ids=dummy_point_ids,
+                    dummy_obtained_params=dummy_obtained_params,
+                )
+            else:
+                return RunConversationResponse(
+                    status=StatusCode.PARAMS_NEEDED,
+                    response="I need more info to download anything.",
+                    sources=dummy_sources,
+                    point_ids=dummy_point_ids,
+                    dummy_obtained_params=dummy_obtained_params,
+                )
+
+        elif "interrupt" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.DEPLOYMENT_ERROR,
+                response="Tool call was interrupted. Please try again.",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
+            )
+
+        elif "fail" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.LLM_ERROR,
+                response="Something went wrong while processing the message.",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
+            )
+
+        elif "no data" in self.last_prompt:
+            return RunConversationResponse(
+                status=StatusCode.NO_DATA,
+                response="No data was available for your request.",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
+            )
+
+        else:
+            return RunConversationResponse(
+                status=StatusCode.REGULAR_MESSAGE,
+                response=f"Default mock response to: '{user_prompt}'",
+                sources=dummy_sources,
+                point_ids=dummy_point_ids,
+                dummy_obtained_params=dummy_obtained_params,
+            )
 
     def __getattr__(self, _):
         async def _noop(*args, **kwargs):
@@ -160,16 +243,61 @@ class DummyRAG:
         return _noop
 
 
+@pytest.fixture(scope="session")
+def real_llm() -> LLM:
+    """Create and cache the real LLM once per session."""
+    global _real_llm_instance
+    if _real_llm_instance is None:
+        _real_llm_instance = LLM(Environment())
+    return _real_llm_instance
+
+
 @pytest_asyncio.fixture(autouse=True)
-async def _stub_llm_and_rag(client: AsyncClient):
+async def _stub_llm_and_rag(
+    client: AsyncClient, async_session: AsyncSession, request, real_llm
+):
+    if request.node.get_closest_marker("use_real_llm"):
+        asgi_app = getattr(client, "app", None)
+        if asgi_app is None:
+            transport = getattr(client, "_transport", None)
+            asgi_app = getattr(transport, "app", None) or getattr(
+                transport, "_app", None
+            )
+        assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
+
+        llm_instance = real_llm
+        asgi_app.state.llm = llm_instance
+        asgi_app.state.rag = llm_instance.RAG_instance
+        yield
+        return
+
     asgi_app = getattr(client, "app", None)
     if asgi_app is None:
         transport = getattr(client, "_transport", None)
         asgi_app = getattr(transport, "app", None) or getattr(transport, "_app", None)
     assert asgi_app is not None, "Could not locate ASGI app on AsyncClient"
 
-    asgi_app.state.llm = DummyLLM()
+    asgi_app.state.llm = MockLLM()
     asgi_app.state.rag = DummyRAG()
     yield
     del asgi_app.state.llm
     del asgi_app.state.rag
+
+
+@pytest.fixture(autouse=True)
+def patch_onc_token_validation(request):
+    async def mock_validate_onc_token(token: str):
+        """Mock ONC token validation"""
+
+        if token == get_settings().ONC_TOKEN:
+            return
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ONC token"
+        )
+
+    with patch(
+        "src.auth.service.validate_onc_token", new_callable=AsyncMock
+    ) as mock_onc:
+        mock_onc.side_effect = mock_validate_onc_token
+        yield mock_onc

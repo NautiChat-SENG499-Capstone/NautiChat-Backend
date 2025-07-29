@@ -165,47 +165,48 @@ toolDescriptions = [
                     "locationCode": {
                         "type": "string",
                         "enum": ["CBYDS", "CBYIP", "CBYIU", "CBYSP", "CBYSS", "CBYSU"],
-                        "description": "The ONC-defined locationCode where the device is deployed. This should be found by either user input or by using the locationCode associated with the deviceCategoryCode",  # (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).
+                        "description": "The ONC-defined locationCode where the device is deployed. This should be found by either user input or by using the locationCode associated with the deviceCategoryCode. (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).",  # (e.g., 'CBYDS' for the Cambridge Bay Diver data, 'CBYIP' for the Cambridge Bay Underwater Network, 'CBYIU' for the Cambridge Bay Signal Combiner Unit, 'CBYSP' for the Cambridge Bay Safe Passage Buoy, 'CBYSS' for the Cambridge Bay Shore Station, or 'CBYSU' for the Cambridge Bay Signal Combiner Unit).
                     },
-                    "dataProductCode": {
-                        "type": "string",
-                        "enum": [
-                            "LF",
-                            "MSQAQCR",
-                            "MP4V",
-                            "TSSD",
-                            "TSSP",
-                            "TSSCP",
-                            "TSSPPGD",
-                            "ND",
-                            "VRF",
-                            "RADCPTS",
-                            "RDCUP",
-                            "RDIP",
-                            "AF",
-                            "AD",
-                            "ASFV",
-                            "SBCTDRF",
-                            "CSPPD",
-                            "HSD",
-                            "HSPD",
-                            "SHV",
-                            "SISUSTS",
-                            "SRSLMF",
-                            "JPGF",
-                            "VQAQCR",
-                            "VQAQCTSB",
-                            "VQAQCTSF",
-                            "VQAQCTSSD",
-                            "IBPP",
-                            "IBTSPP",
-                        ],
-                        "description": "The ONC-defined dataProductCode for the data product requested. This should be directly related to the extension chosen by the user.",  # (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)
-                    },
+                    # "dataProductCode": {
+                    #     "type": "string",
+                    #     "enum": [
+                    #         "LF",
+                    #         "MSQAQCR",
+                    #         "MP4V",
+                    #         "TSSD",
+                    #         "TSSP",
+                    #         "TSSCP",
+                    #         "TSSPPGD",
+                    #         "ND",
+                    #         "VRF",
+                    #         "RADCPTS",
+                    #         "RDCUP",
+                    #         "RDIP",
+                    #         "AF",
+                    #         "AD",
+                    #         "ASFV",
+                    #         "SBCTDRF",
+                    #         "CSPPD",
+                    #         "HSD",
+                    #         "HSPD",
+                    #         "SHV",
+                    #         "SISUSTS",
+                    #         "SRSLMF",
+                    #         "JPGF",
+                    #         "VQAQCR",
+                    #         "VQAQCTSB",
+                    #         "VQAQCTSF",
+                    #         "VQAQCTSSD",
+                    #         "IBPP",
+                    #         "IBTSPP",
+                    #     ],
+                    #     "description": "The ONC-defined dataProductCode for the data product requested. This should be directly related to the extension chosen by the user.",  # (e.g., 'LF' for Log File or 'TSSD' for Time Series Scalar Data)
+                    # },
                     "extension": {
                         "type": "string",
                         "enum": [
                             "txt",
+                            "asf",
                             "qaqc",
                             "json",
                             "mat",
@@ -216,13 +217,14 @@ toolDescriptions = [
                             "nc",
                             "fft",
                             "flac",
+                            "raw",
                             "wav",
                             "an",
                             "csv",
                             "pdf",
                             "jpg",
                         ],
-                        "description": "The file format in which the data product should be delivered.",
+                        "description": "The extension in which the download should be downloaded as.",
                     },
                     "dateFrom": {
                         "type": "string",
@@ -437,22 +439,7 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_scalar_data",
-            "description": (
-                "Call this function ONLY when the user has explicitly requested for scalar data. Pass only the"
-                " parameters that the user has explicitly provided. Do NOT guess, assume, or add any missing parameters."
-                " If the user has not provided dateFrom or dateTo, do NOT include them. The function will handle missing"
-                " parameters appropriately. You should only call this function when you are certain the user wants scalar data."
-                " Otherwise, do NOT call it." # Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode
-                # with a resamplePeriod and resampleType, so that users can request scalar data over a specified time period. Returns the
-                # result of a scalar data request. This function performs a data request to the ONC API, then returns the data to the LLM.
-                #  If this function is called, the LLM will only provide the parameters the user has explicitly given. DO NOT guess, assume,
-                # or invent any parameters. DO NOT add any parameters unless they're explicitly given. If parameters are missing, the function
-                # will handle asking the user for them. If that device isn't deployed at that time, the LLM will respond with the deployment times.
-                # If there is no data from the device during a deployed time, the LLM will tell the user and not invent data. Returns: result (str):
-                # The result of the data request. Args: deviceCategoryCode (str): An ONC-defined code identifying the type of device; locationCode (str):
-                # An ONC-defined code identifying the location of the device; propertyCode (str): An ONC-defined code identifying the type of data being
-                # requested; dateFrom (str): The start date of the data request in ISO 8601 format; dateTo (str): The end date of the data request in ISO 8601 format."
-            ),
+            "description": "Call this function ONLY when the user has explicitly requested for scalar data. Pass only the parameters that the user has explicitly provided. Do NOT guess, assume, or add any missing parameters. If the user has not provided dateFrom or dateTo, do NOT include them. The function will handle missing parameters appropriately. You should only call this function when you are certain the user wants scalar data. Otherwise, do NOT call it.",  # Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode with a resamplePeriod and resampleType, so that users can request scalar data over a specified time period. Returns the result of a scalar data request. This function performs a data request to the ONC API, then returns the data to the LLM. If this function is called, the LLM will only provide the parameters the user has explicitly given. DO NOT guess, assume, or invent any parameters. DO NOT add any parameters unless they're explicitly given. If parameters are missing, the function will handle asking the user for them. If that device isn't deployed at that time, the LLM will respond with the deployment times. If there is no data from the device during a deployed time, the LLM will tell the user and not invent data. Returns: result (str): The result of the data request. Args: deviceCategoryCode (str): An ONC-defined code identifying the type of device; locationCode (str): An ONC-defined code identifying the location of the device; propertyCode (str): An ONC-defined code identifying the type of data being requested; dateFrom (str): The start date of the data request in ISO 8601 format; dateTo (str): The end date of the data request in ISO 8601 format.
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -609,7 +596,7 @@ toolDescriptions = [
                             "benderelectricalresistance",
                             "cdom",
                         ],
-                        "description": "The ONC-defined propertyCode for the scalar data requested",  # (e.g., 'depth' for depth etc.)
+                        "description": "The ONC-defined propertyCode for the scalar data requested (Should not be assumed)",  # (e.g., 'depth' for depth etc.)
                     },
                     "dateFrom": {
                         "type": "string",

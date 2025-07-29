@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pandas as pd
 from langchain.embeddings.base import Embeddings
 from langchain.retrievers.document_compressors import CrossEncoderReranker
@@ -5,6 +7,7 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_community.vectorstores import Qdrant
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
+from qdrant_client.http.models import PointStruct
 from sentence_transformers import SentenceTransformer
 
 from LLM.Environment import Environment
@@ -37,6 +40,7 @@ class QdrantClientWrapper:
         self.function_calling_collection_name = (
             env.get_function_calling_collection_name()
         )
+        self.QA_collection_name = env.get_QA_collection_name()
 
 
 class RAG:
@@ -50,6 +54,7 @@ class RAG:
         self.general_collection_name = (
             self.qdrant_client_wrapper.general_collection_name
         )
+        self.QA_collection_name = self.qdrant_client_wrapper.QA_collection_name
         self.function_calling_collection_name = (
             self.qdrant_client_wrapper.function_calling_collection_name
         )
@@ -67,24 +72,28 @@ class RAG:
         self.model = HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base")
         self.compressor = CrossEncoderReranker(model=self.model, top_n=15)
 
-    def get_documents(self, question: str):
+    def get_documents(self, question: str, previous_points: list[str]):
         query_embedding = self.embedding.embed_query(question)
-        general_results = self.get_documents_helper(
+        (general_results, general_point_ids) = self.get_documents_helper(
             query_embedding,
             question,
             self.general_collection_name,
             min_score=0.4,
             max_returns=10,
         )
-        function_calling_results = self.get_documents_helper(
-            query_embedding,
-            question,
-            self.function_calling_collection_name,
-            min_score=0.4,
-            max_returns=1,
+
+        (function_calling_results, function_calling_point_ids) = (
+            self.get_documents_helper(
+                query_embedding,
+                question,
+                self.function_calling_collection_name,
+                min_score=0.375,
+                max_returns=1,
+                previous_points=previous_points,
+            )
         )
         all_results = general_results._append(function_calling_results)
-        return all_results
+        return (all_results, function_calling_point_ids)
 
     def get_documents_helper(
         self,
@@ -93,6 +102,7 @@ class RAG:
         collection_name: str,
         min_score: float = 0.4,
         max_returns: int = 1,
+        previous_points: list[str] = [],
     ):
         search_results = self.qdrant_client.search(
             collection_name=collection_name,
@@ -101,7 +111,6 @@ class RAG:
             with_payload=True,
             with_vectors=False,
         )
-
         search_results = [hit for hit in search_results if hit.score >= min_score]
 
         documents = [
@@ -110,6 +119,7 @@ class RAG:
                 metadata={
                     "score": hit.score,
                     "source": hit.payload.get("source", "unknown"),
+                    "point_id": hit.id,
                 },
             )
             for hit in search_results
@@ -117,7 +127,26 @@ class RAG:
 
         # No documents were above threshold
         if documents == []:
-            return pd.DataFrame({"contents": []})
+            if previous_points:
+                previous_point_search = self.qdrant_client.retrieve(
+                    collection_name=collection_name,
+                    ids=previous_points,
+                    with_payload=True,
+                )
+                # Get only most recent result from previous data points
+                prev_df = pd.DataFrame(
+                    [
+                        {
+                            "contents": previous_point_search[0].payload["text"],
+                            "sources": previous_point_search[0].payload.get(
+                                "source", "unknown"
+                            ),
+                            "point_ids": previous_point_search[0].id,
+                        }
+                    ]
+                )
+                return (prev_df, prev_df["point_ids"])
+            return (pd.DataFrame({"contents": []}), [])
 
         # Rerank using the CrossEncoderReranker
         reranked_documents = self.compressor.compress_documents(
@@ -138,6 +167,69 @@ class RAG:
 
         compression_contents = [doc.page_content for doc in selected_docs]
         sources = [doc.metadata.get("source", "unknown") for doc in selected_docs]
-        df = pd.DataFrame({"contents": compression_contents, "sources": sources})
+        point_ids = [doc.metadata.get("point_id", "unknown") for doc in selected_docs]
+        df = pd.DataFrame(
+            {
+                "contents": compression_contents,
+                "sources": sources,
+                "point_ids": point_ids,
+            }
+        )
         df = df[:max_returns]
-        return df
+
+        return (df, df["point_ids"])
+
+    # Retrieve Q&A pairs for feedback loop
+    def get_qa_docs(self, question: str):
+        search_results = self.qdrant_client.search(
+            collection_name=self.QA_collection_name,
+            query_vector=self.embedding.embed_query(question),
+            limit=5,
+            with_payload=True,
+            with_vectors=False,
+        )
+
+        qa_docs = []
+        for hit in search_results:
+            qa_docs.append(
+                Document(
+                    page_content=hit.payload["text"], metadata={"score": hit.score}
+                )
+            )
+
+        df_qa = pd.DataFrame({"contents": qa_docs})
+        return df_qa
+
+    # Uploads new Q&A pair to Qdrant Q&A collection
+    # When we receive a "thumbs-up" feedback on an LLM response, backend-api/src/LLM/service.py calls this function
+    async def upload_new_qa(self, qa_pair: dict):
+        current_qa_id = uuid4().hex
+
+        # Determine the actual text content for embedding and payload
+        actual_text_content = qa_pair["text"]
+        if isinstance(actual_text_content, dict) and "response" in actual_text_content:
+            actual_text_content = actual_text_content["response"]
+        elif not isinstance(actual_text_content, str):
+            actual_text_content = str(actual_text_content)
+
+        QA_text = (
+            f"Question: {qa_pair['original_question']} Answer: {actual_text_content}"
+        )
+
+        # embedding_vector = self.Qdrant_model.encode(QA_text)
+        embedding_vector = self.embedding.embed_documents([QA_text])[0]
+
+        item_payload = {
+            "text": actual_text_content,
+            "original_question": qa_pair["original_question"],
+        }
+
+        # Create a PointStruct for the new data point
+        new_point = PointStruct(
+            id=current_qa_id, vector=embedding_vector, payload=item_payload
+        )
+        # Upload the new point to Qdrant collection
+        self.qdrant_client.upsert(
+            collection_name=self.QA_collection_name,
+            points=[new_point],  # upsert expects a list of points
+        )

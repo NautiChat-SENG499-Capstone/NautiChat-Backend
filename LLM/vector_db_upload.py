@@ -1,6 +1,8 @@
 import io
 import json
 import os
+from collections import defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Union
 from uuid import uuid4
@@ -9,6 +11,12 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from onc import ONC
+from qdrant_client.http.models import (
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PayloadSchemaType,
+)
 from qdrant_client.models import PointStruct
 from unstructured.chunking.title import chunk_by_title
 from unstructured.cleaners.core import clean
@@ -33,7 +41,7 @@ Usage for pdfs (or json's):
 Usage for collecting ONC device data and scraping URIs:
 1. Call `get_device_info_from_onc_for_vdb(location_code)` with the desired location code to retrieve a list of devices and their information, 
     including device description scraped from the corresponding URI.
-2. Use `prepare_embedding_input_from_preformatted(input, embedding_model)` to prepare the embedding input from the list of structured data obtained from get_device_info_from_onc_for_vdb.
+2. Use `prepare_embedding_input_from_preformatted(input)` to prepare the embedding input from the list of structured data obtained from get_device_info_from_onc_for_vdb. Optionally you can provide a JinaEmbedding Instance otherwise one is created. Optionally you can change doChunking to False to not split data into chunks.
 3. Call `upload_to_vector_db(resultsList, qdrant)` to upload the list of results to a Qdrant vector database.
 
 To speed up use assumes that the embedding model and qdrant client are being used from the RAG module.
@@ -132,13 +140,16 @@ def prepare_embedding_input(
 
 # input must be of form [{'paragraphs': ['...', '...'], 'page': [1, 2, ...], 'source': '...'}, ...]
 def prepare_embedding_input_from_preformatted(
-    input: list, embedding_model: JinaEmbeddings = None
+    input: list, embedding_model: JinaEmbeddings = None, doChunking: bool = True
 ):
     results = []
 
     for section in input:
         full_text = " ".join(section["paragraphs"])
-        chunks = chunk_text(full_text)
+        if doChunking:
+            chunks = chunk_text(full_text)
+        else:
+            chunks = [full_text]
 
         if embedding_model is None:
             embedding_model = JinaEmbeddings()
@@ -175,6 +186,76 @@ def getDeviceDefnFromURI(url):
     return definition_text
 
 
+def get_device_deployments_from_onc_for_vdb(location_code):
+    # Gets data on devices from deployment endpoint
+    # Collects data available times by device category code
+    # Combines overlapping time intervals, including those with less than 24 hours seperation
+    env_path = Path(__file__).resolve().parent / ".env"
+    load_dotenv(dotenv_path=env_path)
+    ONC_TOKEN = os.getenv("ONC_TOKEN")
+    onc = ONC(ONC_TOKEN)
+
+    params = {
+        "locationCode": location_code,
+    }
+    devices = onc.getDeployments(params)
+
+    merged = {}
+    curtime = datetime.now()
+    for item in devices:
+        deviceCategoryCode = item["deviceCategoryCode"]
+        begin = datetime.strptime(item["begin"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        if item["end"] is None:
+            end = curtime
+        else:
+            end = datetime.strptime(item["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        if deviceCategoryCode not in merged:
+            # Initialize merged entry with selected fields only
+            merged[deviceCategoryCode] = {
+                "deviceCategoryCode": deviceCategoryCode,
+                "dates": [{"begin": begin, "end": end}],
+            }
+        else:
+            matchFound = False
+            # Find and merge any overlapping intervals
+            for date in merged[deviceCategoryCode]["dates"]:
+                if matchFound:
+                    break
+                elif (
+                    begin < date["begin"]
+                    and date["begin"] <= end + timedelta(days=1)
+                    and end <= date["end"]
+                ):
+                    date["begin"] = begin
+                    matchFound = True
+                elif begin <= date["begin"] and date["end"] <= end:
+                    date["begin"] = begin
+                    date["end"] = end
+                    matchFound = True
+                elif begin >= date["begin"] and date["end"] >= end:
+                    matchFound = True
+                elif (
+                    date["begin"] <= begin
+                    and begin <= date["end"] + timedelta(days=1)
+                    and date["end"] < end
+                ):
+                    date["end"] = end
+                    matchFound = True
+            if not matchFound:
+                merged[deviceCategoryCode]["dates"].append({"begin": begin, "end": end})
+
+    for code in merged:
+        latestEnd = merged[code]["dates"][0]["end"]
+        for date in merged[code]["dates"]:
+            if latestEnd < date["end"]:
+                latestEnd = date["end"]
+            date["begin"] = str(date["begin"])
+            date["end"] = str(date["end"])
+        merged[code]["MostRecentData"] = str(latestEnd)
+
+    return merged
+
+
 def get_device_info_from_onc_for_vdb(location_code):
     env_path = Path(__file__).resolve().parent / ".env"
     load_dotenv(dotenv_path=env_path)
@@ -185,18 +266,43 @@ def get_device_info_from_onc_for_vdb(location_code):
         "locationCode": location_code,
     }
     devices = onc.getDevices(params)
+    merged = {}
+
+    for item in devices:
+        deviceCategoryCode = item["deviceCategoryCode"]
+
+        if deviceCategoryCode not in merged:
+            # Initialize merged entry with selected fields only
+            merged[deviceCategoryCode] = {
+                "cvTerm": item["cvTerm"],
+                "dataRating": item["dataRating"],
+                "deviceCategoryCode": deviceCategoryCode,
+                "deviceCode": item["deviceCode"],
+                "deviceName": item["deviceName"],
+                "hasDeviceData": item["hasDeviceData"],
+            }
+        else:
+            merged[deviceCategoryCode]["dataRating"].extend(item["dataRating"])
+
+    devices = list(merged.values())
+    deployments = get_device_deployments_from_onc_for_vdb(location_code)
     results = []
     for i in devices:
         i["LocationCode"] = location_code
-        del i["deviceLink"]
+
         for j in i["cvTerm"]["device"]:
             if "uri" in j:
                 j["description"] = getDeviceDefnFromURI(j["uri"])
                 del j["uri"]
+
+        i.pop("dataRating", None)
+
+        i["DataAvailableDates"] = deployments[i["deviceCategoryCode"]]["dates"]
+        i["MostRecentData"] = deployments[i["deviceCategoryCode"]]["MostRecentData"]
+
         results.append(
             {"paragraphs": [str(i)], "page": [], "source": "ONC OCEANS 3.0 API"}
         )
-
     return results
 
 
@@ -340,3 +446,78 @@ def process_json(
                 }
             )
     return results
+
+
+# Returns current time for vdb_auto_upload
+def get_current_time():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+
+
+# Function gets called through APScheduler jobs to delete existing "ONC OCEANS 3.0 API" points and reupload with today's date
+# Uploads to ONC-General
+# APScheduler job in lifespan.py calls this every 24 hours
+def vdb_auto_upload(app_state):
+    try:
+        print(f"{get_current_time()} vector DB auto upload - START")
+        qdrant_client_wrapper = app_state.rag.qdrant_client_wrapper
+
+        locationcodes_str = os.getenv("location_codes")
+        if locationcodes_str:
+            locationcodes = [code.strip() for code in locationcodes_str.split(",")]
+        else:
+            locationcodes = []
+            print(
+                f"{get_current_time()} vector DB auto upload - END - WARN: 'location_codes' not found in .env or is empty. No locations to process."
+            )
+            return  # Exit if no codes to process
+
+        # Create a payload index for "source" field (can't filter without this)
+        qdrant_client_wrapper.qdrant_client.create_payload_index(
+            collection_name=qdrant_client_wrapper.general_collection_name,
+            field_name="source",
+            field_schema=PayloadSchemaType.KEYWORD,
+        )
+
+        filter_condition = Filter(
+            must=[
+                FieldCondition(
+                    key="source", match=MatchValue(value="ONC OCEANS 3.0 API")
+                )
+            ]
+        )
+
+        # Getting a count of how many points we're deleting just to print
+        filtered_points = qdrant_client_wrapper.qdrant_client.count(
+            collection_name=qdrant_client_wrapper.general_collection_name,
+            count_filter=filter_condition,
+            exact=True,
+        )
+
+        print(
+            f"{get_current_time()} vector DB auto upload - Deleting {filtered_points.count} points from {qdrant_client_wrapper.general_collection_name}"
+        )
+        qdrant_client_wrapper.qdrant_client.delete(
+            qdrant_client_wrapper.general_collection_name,
+            points_selector=filter_condition,
+        )
+
+        print(
+            f"{get_current_time()} vector DB auto upload - Calling ONC API for devices"
+        )
+        inputs = []
+        for location_code in locationcodes:
+            inputs.extend(get_device_info_from_onc_for_vdb(location_code=location_code))
+
+        prepare_embedding_input = prepare_embedding_input_from_preformatted(
+            input=inputs, embedding_model=JinaEmbeddings(), doChunking=False
+        )
+
+        print(
+            f"{get_current_time()} vector DB auto upload - Uploading {len(prepare_embedding_input)} points to {qdrant_client_wrapper.general_collection_name}"
+        )
+        upload_to_vector_db(prepare_embedding_input, qdrant_client_wrapper)
+        print(f"{get_current_time()} vector DB auto upload - END")
+    except Exception as e:
+        print(
+            f"{get_current_time()} vector DB auto upload - ERROR: An error occurred: {e}"
+        )
