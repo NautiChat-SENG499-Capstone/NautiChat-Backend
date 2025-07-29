@@ -1,44 +1,13 @@
 toolDescriptions = [
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "vectorDB",
-    #         "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "user_prompt": {
-    #                     "type": "string",
-    #                     "description": "The user's query to retrieve relevant documents.",
-    #                 }
-    #             },
-    #             "required": ["user_prompt"],
-    #         },
-    #     },
-    # },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "get_properties_at_cambridge_bay",
-    #         "description": "Get a list of properties available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 # "user_onc_token": {
-    #                 #     "type": "string",
-    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
-    #                 # }
-    #             },
-    #         },
-    #         "required": [],
-    #     },
-    # },
     {
         "type": "function",
         "function": {
             "name": "get_active_instruments_at_cambridge_bay",
             "description": (
-                'Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string: Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n Note: This function does not take any parameters'
+                "Get the number of currently deployed instruments at Cambridge Bay collecting data, filtered by a"
+                " curated list of device category codes. Skips any failed queries silently.\n Returns:\n JSON string:"
+                ' Dictionary with instrument count and metadata.\n {\n "activeInstrumentCount": int,\n "details": [ ... ]\n }\n'
+                " Note: This function does not take any parameters."
             ),
             "parameters": {
                 "type": "object",
@@ -52,7 +21,11 @@ toolDescriptions = [
         "function": {
             "name": "get_time_range_of_available_data",
             "description": (
-                "Returns a sorted list of deployment time ranges for instruments at Cambridge Bay for a given device category. Deployment times do not necessarily relate to availability of data, make sure this is clear in the response.\n Each time range includes:\n - begin (str): ISO 8601 deployment start time\n - end (str | null): ISO 8601 deployment end time (null if ongoing)\n This function helps identify periods when specific device types were deployed. The data returned by this function represents the deployments accessed through the ONC API"
+                "Returns a sorted list of deployment time ranges for instruments at Cambridge Bay for a given device category."
+                " Deployment times do not necessarily relate to availability of data, make sure this is clear in the response.\n"
+                " Each time range includes:\n - begin (str): ISO 8601 deployment start time\n - end (str | null): ISO 8601 deployment"
+                " end time (null if ongoing)\n This function helps identify periods when specific device types were deployed. The data"
+                " returned by this function represents the deployments accessed through the ONC API."
             ),
             "parameters": {
                 "type": "object",
@@ -87,7 +60,13 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_deployed_devices_over_time_interval",
-            "description": "Get the devices at cambridge bay deployed over the specified time interval including sublocations \nReturns: \nJSON string: List of deployed devices and their metadata Each item includes: \n- begin (str): deployment start time \n- end (str): deployment end time \n- deviceCode (str) \n- deviceCategoryCode (str) \n- locationCode (str) \n- citation (dict): citation metadata (includes description, doi, etc) \nArgs: \ndateFrom (str): ISO 8601 start date (ex: '2016-06-01T00:00:00.000Z') \ndateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')",
+            "description": (
+                "Get the devices at cambridge bay deployed over the specified time interval including sublocations \nReturns:"
+                " \nJSON string: List of deployed devices and their metadata Each item includes: \n- begin (str): deployment"
+                " start time \n- end (str): deployment end time \n- deviceCode (str) \n- deviceCategoryCode (str) \n- locationCode (str)"
+                " \n- citation (dict): citation metadata (includes description, doi, etc) \nArgs: \ndateFrom (str): ISO 8601 start date"
+                " (ex: '2016-06-01T00:00:00.000Z') \ndateTo (str): ISO 8601 end date (ex: '2016-09-30T23:59:59.999Z')"
+            ),
             "parameters": {
                 "properties": {
                     "dateFrom": {
@@ -108,7 +87,13 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "generate_download_codes",
-            "description": "Call this function ONLY when the user has explicitly requested to download or retrieve data from Ocean Networks Canada (ONC). Pass only the parameters that the user has explicitly provided. Do NOT guess, assume, or add any missing parameters. If the user has not provided dateFrom or dateTo, do NOT include them. The function will handle missing parameters appropriately. After calling this function, you are NOT responsible for generating any response related to the download result — your task ends here. You should only call this function when you are certain the user wants data downloaded. Otherwise, do NOT call it.",
+            "description": (
+                "Call this function ONLY when the user has explicitly requested to download or retrieve data from Ocean Networks Canada (ONC)."
+                " Pass only the parameters that the user has explicitly provided. Do NOT guess, assume, or add any missing parameters. If the user"
+                " has not provided dateFrom or dateTo, do NOT include them. The function will handle missing parameters appropriately. After calling"
+                " this function, you are NOT responsible for generating any response related to the download result — your task ends here. You should"
+                " only call this function when you are certain the user wants data downloaded. Otherwise, do NOT call it."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -254,7 +239,11 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_daily_air_temperature_stats_cambridge_bay",
-            "description": "Get daily air temperature statistics (date, min, max, average, sample count) for Cambridge Bay on a given date. Temperature should be expressed in degrees Celsius. If no data exists for that time range then tell the user that no data exists for that time range.",
+            "description": (
+                "Get daily air temperature statistics (date, min, max, average, sample count) for Cambridge Bay on a given date."
+                " Temperature should be expressed in degrees Celsius. If no data exists for that time range then tell the user that"
+                " no data exists for that time range."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -271,7 +260,12 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_oxygen_data_24h",
-            "description": "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals. The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of '2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user that no data exists for that time range. ",
+            "description": (
+                "Retrieve 24 hours of Oxygen data (dissolved oxygen measurements) (in mL/L) for Cambridge Bay at 1-hour intervals."
+                " The function returns the oxygen levels with their corresponding dates.  If no date is provided a default date of"
+                " '2024-06-24' is used, which is guaranteed to have data. If no data exists for that time range then tell the user"
+                " that no data exists for that time range."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -284,28 +278,60 @@ toolDescriptions = [
             },
         },
     },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "get_ship_noise_for_date",
-    #         "description": "Get 24 hours of ship-noise data for Cambridge Bay on a specific date, returned as a JSON string of the full time series.",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "date_from_str": {
-    #                     "type": "string",
-    #                     "description": "Date in YYYY-MM-DD format (e.g. \"2024-07-31\") for which to retrieve ship-noise data."
-    #                 },
-    #             },
-    #             "required": ["date_from_str", "user_onc_token"]
-    #         },
-    #     },
-    # },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ship_noise_acoustic_for_date",
+            "description": (
+                "Submit a request to retrieve 24 hours of ship noise acoustic data (WAV format) "
+                "from the Cambridge Bay hydrophone using Ocean Networks Canada's dataProductDelivery API. "
+                "This function initiates a request for the 'AD' (acoustic data) product and returns metadata "
+                "about the order, including the request ID, request parameters, and a status code. "
+                "Note: It does not download or return the audio file itself."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date_from_str": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window.",
+                    },
+                },
+                "required": ["date_from_str"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "plot_spectrogram_for_date",
+            "description": (
+                "Submit a request for a 24-hour ship noise spectrogram (PNG image) from the Cambridge Bay hydrophone "
+                "using Ocean Networks Canada's dataProductDelivery API. The function requests the 'HSD' data product, "
+                "returning a request ID, order metadata, the parameters used, and a status code. "
+                "It does not return the spectrogram image itself, but allows for tracking or downloading it later."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date_str": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format representing the start of the 24-hour window.",
+                    },
+                },
+                "required": ["date_str"],
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
             "name": "get_wind_speed_at_timestamp",
-            "description": "Get wind speed (m/s) at Cambridge Bay for a given day and Hour of that day, returning the exact or nearest sample. Wind speed is expressed in meters per second (m/s). If no data exists for that time range then tell the user that no data exists for that time range.",
+            "description": (
+                "Get wind speed (m/s) at Cambridge Bay for a given day and Hour of that day, returning the exact or nearest sample."
+                " Wind speed is expressed in meters per second (m/s). If no data exists for that time range then tell the user that"
+                " no data exists for that time range."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -326,7 +352,12 @@ toolDescriptions = [
         "type": "function",
         "function": {
             "name": "get_ice_thickness",
-            "description": "Get the average daily sea-ice thickness the days provided (inclusive) for Cambridge Bay. Returns the average ice thickness representing the mean ice thickness (in meters) for the days given (inclusive), or -1 if no data is found. If you get the -1 value returned tell the user that no data exists for that time range.",
+            "description": (
+                "Get the average daily sea-ice thickness the days provided (inclusive) for Cambridge Bay."
+                " Returns the average ice thickness representing the mean ice thickness (in meters) for the"
+                " days given (inclusive), or -1 if no data is found. If you get the -1 value returned tell the"
+                " user that no data exists for that time range."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {

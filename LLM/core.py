@@ -16,6 +16,7 @@ from LLM.Constants.tool_descriptions import toolDescriptions
 from LLM.Constants.utils import (
     create_user_call,
     handle_data_download,
+    handle_plotting_requests,
     handle_scalar_request,
 )
 from LLM.data_download import generate_download_codes
@@ -27,13 +28,14 @@ from LLM.tools_sprint1 import (
     get_daily_sea_temperature_stats_cambridge_bay,
     get_deployed_devices_over_time_interval,
     get_time_range_of_available_data,
-    # get_properties_at_cambridge_bay,
 )
 from LLM.tools_sprint2 import (
     get_daily_air_temperature_stats_cambridge_bay,
     get_ice_thickness,
     get_oxygen_data_24h,
+    get_ship_noise_acoustic_for_date,
     get_wind_speed_at_timestamp,
+    plot_spectrogram_for_date,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,15 +50,16 @@ class LLM:
         self.model = env.get_model()
         self.RAG_instance: RAG = RAG_instance or RAG(env=self.env)
         self.available_functions = {
-            # "get_properties_at_cambridge_bay": get_properties_at_cambridge_bay,
             "get_daily_sea_temperature_stats_cambridge_bay": get_daily_sea_temperature_stats_cambridge_bay,
             "get_deployed_devices_over_time_interval": get_deployed_devices_over_time_interval,
             "get_active_instruments_at_cambridge_bay": get_active_instruments_at_cambridge_bay,
             "generate_download_codes": generate_download_codes,
             "get_daily_air_temperature_stats_cambridge_bay": get_daily_air_temperature_stats_cambridge_bay,
             "get_oxygen_data_24h": get_oxygen_data_24h,
+            "get_ship_noise_acoustic_for_date": get_ship_noise_acoustic_for_date,
             "get_wind_speed_at_timestamp": get_wind_speed_at_timestamp,
             "get_ice_thickness": get_ice_thickness,
+            "plot_spectrogram_for_date": plot_spectrogram_for_date,
             "get_scalar_data": get_scalar_data,
             "get_time_range_of_available_data": get_time_range_of_available_data,
         }
@@ -166,7 +169,6 @@ class LLM:
                     ),
                 },
             ]
-            # print("Messages before tool calls:", messages)
 
             response = self.client.chat.completions.create(
                 model=self.model,  # LLM to use
@@ -180,13 +182,9 @@ class LLM:
 
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
-            # print("First Response from LLM:", response_message.content)
-            # print(tool_calls)
             doing_data_download = False
             doing_scalar_request = False
             if tool_calls:
-                # print("Tool calls detected, processing...")
-                # print("tools calls:", tool_calls)
                 tool_calls = list(
                     OrderedDict(
                         ((call.id, call.function.name, call.function.arguments), call)
@@ -202,10 +200,8 @@ class LLM:
                     if function_name in self.available_functions:
                         if function_name == "generate_download_codes":
                             # Special case for download codes
-                            # print("Generating download codes...")
                             doing_data_download = True
                         if function_name == "get_scalar_data":
-                            # print("Doing Scalar request...")
                             doing_scalar_request = True
                         try:
                             function_args = json.loads(tool_call.function.arguments)
@@ -218,8 +214,6 @@ class LLM:
                             function_args.copy() if function_args else {}
                         )
                         if doing_data_download or doing_scalar_request:
-                            # print("function_args: ", function_args)
-                            # print("**function_args: ",**function_args)
                             function_args["obtainedParams"] = obtained_params
 
                         function_response = await self.call_tool(
@@ -245,6 +239,16 @@ class LLM:
                         obtained_params: ObtainedParamsDictionary = (
                             ObtainedParamsDictionary()
                         )
+                        if (
+                            function_name == "get_ship_noise_acoustic_for_date"
+                            or function_name == "plot_spectrogram_for_date"
+                        ):
+                            return handle_plotting_requests(
+                                function_response=function_response,
+                                sources=sources,
+                                obtained_params=obtained_params,
+                                point_ids=point_ids,
+                            )
 
                         toolMessages.append(
                             ToolCall(
@@ -257,25 +261,6 @@ class LLM:
                                 ),
                             )
                         )
-                        # toolMessages.append(
-                        #     {
-                        #         "role": "assistant",
-                        #         "tool_call": {
-                        #             "name": function_name,
-                        #             "arguments": function_args_no_obtained_params,
-                        #         }
-                        #     }
-                        # )
-                        # toolMessages.append(
-                        #     {
-                        #         "role": "tool",  # Indicates this message is from tool use
-                        #         "name": function_name,
-                        #         "content": json.dumps(
-                        #             function_response.get("response", "")
-                        #         ),
-                        #     }
-                        # )  # May be able to use this for getting most recent data if needed.
-                # print("Messages after tool calls:", messages)
                 secondLLMCallStartingPrompt = generate_system_prompt(
                     second_LLM_prompt,
                     context={
@@ -296,7 +281,6 @@ class LLM:
                     },
                     {"role": "user", "content": userInput},
                 ]
-                # print("Messages without context:", messagesNoContext)
                 second_response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messagesNoContext,  # Conversation history without context and different starting system prompt
@@ -305,7 +289,6 @@ class LLM:
                     stream=False,
                 )  # Calls LLM again with all the data from all functions
                 # Return the final response
-                # print("Second response: ", second_response.choices[0].message)
                 response = second_response.choices[0].message.content
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
@@ -320,7 +303,6 @@ class LLM:
                     point_ids=point_ids,
                 )
             else:
-                # print(response_message)
                 return RunConversationResponse(
                     status=StatusCode.REGULAR_MESSAGE,
                     response=response_message.content,

@@ -63,6 +63,39 @@ def sync_param(field_name: str, local_value, params_model, all_obtained_params: 
     return local_value
 
 
+def handle_plotting_requests(
+    function_response: dict,
+    sources: list,
+    obtained_params: ObtainedParamsDictionary,
+    point_ids: list[str] = None,
+) -> RunConversationResponse:
+    if function_response.get("status") == StatusCode.PROCESSING_DATA_DOWNLOAD:
+        return RunConversationResponse(
+            status=StatusCode.PROCESSING_DATA_DOWNLOAD,
+            response=function_response.get(
+                "response", "Your download is being processed."
+            ),
+            dpRequestId=function_response.get("dpRequestId"),
+            doi=function_response.get("doi"),
+            citation=function_response.get("citation"),
+            urlParamsUsed=function_response.get("urlParamsUsed", {}),
+            baseUrl=function_response.get("baseUrl", ""),
+            obtainedParams=obtained_params,
+            sources=sources if sources else [],
+            point_ids=point_ids,
+        )
+    else:
+        return RunConversationResponse(
+            status=StatusCode.REGULAR_MESSAGE,
+            response=function_response.get("response", ""),
+            obtainedParams=obtained_params,
+            sources=sources if sources else [],
+            point_ids=point_ids,
+            urlParamsUsed=function_response.get("urlParamsUsed", {}),
+            baseUrl=function_response.get("baseUrl", ""),
+        )
+
+
 def handle_scalar_request(
     function_response: dict,
     sources: list,

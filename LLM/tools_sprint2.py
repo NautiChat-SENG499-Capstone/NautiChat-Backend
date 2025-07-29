@@ -1,20 +1,10 @@
 from datetime import datetime, timedelta
+from typing import Dict
 
 from onc import ONC
 
-# import os
-# from dotenv import load_dotenv
-# from pathlib import Path
-
-# # Load API key and location code from .env
-# env_path = Path(__file__).resolve().parent / ".env"
-# load_dotenv(dotenv_path=env_path)
-# ONC_TOKEN = os.getenv("ONC_TOKEN")
-# CAMBRIDGE_LOCATION_CODE = os.getenv("CAMBRIDGE_LOCATION_CODE")  # Change for a different location
-# cambridgeBayLocations = ["CBY", "CBYDS", "CBYIP", "CBYIJ", "CBYIU", "CBYSP", "CBYSS", "CBYSU", "CF240"]
-
-# # Create ONC object
-# onc = ONC(ONC_TOKEN)
+from LLM.Constants.status_codes import StatusCode
+from LLM.schemas import ObtainedParamsDictionary
 
 
 # What was the air temperature in Cambridge Bay on this day last year?
@@ -36,6 +26,7 @@ async def get_daily_air_temperature_stats_cambridge_bay(
           }
     """
     onc = ONC(user_onc_token)
+
     # Build 24-hour window
     date_to_str = (
         datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
@@ -111,8 +102,9 @@ async def get_oxygen_data_24h(
         pandas DataFrame with datetime + oxygen_ml_per_l columns,
         sampled at 10 minute intervals.
     """
-    # Build 24-hour window
     onc = ONC(user_onc_token)
+
+    # Build 24-hour window
     date_to_str = (
         datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
     ).strftime("%Y-%m-%d")
@@ -170,38 +162,165 @@ async def get_oxygen_data_24h(
 
 
 # I’m interested in data on ship noise for July 31, 2024 / Get me the acoustic data for the last day in July of 2024
-# async def get_ship_noise_acoustic_for_date(day_str: str,  user_onc_token: str):
-#     """
-#     Get 24 hours of ship noise data for Cambridge Bay on a specific date.
-#     Args:
-#         day_str (str): Date in YYYY-MM-DD format
-#     Returns:
-#         JSON string of the scalar data response
-#     """
-#     onc = ONC(user_onc_token)
-#     # Define 24 hour window
-#     date_from_str = day_str
-#     # Parse into datetime object to add 1 day (accounts for 24-hour period)
-#     date_to = datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days = 1)
-#     date_to_str = date_to.strftime("%Y-%m-%d")  # Convert back to string
+async def get_ship_noise_acoustic_for_date(
+    date_from_str: str, user_onc_token: str
+) -> dict:
+    """
+    Submit a request to ONC's API for 24 hours of ship noise acoustic data (WAV format)
+    from Cambridge Bay. Returns request metadata and status.
 
-#     # Fetch relevant data through API request
-#     params = {
-#         "locationCode": {CAMBRIDGE_LOCATION_CODE},
-#         "deviceCategoryCode": "HYDROPHONE",
-#         "propertyCode": "voltage",
-#         "dateFrom": {date_from_str},
-#         "dateTo": {date_to_str},
-#         "rowLimit": 250,
-#         "token": {ONC_TOKEN}
-#     }
-#     data = onc.getScalardata(params)
+    Args:
+        date_from_str (str): Start date in YYYY‑MM‑DD format
+        user_onc_token (str): ONC API token
 
-#     return {"response": data}
+    Returns:
+        dict: {
+            "status": int,
+            "response": { ... },
+            "urlParamsUsed": { ... },
+            "baseUrl": "...",
+        }
+        or error:
+        {
+            "status": int,
+            "error": str,
+            "urlParamsUsed": { ... },
+            "baseUrl": "...",
+        }
+    """
+    onc = ONC(user_onc_token)
+
+    # Build 24-hour window
+    date_to_str = (
+        datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
+    ).strftime("%Y-%m-%d")
+
+    params = {
+        "dataProductCode": "AD",  # Acoustic Data
+        "extension": "wav",
+        "dateFrom": date_from_str,
+        "dateTo": date_to_str,
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "HYDROPHONE",
+        "dpo_audioDownsample": -1,  # Keep original sampling rate
+        "dpo_audioFormatConversion": 0,  # Skip reprocessing if already archived
+    }
+
+    params["token"] = user_onc_token  # Add the ONC token to the parameters.
+
+    try:
+        # Submit data product order to ONC
+        order = onc.requestDataProduct(params)
+
+        # Try to extract request ID, DOI, etc. if present
+        dpRequestId = order["dpRequestId"]
+        doi = order["citations"][0]["doi"] if order else "No DOI available"
+        citation = (
+            order["citations"][0]["citation"] if order else "No citation available"
+        )
+
+        return {
+            "status": StatusCode.PROCESSING_DATA_DOWNLOAD,
+            "dpRequestId": dpRequestId,
+            "doi": doi,
+            "citation": citation,
+            "response": (
+                f"Ship noise .wav file order successfully queued for Cambridge Bay "
+                f"from {date_from_str} to {date_to_str}."
+            ),
+            "urlParamsUsed": params,
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/requestDataProduct?",
+            "obtainedParams": ObtainedParamsDictionary(
+                **params
+            ),  # Structured as a Pydantic model
+        }
+
+    except Exception as e:
+        print(
+            f"{type(e).__name__} occurred while submitting noise acoustic data request: {e}"
+        )
+        return {
+            "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+            "response": "An error occurred while submitting your noise acoustic data request.",
+            "obtainedParams": ObtainedParamsDictionary(**params),
+            "urlParamsUsed": params,
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/requestDataProduct?",
+        }
 
 
 # Can I see the noise data for July 31, 2024 as a spectogram?
-# TO DO data download
+async def plot_spectrogram_for_date(date_str: str, user_onc_token: str) -> Dict:
+    """
+    Submit a request to Ocean Networks Canada's dataProductDelivery API for a
+    ship noise spectrogram image from the Cambridge Bay hydrophone for a given date.
+
+    This function requests the pre-generated spectrogram (PNG format) covering a
+    24-hour period and returns metadata about the request. This does not return the actual
+    image but returns a reference to the order request.
+
+    Args:
+        date_str (str): Date of interest in YYYY-MM-DD format.
+        user_onc_token (str): ONC API access token.
+
+    Returns:
+        dict: A dictionary containing status, response, and metadata.
+    """
+    onc = ONC(user_onc_token)
+
+    # Build 24-hour window
+    date_from = date_str
+    date_to = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
+
+    params = {
+        "dataProductCode": "HSD",  # Hydrophone Spectrogram Data
+        "extension": "png",
+        "dateFrom": date_from,
+        "dateTo": date_to,
+        "locationCode": "CBYIP",
+        "deviceCategoryCode": "HYDROPHONE",
+    }
+
+    params["token"] = user_onc_token  # Add the ONC token to the parameters.
+
+    try:
+        # Submit data product order to ONC
+        order = onc.requestDataProduct(params)
+
+        # Try to extract request ID, DOI, etc. if present
+        print(order)
+        dpRequestId = order["dpRequestId"]
+        doi = order["citations"][0]["doi"] if order else "No DOI available"
+        citation = (
+            order["citations"][0]["citation"] if order else "No citation available"
+        )
+
+        return {
+            "status": StatusCode.PROCESSING_DATA_DOWNLOAD,
+            "dpRequestId": dpRequestId,
+            "doi": doi,
+            "citation": citation,
+            "response": (
+                f"Ship noise spectrogram order successfully queued for Cambridge Bay "
+                f"from {date_from} to {date_to}."
+            ),
+            "urlParamsUsed": params,
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/requestDataProduct?",
+            "obtainedParams": ObtainedParamsDictionary(
+                **params
+            ),  # Structured as a Pydantic model
+        }
+
+    except Exception as e:
+        print(f"{type(e).__name__} occurred while submitting spectrogram request: {e}")
+        return {
+            "status": StatusCode.ERROR_WITH_DATA_DOWNLOAD,
+            "response": "An error occurred while submitting your spectrogram data request.",
+            "obtainedParams": ObtainedParamsDictionary(**params),
+            "urlParamsUsed": params,
+            "baseUrl": "https://data.oceannetworks.ca/api/hydrophone/requestDataProduct?",
+        }
 
 
 # How windy was it at noon on March 1 in Cambridge Bay?
@@ -217,6 +336,7 @@ async def get_wind_speed_at_timestamp(
         float: windspeed at that time (in m/s), or the nearest sample.
     """
     onc = ONC(user_onc_token)
+
     # Parse into datetime and get the date
     date_time_date_from_str = datetime.strptime(date_from_str, "%Y-%m-%d")
     # Parse into datetime object to add 1 day (accounts for 24-hour period)
@@ -290,11 +410,6 @@ async def get_wind_speed_at_timestamp(
     }
 
 
-# I’m doing a school project on Arctic fish. Does the platform have any underwater
-# imagery and could I see an example?
-# TO DO data download
-
-
 # How thick was the ice in February this year?
 async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token: str):
     """
@@ -305,6 +420,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
         JSON string of the scalar data response
     """
     onc = ONC(user_onc_token)
+
     # Include the full end_date by adding one day (API dateTo is exclusive)
     # date_to_str = (
     #     datetime.strptime(date_from_str, "%Y-%m-%d")
@@ -314,6 +430,7 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
         date_to_str = (
             datetime.strptime(date_from_str, "%Y-%m-%d") + timedelta(days=1)
         ).strftime("%Y-%m-%d")
+
     params = {
         "locationCode": "CBYIP",
         "deviceCategoryCode": "ICEPROFILER",
@@ -366,11 +483,3 @@ async def get_ice_thickness(date_from_str: str, date_to_str: str, user_onc_token
         },
         "baseUrl": "https://data.oceannetworks.ca/api/scalardata/location?",
     }
-
-
-# I would like a plot which shows the water depth so I can get an idea of tides in the Arctic for July 2023
-# TO DO data download
-
-
-# Can you show me a recent video from the shore camera?
-# TO DO data download
