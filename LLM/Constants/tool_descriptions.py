@@ -1,38 +1,4 @@
 toolDescriptions = [
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "vectorDB",
-    #         "description": "Retrieves relevant documents from the vector database based on the user prompt including: sensor data, metadata, and more. Should call this function first to get relevant information from the database before calling other functions.",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "user_prompt": {
-    #                     "type": "string",
-    #                     "description": "The user's query to retrieve relevant documents.",
-    #                 }
-    #             },
-    #             "required": ["user_prompt"],
-    #         },
-    #     },
-    # },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "get_properties_at_cambridge_bay",
-    #         "description": "Get a list of properties available at Cambridge Bay. The function returns a list of dictionaries. Each Item in the list includes:\n        - description (str): Description of the property. The description may have a colon in it.\n        - propertyCode (str): Property Code of the property\n",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 # "user_onc_token": {
-    #                 #     "type": "string",
-    #                 #     "description": "User's ONC token for API access. This is required to access the data.",
-    #                 # }
-    #             },
-    #         },
-    #         "required": [],
-    #     },
-    # },
     {
         "type": "function",
         "function": {
@@ -382,33 +348,6 @@ toolDescriptions = [
             },
         },
     },
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "plot_monthly_water_depth",
-    #         "description": (
-    #         "Retrieve a NetCDF (.nc) file containing CTD cast profile data for water depth"
-    #         " in Cambridge Bay for a given month. The file is generated using Ocean Networks Canada's"
-    #         " 'Cast Scalar Profile Plot and Data' (CSPPD) product, which includes profiles of"
-    #         " temperature, salinity, depth, and other measurements collected during the month."
-    #         " Returns the local file path to the downloaded NetCDF file."
-    #         ),
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "month_str": {
-    #                     "type": "string",
-    #                     "description": "Month in YYYY-MM format (e.g., '2025-07') to retrieve water depth cast data for."
-    #                 },
-    #                 # "user_onc_token": {
-    #                 #     "type": "string",
-    #                 #     "description": "A valid Ocean Networks Canada API access token."
-    #                 # }
-    #             },
-    #             "required": ["month_str"]
-    #         },
-    #     },
-    # },
     {
         "type": "function",
         "function": {
