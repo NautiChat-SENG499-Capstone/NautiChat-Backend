@@ -438,18 +438,20 @@ toolDescriptions = [
         "function": {
             "name": "get_scalar_data",
             "description": (
-                "Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode with a"
-                " resamplePeriod and resampleType, so that users can request scalar data over a specified time period."
-                " Returns the result of a scalar data request. This function performs a data request to the ONC API, then"
-                " returns the data to the LLM. If this function is called, the LLM will only provide the parameters the user"
-                " has explicitly given. DO NOT guess, assume, or invent any parameters. DO NOT add any parameters unless they're"
-                " explicitly given. If parameters are missing, the function will handle asking the user for them. If that device"
-                " isn't deployed at that time, the LLM will respond with the deployment times. If there is no data from the device"
-                " during a deployed time, the LLM will tell the user and not invent data. Returns: result (str): The result of the"
-                " data request. Args: deviceCategoryCode (str): An ONC-defined code identifying the type of device; locationCode (str):"
-                " An ONC-defined code identifying the location of the device; propertyCode (str): An ONC-defined code identifying the"
-                " type of data being requested; dateFrom (str): The start date of the data request in ISO 8601 format; dateTo (str): The"
-                " end date of the data request in ISO 8601 format."
+                "Call this function ONLY when the user has explicitly requested for scalar data. Pass only the"
+                " parameters that the user has explicitly provided. Do NOT guess, assume, or add any missing parameters."
+                " If the user has not provided dateFrom or dateTo, do NOT include them. The function will handle missing"
+                " parameters appropriately. You should only call this function when you are certain the user wants scalar data."
+                " Otherwise, do NOT call it." # Get the deviceCategoryCode at a certain locationCode at Cambridge Bay in a propertyCode
+                # with a resamplePeriod and resampleType, so that users can request scalar data over a specified time period. Returns the
+                # result of a scalar data request. This function performs a data request to the ONC API, then returns the data to the LLM.
+                #  If this function is called, the LLM will only provide the parameters the user has explicitly given. DO NOT guess, assume,
+                # or invent any parameters. DO NOT add any parameters unless they're explicitly given. If parameters are missing, the function
+                # will handle asking the user for them. If that device isn't deployed at that time, the LLM will respond with the deployment times.
+                # If there is no data from the device during a deployed time, the LLM will tell the user and not invent data. Returns: result (str):
+                # The result of the data request. Args: deviceCategoryCode (str): An ONC-defined code identifying the type of device; locationCode (str):
+                # An ONC-defined code identifying the location of the device; propertyCode (str): An ONC-defined code identifying the type of data being
+                # requested; dateFrom (str): The start date of the data request in ISO 8601 format; dateTo (str): The end date of the data request in ISO 8601 format."
             ),
             "parameters": {
                 "type": "object",
