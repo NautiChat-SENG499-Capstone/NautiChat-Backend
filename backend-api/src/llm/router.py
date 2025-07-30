@@ -61,7 +61,7 @@ async def delete_converstation(
 
 
 @router.post("/messages", status_code=201, response_model=Message)
-@limiter.limit("6/minute")
+@limiter.limit("30/minute")
 async def generate_response(
     llm_query: CreateLLMQuery,
     current_user: Annotated[UserOut, Depends(get_current_user)],
