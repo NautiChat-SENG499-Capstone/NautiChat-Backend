@@ -95,8 +95,8 @@ class LLM:
         obtained_params: ObtainedParamsDictionary = ObtainedParamsDictionary(),
         previous_vdb_ids: list[str] = [],
     ) -> RunConversationResponse:
-        point_ids = None
-        sources = None
+        point_ids: list[str] = []
+        sources: list[str] = []
         try:
             current_date = datetime.now().strftime("%Y-%m-%d")
             startingPrompt = generate_system_prompt(
