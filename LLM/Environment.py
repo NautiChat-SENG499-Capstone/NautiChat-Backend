@@ -17,7 +17,6 @@ class Environment:
         self.model = "llama-3.3-70b-versatile"
         self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.qdrant_url = os.getenv("QDRANT_URL")
-        self.knowledge_collection_name = os.getenv("QDRANT_COLLECTION_NAME")
         self.QA_collection_name = os.getenv("QDRANT_QA_COLLECTION_NAME")
         self.general_collection_name = os.getenv("QDRANT_GENERAL_COLLECTION_NAME")
         self.function_calling_collection_name = os.getenv(
